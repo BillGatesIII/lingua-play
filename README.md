@@ -8,7 +8,7 @@ Kids drift to sites full of ads, timers and trackers because those games are fun
 
 ## Run it
 
-Requires Node.js 22.12+.
+Requires Node.js 22.22.2+, 24.15.0+, or 26.0.0+.
 
 ```bash
 npm install

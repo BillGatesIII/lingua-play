@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { STORAGE_KEY, clearProgress, defaultProgress, loadProgress, sanitize, updateProgress } from './storage';
 
 describe('storage', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    clearProgress();
+  });
 
   it('returns defaults when empty or corrupt', () => {
     expect(loadProgress()).toEqual(defaultProgress());
@@ -22,5 +25,16 @@ describe('storage', () => {
     expect(loadProgress().market.served).toBe(4);
     clearProgress();
     expect(loadProgress().market.served).toBe(0);
+  });
+
+  it('retains updates in memory when storage writes fail and erases the fallback', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+    updateProgress((p) => { p.settings.lang = 'en'; });
+    expect(loadProgress().settings.lang).toBe('en');
+    clearProgress();
+    expect(loadProgress()).toEqual(defaultProgress());
+    setItem.mockRestore();
   });
 });

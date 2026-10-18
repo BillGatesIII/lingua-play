@@ -17,7 +17,7 @@ const KEYS: Record<string, Dir> = {
 const samePos = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 
 export const compassPage: Page = (ctx) => {
-  const { lang, band } = ctx;
+  let { lang, band } = ctx;
   const rng = mulberry32((Date.now() ^ 0x85ebca6b) >>> 0);
   let index = 0;
   let level: Level = generateLevel(rng, band, index);
@@ -34,7 +34,7 @@ export const compassPage: Page = (ctx) => {
   ctx.root.append(host);
 
   const left = () => level.budget - used;
-  const say = (m: Bi | null) => { message = m; draw(); };
+  const say = (m: Bi | null, focusTarget?: string) => { message = m; draw(focusTarget); };
 
   function move(dir: Dir) {
     if (found || closed) return;
@@ -56,7 +56,7 @@ export const compassPage: Page = (ctx) => {
         if (!p.compass.treasures.includes(prize)) p.compass.treasures.push(prize);
       });
       found = true;
-      return say({ es: `¡Tesoro! ${prize} ¡Lo encontraste!`, en: `Treasure! ${prize} You found it!` });
+      return say({ es: `¡Tesoro! ${prize} ¡Lo encontraste!`, en: `Treasure! ${prize} You found it!` }, 'next-treasure');
     }
     if (dug.some((d) => samePos(d, pos))) return say({ es: 'Aquí ya cavaste. 🕳️', en: 'You already dug here. 🕳️' });
     dug = [...dug, pos];
@@ -82,7 +82,7 @@ export const compassPage: Page = (ctx) => {
       pos = level.start; used = 0; dug = []; found = false;
     }
     message = null;
-    draw();
+    draw(closed ? 'another-voyage' : 'dig');
   }
 
   const onKey = (e: KeyboardEvent) => {
@@ -114,8 +114,13 @@ export const compassPage: Page = (ctx) => {
     }
     cells.push(h('span', { class: 'axis' }, ''));
     for (let x = 1; x <= n; x++) cells.push(h('span', { class: 'axis' }, String(x)));
+    const coordinates = (p: Pos) => `x = ${p.x}, y = ${p.y}`;
+    const landmark = level.landmarkPos
+      ? `${tr({ es: 'Punto de referencia en', en: 'Landmark at' }, lang)} ${coordinates(level.landmarkPos)}`
+      : tr({ es: 'Sin punto de referencia', en: 'No landmark' }, lang);
+    const rocks = level.rocks.map(coordinates).join('; ');
     return h('div', { class: 'sea', style: `--n:${n}`, role: 'img',
-      'aria-label': `${tr({ es: 'Mapa. Estás en', en: 'Map. You are at' }, lang)} x = ${pos.x}, y = ${pos.y}` }, ...cells);
+      'aria-label': `${tr({ es: 'Mapa de', en: 'Map, size' }, lang)} ${n} × ${n}. ${tr({ es: 'Puerto en', en: 'Harbour at' }, lang)} ${coordinates(level.start)}. ${landmark}. ${tr({ es: 'Rocas en', en: 'Rocks at' }, lang)} ${rocks}. ${tr({ es: 'Barco en', en: 'Boat at' }, lang)} ${coordinates(pos)}.` }, ...cells);
   }
 
   function dpad(): HTMLElement {
@@ -131,7 +136,7 @@ export const compassPage: Page = (ctx) => {
     return h('div', { class: 'dpad' }, ...DIRS.map(btn));
   }
 
-  function draw() {
+  function draw(focusTarget?: string) {
     renderKeepingFocus(host, () => {
       const wrap = h('div', { class: 'game' });
       wrap.append(h('header', { class: 'game__head' },
@@ -145,7 +150,7 @@ export const compassPage: Page = (ctx) => {
           h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'tesoros', en: 'treasures' }, lang) }, loot.join(' ')),
           h('p', {}, tr({ es: 'El barco descansa en el puerto. ¡Vuelve cuando quieras!', en: 'The ship rests in the harbour. Come back whenever you like!' }, lang)),
           h('div', { class: 'row' },
-            Button(tr({ es: 'Otro viaje', en: 'Another voyage' }, lang), { onClick: () => ctx.refresh() }),
+            Button(tr({ es: 'Otro viaje', en: 'Another voyage' }, lang), { onClick: () => ctx.refresh(), focusKey: 'another-voyage' }),
             Button(tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'secondary', href: '#/' })),
         ], 'sun', 'end-card'));
         return wrap;
@@ -159,24 +164,30 @@ export const compassPage: Page = (ctx) => {
             Panel(`📜 ${tr({ es: 'Pista del mapa', en: 'Map clue' }, lang)}`, [
               h('p', { class: 'clue', lang }, clue(lang)),
               translate ? h('p', { class: 'clue clue--sub', lang: other(lang) }, clue(other(lang))) : null,
-              Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, onClick: () => { translate = !translate; draw(); } }),
+              Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, focusKey: 'translate', onClick: () => { translate = !translate; draw(); } }),
             ]),
             Panel(`⛵ ${tr({ es: 'Navegar', en: 'Sail' }, lang)}`, [
-              h('p', { class: 'wind', 'aria-live': 'polite' }, `🌬️ ${left()} ${tr({ es: 'soplos de viento', en: 'gusts of wind' }, lang)} · x = ${pos.x}, y = ${pos.y}`),
+              h('p', { class: 'wind', 'aria-live': 'polite', 'data-live': 'wind' }, `🌬️ ${left()} ${tr({ es: 'soplos de viento', en: 'gusts of wind' }, lang)} · x = ${pos.x}, y = ${pos.y}`),
               dpad(),
               h('div', { class: 'row' },
-                Button(biText({ es: '¡Cavar!', en: 'Dig!' }, lang), { onClick: dig, disabled: found, className: 'dig' }),
-                Button(tr({ es: 'Volver al puerto', en: 'Back to harbour' }, lang), { variant: 'ghost', onClick: restart, disabled: found })),
+                Button(biText({ es: '¡Cavar!', en: 'Dig!' }, lang), { onClick: dig, disabled: found, className: 'dig', focusKey: 'dig' }),
+                Button(tr({ es: 'Volver al puerto', en: 'Back to harbour' }, lang), { variant: 'ghost', onClick: restart, disabled: found, focusKey: 'restart' })),
               h('p', { class: 'muted' }, tr({ es: 'También puedes usar las flechas del teclado.', en: 'You can also use the keyboard arrow keys.' }, lang)),
             ])),
         ),
-        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite' }, message ? biText(message, lang) : null),
-        found ? Button(tr({ es: 'Siguiente tesoro →', en: 'Next treasure →' }, lang), { onClick: next, large: true }) : null,
+        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, message ? biText(message, lang) : null),
+        found ? Button(tr({ es: 'Siguiente tesoro →', en: 'Next treasure →' }, lang), { onClick: next, large: true, focusKey: 'next-treasure' }) : null,
       ]);
       return wrap;
-    });
+    }, focusTarget);
   }
 
   draw();
-  return () => document.removeEventListener('keydown', onKey);
+  return Object.assign(() => document.removeEventListener('keydown', onKey), {
+    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+      lang = nextLang;
+      band = nextBand;
+      draw();
+    },
+  });
 };

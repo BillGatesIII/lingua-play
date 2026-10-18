@@ -9,6 +9,7 @@ export interface Progress {
 }
 
 export const STORAGE_KEY = 'linguaplay.v1';
+let sessionProgress: Progress | null = null;
 
 export const defaultProgress = (): Progress => ({
   settings: { lang: 'es', band: '7-10' },
@@ -33,15 +34,18 @@ export function sanitize(raw: unknown): Progress {
 }
 
 export function loadProgress(): Progress {
+  if (sessionProgress) return sanitize(sessionProgress);
   try {
     const text = localStorage.getItem(STORAGE_KEY);
-    return sanitize(text ? JSON.parse(text) : null);
+    sessionProgress = sanitize(text ? JSON.parse(text) : null);
   } catch {
-    return defaultProgress();
+    sessionProgress = defaultProgress();
   }
+  return sanitize(sessionProgress);
 }
 
 export function saveProgress(p: Progress): void {
+  sessionProgress = sanitize(p);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
   } catch {
@@ -57,10 +61,11 @@ export function updateProgress(fn: (p: Progress) => void): Progress {
 }
 
 export function clearProgress(): Progress {
+  sessionProgress = defaultProgress();
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
   }
-  return defaultProgress();
+  return sanitize(sessionProgress);
 }

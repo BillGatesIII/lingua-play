@@ -21,7 +21,7 @@
 .message--on { background: var(--white); border: var(--border); box-shadow: var(--shadow-sm); animation: pop 300ms var(--ease-pop); }
 .end-card { text-align: center; }
 .end-card .row { justify-content: center; }
-.cols--map { grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); align-items: start; }
+.cols--map { grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr)); align-items: start; }
 
 /* Market world */
 .world--market { background: linear-gradient(180deg, #ffd9a0, #ffb3a7); }

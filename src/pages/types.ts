@@ -9,5 +9,9 @@ export interface PageContext {
   refresh: () => void;
 }
 
+export type PageCleanup = (() => void) & {
+  updateSettings?: (lang: Lang, band: AgeBand) => void;
+};
+
 /** A page renders into ctx.root and may return a cleanup function. */
-export type Page = (ctx: PageContext) => void | (() => void);
+export type Page = (ctx: PageContext) => void | PageCleanup;

@@ -13,13 +13,14 @@ export interface ButtonOptions {
   large?: boolean;
   href?: string;
   className?: string;
+  focusKey?: string;
 }
 
 /** Reusable button (or link when `href` is given). */
 export function Button(content: Child | Child[], o: ButtonOptions = {}): HTMLElement {
   const cls = ['btn', `btn--${o.variant ?? 'primary'}`, o.large && 'btn--lg', o.className].filter(Boolean).join(' ');
   const kids = Array.isArray(content) ? content : [content];
-  if (o.href) return h('a', { class: cls, href: o.href, 'aria-label': o.ariaLabel }, ...kids);
+  if (o.href) return h('a', { class: cls, href: o.href, 'aria-label': o.ariaLabel, 'data-focus': o.focusKey }, ...kids);
   return h(
     'button',
     {
@@ -29,6 +30,7 @@ export function Button(content: Child | Child[], o: ButtonOptions = {}): HTMLEle
       'aria-label': o.ariaLabel,
       'aria-pressed': o.pressed === undefined ? undefined : String(o.pressed),
       disabled: o.disabled,
+      'data-focus': o.focusKey,
     },
     ...kids,
   );

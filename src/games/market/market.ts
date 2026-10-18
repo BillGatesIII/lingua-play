@@ -13,7 +13,7 @@ import {
 type Stage = 'basket' | 'change' | 'served' | 'closed';
 
 export const marketPage: Page = (ctx) => {
-  const { lang, band } = ctx;
+  let { lang, band } = ctx;
   const rng = mulberry32((Date.now() ^ 0x9e3779b9) >>> 0);
   const stage = { v: 'basket' as Stage };
   let index = 0;
@@ -29,9 +29,9 @@ export const marketPage: Page = (ctx) => {
   const host = h('div', { class: 'world world--market' });
   root.append(host);
 
-  const say = (m: Bi | null) => {
+  const say = (m: Bi | null, focusTarget?: string) => {
     message = m;
-    draw();
+    draw(focusTarget);
   };
 
   function nextCustomer() {
@@ -46,13 +46,13 @@ export const marketPage: Page = (ctx) => {
       stage.v = 'basket';
     }
     message = null;
-    draw();
+    draw(stage.v === 'closed' ? 'another-day' : `p-${PRODUCTS[0].id}`);
   }
 
   function submitBasket() {
     if (basketMatches(order, basket)) {
       stage.v = 'change';
-      say({ es: '¡Perfecto! 😄 Ahora el cliente te da el dinero. ¿Cuánto cambio le devuelves?', en: 'Perfect! 😄 Now the customer hands you money. How much change do you give back?' });
+      say({ es: '¡Perfecto! 😄 Ahora el cliente te da el dinero. ¿Cuánto cambio le devuelves?', en: 'Perfect! 😄 Now the customer hands you money. How much change do you give back?' }, 'coin-1');
     } else {
       say(basketMistake(order, basket, rng));
     }
@@ -60,7 +60,7 @@ export const marketPage: Page = (ctx) => {
 
   function submitChange() {
     const result = checkChange(order, coins);
-    if (result !== 'exact') return say(changeFeedback(result));
+    if (result !== 'exact') return say(changeFeedback(result), 'give-change');
     const sticker = pick(rng, PRODUCTS).emoji;
     stickers.push(sticker);
     updateProgress((p) => {
@@ -68,7 +68,7 @@ export const marketPage: Page = (ctx) => {
       if (!p.market.stickers.includes(sticker)) p.market.stickers.push(sticker);
     });
     stage.v = 'served';
-    say({ es: `¡Cliente feliz! 🎉 Te regala una pegatina ${sticker}`, en: `Happy customer! 🎉 You got a sticker ${sticker}` });
+    say({ es: `¡Cliente feliz! 🎉 Te regala una pegatina ${sticker}`, en: `Happy customer! 🎉 You got a sticker ${sticker}` }, 'next-customer');
   }
 
   const speech = (): HTMLElement => {
@@ -104,14 +104,15 @@ export const marketPage: Page = (ctx) => {
     const list = entries.length
       ? h('ul', { class: 'basket' }, ...entries.map((p) =>
           h('li', {},
-            h('span', { 'aria-hidden': 'true' }, p.emoji), ` × ${basket[p.id]} `,
+            h('span', { 'aria-hidden': 'true' }, p.emoji),
+            h('span', { lang }, p[lang].one), ` × ${basket[p.id]} `,
             stage.v === 'basket'
               ? removeBtn(p.id)
               : null)))
       : h('p', { class: 'muted' }, tr({ es: 'La bolsa está vacía. ¡Toca los productos!', en: 'The bag is empty. Tap the products!' }, lang));
     return Panel(`🧺 ${tr({ es: 'Bolsa', en: 'Bag' }, lang)}`, [
       list,
-      stage.v === 'basket' ? Button(biText({ es: '¡Listo!', en: 'Ready!' }, lang), { onClick: submitBasket, disabled: entries.length === 0 }) : null,
+      stage.v === 'basket' ? Button(biText({ es: '¡Listo!', en: 'Ready!' }, lang), { onClick: submitBasket, disabled: entries.length === 0, focusKey: 'ready' }) : null,
     ]);
   }
 
@@ -141,17 +142,23 @@ export const marketPage: Page = (ctx) => {
       b.dataset.focus = `coin-${c}`;
       return b;
     }));
-    const pouch = coins.length
-      ? h('p', { class: 'pouch', 'aria-live': 'polite' }, `${tr({ es: 'Cambio', en: 'Change' }, lang)}: ${sumCoins(coins)} 🪙 `,
-          Button(tr({ es: 'Vaciar', en: 'Empty' }, lang), { variant: 'ghost', className: 'btn--mini', disabled: stage.v !== 'change', onClick: () => { coins = []; message = null; draw(); } }))
-      : h('p', { class: 'muted' }, tr({ es: 'Elige monedas para el cambio.', en: 'Pick coins for the change.' }, lang));
+    const empty = Button(tr({ es: 'Vaciar', en: 'Empty' }, lang), { variant: 'ghost', className: 'btn--mini', disabled: stage.v !== 'change', onClick: () => { coins = []; message = null; draw(); } });
+    empty.dataset.focus = 'empty-coins';
+    const pouch = h('p', {
+      class: coins.length ? 'pouch' : 'muted',
+      'aria-live': 'polite',
+      'data-live': 'change-total',
+    }, coins.length
+      ? `${tr({ es: 'Cambio', en: 'Change' }, lang)}: ${sumCoins(coins)} 🪙 `
+      : tr({ es: 'Elige monedas para el cambio.', en: 'Pick coins for the change.' }, lang),
+    coins.length ? empty : null);
     return Panel(`💰 ${tr({ es: 'Caja', en: 'Till' }, lang)}`, [
       tray, pouch,
-      stage.v === 'change' ? Button(biText({ es: 'Dar el cambio', en: 'Give the change' }, lang), { onClick: submitChange, disabled: coins.length === 0 }) : null,
+      stage.v === 'change' ? Button(biText({ es: 'Dar el cambio', en: 'Give the change' }, lang), { onClick: submitChange, disabled: coins.length === 0, focusKey: 'give-change' }) : null,
     ]);
   }
 
-  function draw() {
+  function draw(focusTarget?: string) {
     renderKeepingFocus(host, () => {
       const wrap = h('div', { class: 'game' });
       const head = h('header', { class: 'game__head' },
@@ -166,7 +173,7 @@ export const marketPage: Page = (ctx) => {
           h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'pegatinas', en: 'stickers' }, lang) }, stickers.join(' ')),
           h('p', {}, tr({ es: 'Vuelve cuando quieras. ¡Tus pegatinas te esperan!', en: 'Come back whenever you like. Your stickers will wait!' }, lang)),
           h('div', { class: 'row' },
-            Button(tr({ es: 'Otro día de mercado', en: 'Another market day' }, lang), { onClick: () => ctx.refresh() }),
+            Button(tr({ es: 'Otro día de mercado', en: 'Another market day' }, lang), { onClick: () => ctx.refresh(), focusKey: 'another-day' }),
             Button(tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'secondary', href: '#/' })),
         ], 'sun', 'end-card'));
         return wrap;
@@ -176,16 +183,23 @@ export const marketPage: Page = (ctx) => {
         h('div', { class: 'customer' },
           h('div', { class: 'customer__face', 'aria-hidden': 'true' }, customer.emoji),
           h('div', {}, h('p', { class: 'customer__name' }, tr(customer.name, lang)), stage.v === 'served' ? null : speech()),
-          Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, onClick: () => { translate = !translate; draw(); } })),
+          Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, focusKey: 'translate', onClick: () => { translate = !translate; draw(); } })),
         scene(),
         h('div', { class: 'cols' }, basketPanel(), changePanel()),
-        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite' },
+        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite', 'data-live': 'message' },
           message ? biText(message, lang) : null),
-        stage.v === 'served' ? Button(tr({ es: 'Siguiente cliente →', en: 'Next customer →' }, lang), { onClick: nextCustomer, large: true }) : null,
+        stage.v === 'served' ? Button(tr({ es: 'Siguiente cliente →', en: 'Next customer →' }, lang), { onClick: nextCustomer, large: true, focusKey: 'next-customer' }) : null,
       ]);
       return wrap;
-    });
+    }, focusTarget);
   }
 
   draw();
+  return Object.assign(() => {}, {
+    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+      lang = nextLang;
+      band = nextBand;
+      draw();
+    },
+  });
 };
