@@ -36,7 +36,7 @@ export const colorsPage: Page = (ctx) => {
     bowl = [];
     solved = false;
     if (index >= ROUND_LENGTH) closed = true;
-    draw(closed ? 'play-again' : undefined);
+    draw(closed ? 'play-again' : `pot-${potsForBand(band)[0]}`);
   }
 
   function status(): Bi {
@@ -81,7 +81,10 @@ export const colorsPage: Page = (ctx) => {
             chameleon(c, COLORS[c].name[lang]), h('figcaption', {}, biText(COLORS[c].name, lang))))),
           h('p', {}, tr({ es: 'Los camaleones se van a descansar. ¡Vuelve cuando quieras!', en: 'The chameleons are off for a rest. Come back whenever you like!' }, lang)),
           h('div', { class: 'row' },
-            Button(tr({ es: 'Otra vez', en: 'Play again' }, lang), { onClick: () => ctx.refresh(), focusKey: 'play-again' }),
+            Button(tr({ es: 'Otra vez', en: 'Play again' }, lang), { onClick: () => {
+              ctx.refresh();
+              ctx.root.querySelector<HTMLElement>('[data-focus^="pot-"]:not(:disabled)')?.focus();
+            }, focusKey: 'play-again' }),
             Button(tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'secondary', href: '#/' })),
         ], 'sun', 'end-card'));
         return wrap;
@@ -104,7 +107,7 @@ export const colorsPage: Page = (ctx) => {
             ]),
             Panel(`🎨 ${tr({ es: 'Pintura', en: 'Paint' }, lang)}`, [
               pots(),
-              Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), { variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty', onClick: () => { bowl = []; draw(); } }),
+              Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), { variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty', onClick: () => { bowl = []; draw(`pot-${potsForBand(band)[0]}`); } }),
             ])),
         ),
         h('div', { class: 'message message--on', role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, biText(status(), lang)),
