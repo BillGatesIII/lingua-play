@@ -2,6 +2,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
 import './styles/games.css';
+import { colorsPage } from './games/colors/colors';
 import { compassPage } from './games/compass/compass';
 import { marketPage } from './games/market/market';
 import { landingPage } from './pages/landing';
@@ -15,6 +16,7 @@ const routes: Record<string, Page> = {
   '/': landingPage,
   '/market': marketPage,
   '/compass': compassPage,
+  '/colors': colorsPage,
 };
 
 const app = document.getElementById('app')!;
