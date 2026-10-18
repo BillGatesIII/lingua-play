@@ -2,7 +2,7 @@ import { other, tr, type Bi } from '../../shared/i18n';
 import { mulberry32 } from '../../shared/rng';
 import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
-import { h } from '../../ui/dom';
+import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { GARDEN_LENGTH, generatePattern, isPatternSolved, type PatternPuzzle } from './logic';
 
@@ -63,7 +63,7 @@ export const gardenPage: Page = (ctx) => {
       }
 
       const instruction = (l: typeof lang) => puzzle.instruction[l];
-      wrap.append(
+      append(wrap, [
         h('div', { class: 'cols cols--map' },
           Panel(`🌱 ${tr({ es: 'La pista del jardín', en: 'Garden clue' }, lang)}`, [
             h('p', { class: 'clue', lang }, instruction(lang)),
@@ -84,7 +84,7 @@ export const gardenPage: Page = (ctx) => {
         ),
         h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite' }, message ? biText(message, lang) : null),
         solved ? Button(tr({ es: 'Siguiente macizo →', en: 'Next flower bed →' }, lang), { onClick: next, large: true, focusKey: 'next-pattern' }) : null,
-      );
+      ]);
       return wrap;
     }, focusTarget);
   }

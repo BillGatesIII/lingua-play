@@ -1,6 +1,6 @@
 import type { Bi } from '../../shared/i18n';
 import { numberWord } from '../../shared/i18n';
-import { pick, randInt, shuffle, type Rng } from '../../shared/rng';
+import { randInt, shuffle, type Rng } from '../../shared/rng';
 import type { AgeBand } from '../../shared/storage';
 
 export interface PatternPuzzle {

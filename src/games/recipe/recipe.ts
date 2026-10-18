@@ -2,7 +2,7 @@ import { other, tr, type Bi } from '../../shared/i18n';
 import { mulberry32 } from '../../shared/rng';
 import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
-import { h } from '../../ui/dom';
+import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { INGREDIENTS, RECIPE_LENGTH, generateRecipe, recipeMatches, recipeSpeech, recipeTotal, type Recipe } from './logic';
 
@@ -94,7 +94,7 @@ export const recipePage: Page = (ctx) => {
       const translateButton = Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, {
         variant: 'ghost', pressed: translate, focusKey: 'translate', onClick: () => { translate = !translate; draw(); },
       });
-      wrap.append(
+      append(wrap, [
         h('div', { class: 'cols cols--map' },
           Panel(`📜 ${tr({ es: 'La receta', en: 'The recipe' }, lang)}`, [
             h('p', { class: 'clue', lang }, instruction(lang)),
@@ -112,7 +112,7 @@ export const recipePage: Page = (ctx) => {
         ),
         h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite' }, message ? biText(message, lang) : null),
         solved ? Button(tr({ es: 'Siguiente receta →', en: 'Next recipe →' }, lang), { onClick: next, large: true, focusKey: 'next-recipe' }) : null,
-      );
+      ]);
       return wrap;
     }, focusTarget);
   }

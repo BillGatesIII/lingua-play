@@ -2,7 +2,7 @@ import { other, tr, type Bi } from '../../shared/i18n';
 import { mulberry32 } from '../../shared/rng';
 import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
-import { h } from '../../ui/dom';
+import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { WORD_ROUND_LENGTH, generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount, type WordPuzzle } from './logic';
 
@@ -84,7 +84,7 @@ export const wordsPage: Page = (ctx) => {
         focusKey: `tile-${tile.id}`, ariaLabel: `${tr({ es: 'Letra', en: 'Letter' }, lang)} ${tile.letter}`,
         onClick: () => selectTile(tile.id),
       }));
-      wrap.append(
+      append(wrap, [
         h('div', { class: 'cols cols--map' },
           Panel(`🧩 ${tr({ es: 'Pista', en: 'Clue' }, lang)}`, [
             h('div', { class: 'word-picture', role: 'img', 'aria-label': `${puzzle.emoji} ${clue}` }, puzzle.emoji),
@@ -106,7 +106,7 @@ export const wordsPage: Page = (ctx) => {
         ),
         h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite' }, message ? biText(message, lang) : null),
         solved ? Button(tr({ es: 'Siguiente palabra →', en: 'Next word →' }, lang), { onClick: next, large: true, focusKey: 'next-word' }) : null,
-      );
+      ]);
       return wrap;
     }, focusTarget);
   }

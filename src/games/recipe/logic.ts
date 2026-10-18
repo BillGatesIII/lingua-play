@@ -1,6 +1,6 @@
 import type { Bi, Lang } from '../../shared/i18n';
 import { joinList, numberWord } from '../../shared/i18n';
-import { pick, randInt, shuffle, type Rng } from '../../shared/rng';
+import { randInt, shuffle, type Rng } from '../../shared/rng';
 import type { AgeBand } from '../../shared/storage';
 
 export interface Ingredient {
