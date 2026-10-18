@@ -35,7 +35,13 @@ export const landingPage: Page = (ctx) => {
         h('h2', {}, 'Compass Island'),
         h('p', {}, tr({ es: 'Sigue las pistas del mapa, navega entre rocas y encuentra el tesoro.', en: 'Follow the map clues, sail past the rocks and find the treasure.' }, lang)),
         Button(`▶ ${tr({ es: 'Jugar', en: 'Play' }, lang)}`, { href: '#/compass', large: true, variant: 'secondary', ariaLabel: `Compass Island: ${tr({ es: 'Jugar', en: 'Play' }, lang)}` }),
-      ], 'sea', 'game-card')),
+      ], 'sea', 'game-card'),
+      Card([
+        h('div', { class: 'game-card__art', 'aria-hidden': 'true' }, '🎨🦎🖌️'),
+        h('h2', {}, 'Color Chameleon'),
+        h('p', {}, tr({ es: 'Mezcla pinturas y pinta al camaleón del color que pide.', en: 'Mix paints and colour the chameleon the way it asks.' }, lang)),
+        Button(`▶ ${tr({ es: 'Jugar', en: 'Play' }, lang)}`, { href: '#/colors', large: true, ariaLabel: `Color Chameleon: ${tr({ es: 'Jugar', en: 'Play' }, lang)}` }),
+      ], 'leaf', 'game-card')),
     h('ul', { class: 'promises' }, ...PROMISES.map((p) =>
       h('li', {}, h('span', { 'aria-hidden': 'true' }, p.icon), ' ', tr(p.text, lang)))),
     Card([
