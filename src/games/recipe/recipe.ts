@@ -87,7 +87,7 @@ export const recipePage: Page = (ctx) => {
               variant: 'ghost', className: 'btn--mini', disabled: solved || !(bowl[ingredient.id] > 0),
               ariaLabel: `${tr({ es: 'Quitar', en: 'Remove' }, lang)} ${ingredient.name[lang]}`,
               onClick: () => add(ingredient.id, -1),
-            }))));
+            })))));
 
       const bowlItems = INGREDIENTS.filter((ingredient) => bowl[ingredient.id] > 0)
         .flatMap((ingredient) => Array.from({ length: bowl[ingredient.id] }, () => ingredient.emoji));
