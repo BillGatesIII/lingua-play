@@ -1,0 +1,53 @@
+/* Lingua Play design tokens. All text/background pairs below meet WCAG AA (4.5:1). */
+:root {
+  /* color */
+  --ink: #1f1b3d;            /* text on light surfaces */
+  --ink-soft: #4a4570;       /* secondary text on light surfaces (7:1 on white) */
+  --paper: #fffaf0;
+  --white: #ffffff;
+  --sun: #ffd23f;            /* primary action background, ink text */
+  --sun-deep: #f5a800;
+  --berry: #5b3df5;          /* secondary action background, white text */
+  --berry-deep: #3f25c4;
+  --coral: #ff6b6b;
+  --leaf: #1f8f5f;
+  --sea: #0e7490;
+  --sea-light: #bdeff7;
+  --sand: #fde7b0;
+  --focus: #1d4ed8;
+
+  /* typography scale (rounded system fonts, no external font requests) */
+  --font: 'Nunito', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, sans-serif;
+  --text-xs: 0.875rem;
+  --text-sm: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.875rem;
+  --text-2xl: 2.5rem;
+  --text-hero: clamp(2.75rem, 8vw, 4.5rem);
+
+  /* spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* radius */
+  --radius-sm: 0.625rem;
+  --radius-md: 1.125rem;
+  --radius-lg: 1.75rem;
+  --radius-pill: 999px;
+
+  /* shadow: chunky, flat "sticker" look */
+  --shadow-sm: 0 2px 0 rgb(31 27 61 / 0.18);
+  --shadow-md: 0 5px 0 rgb(31 27 61 / 0.2), 0 10px 20px rgb(31 27 61 / 0.12);
+  --shadow-lg: 0 8px 0 rgb(31 27 61 / 0.2), 0 18px 36px rgb(31 27 61 / 0.16);
+  --border: 3px solid var(--ink);
+
+  /* motion */
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur: 180ms;
+}
