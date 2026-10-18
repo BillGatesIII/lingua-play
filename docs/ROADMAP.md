@@ -7,6 +7,7 @@
 - Landing page with game entry, language (ES/EN) and age-band (7–10 / 11–14) switch, collection shelf and *Erase my progress*.
 - **Market Quest** prototype: vocabulary + number words, totals, change.
 - **Compass Island** prototype: directions, coordinates, distance, step budgets.
+- **Color Chameleon**, **Recipe Lab**, **Word Workshop**, and **Number Garden**: colour mixing, recipe quantities, vocabulary spelling, and number patterns.
 - Local-only progress in `localStorage`.
 - Accessibility baseline: keyboard use, visible focus, AA contrast, reduced-motion, skip link, live-region feedback.
 - Unit tests for game logic and storage.
@@ -25,7 +26,7 @@
 
 1. **Playtest with children** (7–14) and adjust difficulty, text length and rewards.
 2. Audio: optional recorded Spanish/English pronunciation (self-hosted, no third-party services).
-3. Third game (e.g. *Recipe Lab*: fractions and imperative verbs; or *Train Station*: clock reading and travel dialogues).
+3. Playtest the expanded game collection, including more advanced recipe fractions and word puzzles.
 4. More content: bigger vocabulary packs, regional Spanish variants, new customers/landmarks.
 5. PWA / offline support, still without tracking.
 6. Parent/teacher view: export and import progress as a local file (no accounts).

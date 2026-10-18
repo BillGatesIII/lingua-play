@@ -5,6 +5,9 @@ import './styles/games.css';
 import { colorsPage } from './games/colors/colors';
 import { compassPage } from './games/compass/compass';
 import { marketPage } from './games/market/market';
+import { gardenPage } from './games/garden/garden';
+import { recipePage } from './games/recipe/recipe';
+import { wordsPage } from './games/words/words';
 import { landingPage } from './pages/landing';
 import type { Page, PageCleanup } from './pages/types';
 import { loadProgress, updateProgress, type AgeBand } from './shared/storage';
@@ -17,6 +20,9 @@ const routes: Record<string, Page> = {
   '/market': marketPage,
   '/compass': compassPage,
   '/colors': colorsPage,
+  '/recipe': recipePage,
+  '/words': wordsPage,
+  '/garden': gardenPage,
 };
 
 const app = document.getElementById('app')!;
