@@ -24,7 +24,9 @@ export const wordsPage: Page = (ctx) => {
     if (!selected.includes(id) && selected.length < wordLetterCount(puzzle, lang)) {
       selected = [...selected, id];
       message = null;
-      draw();
+      draw(selected.length === wordLetterCount(puzzle, lang)
+        ? 'check-word'
+        : `tile-${puzzle.tiles.find((tile) => !selected.includes(tile.id))!.id}`);
     }
   }
 
@@ -54,7 +56,7 @@ export const wordsPage: Page = (ctx) => {
       solved = false;
     }
     message = null;
-    draw(closed ? 'play-again' : 'check-word');
+    draw(closed ? 'play-again' : `tile-${puzzle.tiles[0].id}`);
   }
 
   function draw(focusTarget?: string) {
@@ -93,7 +95,7 @@ export const wordsPage: Page = (ctx) => {
             Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, focusKey: 'translate', onClick: () => { translate = !translate; draw(); } }),
           ]),
           Panel(`🔠 ${tr({ es: 'Forma la palabra', en: 'Build the word' }, lang)}`, [
-            h('div', { class: 'word-answer', 'aria-live': 'polite', 'aria-label': answer || tr({ es: 'Ninguna letra seleccionada', en: 'No letters selected' }, lang) },
+            h('div', { class: 'word-answer', 'aria-live': 'polite', 'data-live': 'answer', 'aria-label': answer || tr({ es: 'Ninguna letra seleccionada', en: 'No letters selected' }, lang) },
               ...selected.map((id) => Button(puzzle.tiles.find((tile) => tile.id === id)!.letter.toUpperCase(), {
                 variant: 'ghost', className: 'letter-tile letter-tile--selected', disabled: solved,
                 ariaLabel: `${tr({ es: 'Quitar letra', en: 'Remove letter' }, lang)} ${puzzle.tiles.find((tile) => tile.id === id)!.letter}`,
@@ -104,7 +106,7 @@ export const wordsPage: Page = (ctx) => {
             solved ? null : Button(biText({ es: '¡Listo!', en: 'Check!' }, lang), { onClick: checkWord, disabled: selected.length !== wordLetterCount(puzzle, lang), large: true, focusKey: 'check-word' }),
           ]),
         ),
-        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite' }, message ? biText(message, lang) : null),
+        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, message ? biText(message, lang) : null),
         solved ? Button(tr({ es: 'Siguiente palabra →', en: 'Next word →' }, lang), { onClick: next, large: true, focusKey: 'next-word' }) : null,
       ]);
       return wrap;
@@ -119,7 +121,7 @@ export const wordsPage: Page = (ctx) => {
       lang = nextLang;
       band = nextBand;
       if (languageChanged || bandChanged) {
-        if (bandChanged) index = 0;
+        index = 0;
         puzzle = generateWordPuzzle(rng, band, lang);
         selected = [];
         solved = false;

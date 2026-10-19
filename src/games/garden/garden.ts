@@ -39,7 +39,7 @@ export const gardenPage: Page = (ctx) => {
       solved = false;
     }
     message = null;
-    draw(closed ? 'play-again' : 'next-pattern');
+    draw(closed ? 'play-again' : `choice-${puzzle.choices[0]}`);
   }
 
   function draw(focusTarget?: string) {

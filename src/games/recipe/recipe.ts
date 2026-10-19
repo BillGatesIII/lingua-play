@@ -24,7 +24,7 @@ export const recipePage: Page = (ctx) => {
     const next = Math.max(0, (bowl[ingredientId] ?? 0) + delta);
     bowl = { ...bowl, [ingredientId]: next };
     message = null;
-    draw();
+    draw(delta < 0 && next === 0 ? `ingredient-${ingredientId}` : undefined);
   }
 
   function stir() {
@@ -82,9 +82,10 @@ export const recipePage: Page = (ctx) => {
             onClick: () => add(ingredient.id, 1),
           }),
           h('div', { class: 'ingredient-card__count' },
-            h('span', { 'aria-live': 'polite' }, `${bowl[ingredient.id] ?? 0}`),
+            h('span', { 'aria-live': 'polite', 'data-live': `ingredient-count-${ingredient.id}` }, `${bowl[ingredient.id] ?? 0}`),
             Button('−', {
               variant: 'ghost', className: 'btn--mini', disabled: solved || !(bowl[ingredient.id] > 0),
+              focusKey: `remove-${ingredient.id}`,
               ariaLabel: `${tr({ es: 'Quitar', en: 'Remove' }, lang)} ${ingredient.name[lang]}`,
               onClick: () => add(ingredient.id, -1),
             })))));
@@ -110,7 +111,7 @@ export const recipePage: Page = (ctx) => {
             solved ? null : Button(biText({ es: '¡Remover!', en: 'Stir!' }, lang), { onClick: stir, large: true, focusKey: 'stir' }),
           ]),
         ),
-        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite' }, message ? biText(message, lang) : null),
+        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, message ? biText(message, lang) : null),
         solved ? Button(tr({ es: 'Siguiente receta →', en: 'Next recipe →' }, lang), { onClick: next, large: true, focusKey: 'next-recipe' }) : null,
       ]);
       return wrap;
