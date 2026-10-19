@@ -41,6 +41,24 @@ export const landingPage: Page = (ctx) => {
         h('h2', {}, 'Color Chameleon'),
         h('p', {}, tr({ es: 'Mezcla pinturas y pinta al camaleón del color que pide.', en: 'Mix paints and colour the chameleon the way it asks.' }, lang)),
         Button(`▶ ${tr({ es: 'Jugar', en: 'Play' }, lang)}`, { href: '#/colors', large: true, ariaLabel: `Color Chameleon: ${tr({ es: 'Jugar', en: 'Play' }, lang)}` }),
+      ], 'leaf', 'game-card'),
+      Card([
+        h('div', { class: 'game-card__art', 'aria-hidden': 'true' }, '🥣🍎🥕'),
+        h('h2', {}, 'Recipe Lab'),
+        h('p', {}, tr({ es: 'Sigue recetas en español o inglés, cuenta ingredientes y prepara el plato.', en: 'Follow recipes in Spanish or English, count ingredients and make the dish.' }, lang)),
+        Button(`▶ ${tr({ es: 'Jugar', en: 'Play' }, lang)}`, { href: '#/recipe', large: true, ariaLabel: `Recipe Lab: ${tr({ es: 'Jugar', en: 'Play' }, lang)}` }),
+      ], 'sun', 'game-card'),
+      Card([
+        h('div', { class: 'game-card__art', 'aria-hidden': 'true' }, '🔤🧩📚'),
+        h('h2', {}, 'Word Workshop'),
+        h('p', {}, tr({ es: 'Descifra pistas y ordena letras para encontrar cada palabra.', en: 'Solve clues and arrange letter tiles to discover each word.' }, lang)),
+        Button(`▶ ${tr({ es: 'Jugar', en: 'Play' }, lang)}`, { href: '#/words', large: true, variant: 'secondary', ariaLabel: `Word Workshop: ${tr({ es: 'Jugar', en: 'Play' }, lang)}` }),
+      ], 'sea', 'game-card'),
+      Card([
+        h('div', { class: 'game-card__art', 'aria-hidden': 'true' }, '🌷🔢🌼'),
+        h('h2', {}, 'Number Garden'),
+        h('p', {}, tr({ es: 'Observa cómo crecen los números y completa los patrones del jardín.', en: 'Watch the numbers grow and complete the garden patterns.' }, lang)),
+        Button(`▶ ${tr({ es: 'Jugar', en: 'Play' }, lang)}`, { href: '#/garden', large: true, ariaLabel: `Number Garden: ${tr({ es: 'Jugar', en: 'Play' }, lang)}` }),
       ], 'leaf', 'game-card')),
     h('ul', { class: 'promises' }, ...PROMISES.map((p) =>
       h('li', {}, h('span', { 'aria-hidden': 'true' }, p.icon), ' ', tr(p.text, lang)))),
