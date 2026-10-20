@@ -4,7 +4,7 @@
 
 - Vite + TypeScript static site, no backend, no runtime dependencies.
 - Design system: colour / typography / spacing / radius / shadow tokens; Button, Card, Panel components.
-- Landing page with game entry, language (ES/EN) switch, collection shelf and *Erase my progress*.
+- Landing page with game entry, language (ES/EN) switch, collection shelf and *Erase my game progress*.
 - Age-neutral adaptive difficulty (starts balanced; adjusts after repeated smooth or tricky rounds) and an equal-time screen-free pause.
 - **Market Quest** prototype: vocabulary + number words, totals, change.
 - **Compass Island** prototype: directions, coordinates, distance, step budgets.

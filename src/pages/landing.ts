@@ -64,8 +64,8 @@ export const landingPage: Page = (ctx) => {
       ], 'leaf', 'game-card')),
     h('ul', { class: 'promises' }, ...PROMISES.map((p) =>
       h('li', {}, h('span', { 'aria-hidden': 'true' }, p.icon), ' ', tr(p.text, lang)))),
-    screenBalance.screenSeconds > 0
-      ? Card([
+    ...(screenBalance.screenSeconds > 0
+      ? [Card([
         h('h2', {}, tr({ es: 'Equilibrio fuera de pantalla', en: 'Screen-free balance' }, lang)),
         h('p', {}, tr({
           es: `Has jugado ${formatScreenTime(screenBalance.screenSeconds)}. Tómate el mismo tiempo fuera de la pantalla.`,
@@ -78,16 +78,16 @@ export const landingPage: Page = (ctx) => {
             ctx.refresh();
           },
         }),
-      ], 'leaf', 'screen-balance')
-      : null,
+      ], 'leaf', 'screen-balance')]
+      : []),
     Card([
       h('h2', {}, tr({ es: 'Mi colección', en: 'My collection' }, lang)),
       shelf({ es: 'Pegatinas del mercado', en: 'Market stickers' }, progress.market.stickers),
       shelf({ es: 'Tesoros de la isla', en: 'Island treasures' }, progress.compass.treasures),
-      Button(tr({ es: 'Borrar mi progreso', en: 'Erase my progress' }, lang), {
+      Button(tr({ es: 'Borrar mi progreso de juego', en: 'Erase my game progress' }, lang), {
         variant: 'ghost',
         onClick: () => {
-          if (confirm(tr({ es: '¿Borrar todo lo guardado en este dispositivo?', en: 'Erase everything saved on this device?' }, lang))) {
+          if (confirm(tr({ es: '¿Borrar el progreso de juego guardado en este dispositivo?', en: 'Erase game progress saved on this device?' }, lang))) {
             clearProgress();
             ctx.refresh();
           }

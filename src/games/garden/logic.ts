@@ -53,16 +53,18 @@ export function generatePattern(rng: Rng, level: ChallengeLevel, index: number):
     };
   }
 
-  const start = randInt(rng, 2, 12);
-  const sequence = [start, start + 2, start + 6, start + 8];
-  const answer = start + 12;
+  const firstStep = level === 2 ? 3 : 2;
+  const secondStep = level === 2 ? 6 : 4;
+  const start = randInt(rng, level === 2 ? 5 : 2, level === 2 ? 15 : 12);
+  const sequence = [start, start + firstStep, start + firstStep + secondStep, start + 2 * firstStep + secondStep];
+  const answer = sequence[3] + secondStep;
   return {
     sequence,
     answer,
-    choices: options(rng, answer, 8),
+    choices: options(rng, answer, level === 2 ? 12 : 8),
     instruction: {
-      es: 'Las macetas alternan: añade dos flores y luego cuatro.',
-      en: 'The flower beds alternate: add two flowers, then four.',
+      es: `Las macetas alternan: añade ${numberWord(firstStep, 'es')} flores y luego ${numberWord(secondStep, 'es')}.`,
+      en: `The flower beds alternate: add ${numberWord(firstStep, 'en')} flowers, then ${numberWord(secondStep, 'en')}.`,
     },
   };
 }

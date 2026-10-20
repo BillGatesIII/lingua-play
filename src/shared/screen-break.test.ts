@@ -21,6 +21,14 @@ describe('screen break balance', () => {
     expect(balance).toMatchObject({ screenSeconds: 0, restSeconds: SCREEN_SESSION_LIMIT_SECONDS });
   });
 
+  it('does not count the break until the page is hidden', () => {
+    addScreenSeconds(30);
+    beginScreenBreak();
+    expect(updateScreenBreakVisibility(false, 5000).restSeconds).toBe(30);
+    expect(updateScreenBreakVisibility(true, 5000).restSeconds).toBe(30);
+    expect(updateScreenBreakVisibility(false, 15_000).restSeconds).toBe(20);
+  });
+
   it('ignores additional screen time during an earned break', () => {
     addScreenSeconds(30);
     beginScreenBreak();

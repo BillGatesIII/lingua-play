@@ -55,6 +55,7 @@ function drawHeader() {
     h('div', { class: 'seg', role: 'group', 'aria-label': 'Language / Idioma' },
       Button('Español', { variant: 'ghost', pressed: lang === 'es', focusKey: 'language-es', onClick: () => updateSettings('es') }),
       Button('English', { variant: 'ghost', pressed: lang === 'en', focusKey: 'language-en', onClick: () => updateSettings('en') })),
+    ),
   );
   if (focusedKey) {
     Array.from(header.querySelectorAll<HTMLElement>('[data-focus]'))
@@ -109,14 +110,15 @@ function attachScreenBalance() {
     const now = Date.now();
     const elapsed = Math.floor((now - lastTick) / 1000);
     lastTick = now;
-    if (path !== '/' && document.visibilityState === 'visible' && elapsed > 0) {
+    if (path !== '/' && document.visibilityState === 'visible' && elapsed > 0 && loadScreenBalance().restSeconds === 0) {
       const balance = addScreenSeconds(elapsed);
       if (balance.restSeconds > 0) render();
     }
   }, 1000);
   document.addEventListener('visibilitychange', () => {
-    const balance = updateScreenBreakVisibility(document.hidden);
-    if (!document.hidden && balance.restSeconds === 0) render();
+    const hadBreakDue = loadScreenBalance().restSeconds > 0;
+    updateScreenBreakVisibility(document.hidden);
+    if (!document.hidden && hadBreakDue) render();
   });
 }
 

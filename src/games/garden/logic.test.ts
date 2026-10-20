@@ -24,6 +24,10 @@ describe('garden pattern logic', () => {
     expect(alternating.sequence[1] - alternating.sequence[0]).toBe(2);
     expect(alternating.sequence[2] - alternating.sequence[1]).toBe(4);
     expect(alternating.answer).toBe(alternating.sequence[3] + 4);
+    const advanced = generatePattern(mulberry32(3), 2, 1);
+    expect(advanced.sequence[1] - advanced.sequence[0]).toBe(3);
+    expect(advanced.sequence[2] - advanced.sequence[1]).toBe(6);
+    expect(advanced.answer).toBe(advanced.sequence[3] + 6);
   });
 
   it('recognizes the missing number and sums visible flower beds', () => {
