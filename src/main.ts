@@ -12,7 +12,7 @@ import { landingPage } from './pages/landing';
 import type { Page, PageCleanup } from './pages/types';
 import { loadProgress, updateProgress } from './shared/storage';
 import {
-  addScreenSeconds, beginScreenBreak, formatScreenTime, loadScreenBalance, updateScreenBreakVisibility,
+  accumulateVisibleMilliseconds, addScreenSeconds, beginScreenBreak, formatScreenTime, loadScreenBalance, updateScreenBreakVisibility,
 } from './shared/screen-break';
 import { tr, type Lang } from './shared/i18n';
 import { Button, Card } from './ui/components';
@@ -34,6 +34,7 @@ const main = h('main', { id: 'main', class: 'main', tabindex: '-1' });
 app.append(header, main);
 
 let cleanup: void | PageCleanup;
+let resetScreenTimer: () => void = () => {};
 
 function drawHeader() {
   const { lang } = loadProgress().settings;
@@ -105,18 +106,26 @@ function render() {
 
 function attachScreenBalance() {
   let lastTick = Date.now();
+  let remainder = 0;
+  resetScreenTimer = () => {
+    lastTick = Date.now();
+    remainder = 0;
+  };
   window.setInterval(() => {
     const path = location.hash.replace(/^#/, '') || '/';
     const now = Date.now();
-    const elapsed = Math.floor((now - lastTick) / 1000);
+    const elapsedMs = Math.max(0, now - lastTick);
     lastTick = now;
-    if (path !== '/' && document.visibilityState === 'visible' && elapsed > 0 && loadScreenBalance().restSeconds === 0) {
-      const balance = addScreenSeconds(elapsed);
+    if (path !== '/' && document.visibilityState === 'visible' && loadScreenBalance().restSeconds === 0) {
+      const accumulated = accumulateVisibleMilliseconds(remainder, elapsedMs);
+      remainder = accumulated.remainder;
+      if (accumulated.seconds === 0) return;
+      const balance = addScreenSeconds(accumulated.seconds);
       if (balance.restSeconds > 0) render();
-    }
+    } else remainder = 0;
   }, 1000);
   document.addEventListener('visibilitychange', () => {
-    lastTick = Date.now();
+    resetScreenTimer();
     const hadBreakDue = loadScreenBalance().restSeconds > 0;
     const balance = updateScreenBreakVisibility(document.hidden);
     if (!document.hidden && hadBreakDue) {
@@ -127,6 +136,7 @@ function attachScreenBalance() {
 }
 
 window.addEventListener('hashchange', () => {
+  resetScreenTimer();
   render();
   main.focus();
   window.scrollTo(0, 0);

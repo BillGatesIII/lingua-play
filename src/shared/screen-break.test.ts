@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   SCREEN_BREAK_KEY, SCREEN_SESSION_LIMIT_SECONDS, addScreenSeconds, beginScreenBreak,
-  loadScreenBalance, updateScreenBreakVisibility,
+  accumulateVisibleMilliseconds, loadScreenBalance, updateScreenBreakVisibility,
 } from './screen-break';
 
 describe('screen break balance', () => {
   beforeEach(() => localStorage.clear());
+
+  it('preserves partial seconds between delayed visible-time updates', () => {
+    const first = accumulateVisibleMilliseconds(0, 1500);
+    const second = accumulateVisibleMilliseconds(first.remainder, 1500);
+    expect(first.seconds + second.seconds).toBe(3);
+    expect(second.remainder).toBe(0);
+  });
 
   it('matches screen time with an equal off-screen break', () => {
     addScreenSeconds(125);

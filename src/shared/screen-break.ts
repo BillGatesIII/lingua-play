@@ -1,6 +1,12 @@
 export const SCREEN_BREAK_KEY = 'linguaplay.screen-break.v1';
 export const SCREEN_SESSION_LIMIT_SECONDS = 10 * 60;
 
+export function accumulateVisibleMilliseconds(remainder: number, elapsed: number): { seconds: number; remainder: number } {
+  const total = Math.max(0, remainder) + Math.max(0, elapsed);
+  const seconds = Math.floor(total / 1000);
+  return { seconds, remainder: total - seconds * 1000 };
+}
+
 export interface ScreenBalance {
   screenSeconds: number;
   restSeconds: number;
