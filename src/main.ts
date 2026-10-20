@@ -76,8 +76,8 @@ function render() {
       h('p', { class: 'screen-break__art', 'aria-hidden': 'true' }, '🌿'),
       h('h1', {}, tr({ es: 'Pausa fuera de pantalla', en: 'Screen-free pause' }, lang)),
       h('p', {}, tr({
-        es: `Has acumulado ${formatScreenTime(balance.restSeconds)} de descanso. Es el mismo tiempo que has pasado jugando.`,
-        en: `Your screen-free pause is ${formatScreenTime(balance.restSeconds)} — the same time you spent playing.`,
+        es: `Tu pausa dura lo mismo que tu tiempo de juego. Queda: ${formatScreenTime(balance.restSeconds)}.`,
+        en: `Your pause matches your gameplay time. Time left: ${formatScreenTime(balance.restSeconds)}.`,
       }, lang)),
       h('p', {}, tr({
         es: 'Deja el dispositivo y prueba algo real: estírate, dibuja un mapa o busca algo azul. El descanso solo cuenta mientras esta página no está visible.',
@@ -108,7 +108,7 @@ function attachScreenBalance() {
   window.setInterval(() => {
     const path = location.hash.replace(/^#/, '') || '/';
     const now = Date.now();
-    const elapsed = Math.floor((now - lastTick) / 1000);
+    const elapsed = Math.min(1, Math.floor((now - lastTick) / 1000));
     lastTick = now;
     if (path !== '/' && document.visibilityState === 'visible' && elapsed > 0 && loadScreenBalance().restSeconds === 0) {
       const balance = addScreenSeconds(elapsed);
@@ -116,9 +116,13 @@ function attachScreenBalance() {
     }
   }, 1000);
   document.addEventListener('visibilitychange', () => {
+    lastTick = Date.now();
     const hadBreakDue = loadScreenBalance().restSeconds > 0;
-    updateScreenBreakVisibility(document.hidden);
-    if (!document.hidden && hadBreakDue) render();
+    const balance = updateScreenBreakVisibility(document.hidden);
+    if (!document.hidden && hadBreakDue) {
+      if (balance.restSeconds === 0 && (location.hash.replace(/^#/, '') || '/') !== '/') location.hash = '#/';
+      else render();
+    }
   });
 }
 
@@ -132,6 +136,6 @@ document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click
   main.focus();
   main.scrollIntoView();
 });
-updateScreenBreakVisibility(false);
+updateScreenBreakVisibility(document.hidden);
 attachScreenBalance();
 render();

@@ -13,7 +13,8 @@ export const colorsPage: Page = (ctx) => {
   let { lang } = ctx;
   const challenge = createAdaptiveChallenge();
   const rng = mulberry32((Date.now() ^ 0x27d4eb2f) >>> 0);
-  let round = generateRound(rng, challenge.level);
+  let roundLevel = challenge.level;
+  let round = generateRound(rng, roundLevel);
   let index = 0;
   let bowl: PotId[] = [];
   let solved = false;
@@ -30,7 +31,7 @@ export const colorsPage: Page = (ctx) => {
   function pour(pot: PotId) {
     if (solved || closed) return;
     attempts++;
-    bowl = togglePot(bowl, pot, maxPots(challenge.level));
+    bowl = togglePot(bowl, pot, maxPots(roundLevel));
     if (mixed() === target()) {
       solved = true;
       challenge.complete(attempts <= 2 ? 0 : attempts >= 5 ? 2 : 1);
@@ -44,7 +45,18 @@ export const colorsPage: Page = (ctx) => {
     attempts = 0;
     solved = false;
     if (index >= ROUND_LENGTH) closed = true;
-    draw(closed ? 'play-again' : `pot-${potsForLevel(challenge.level)[0]}`);
+    draw(closed ? 'play-again' : `pot-${potsForLevel(roundLevel)[0]}`);
+  }
+
+  function playAgain() {
+    roundLevel = challenge.level;
+    round = generateRound(rng, roundLevel);
+    index = 0;
+    bowl = [];
+    solved = false;
+    closed = false;
+    attempts = 0;
+    draw(`pot-${potsForLevel(roundLevel)[0]}`);
   }
 
   function status(): Bi {
@@ -62,7 +74,7 @@ export const colorsPage: Page = (ctx) => {
       h('span', { 'aria-hidden': 'true' }, '🦎'));
 
   function pots(): HTMLElement {
-    return h('div', { class: 'pots' }, ...potsForLevel(challenge.level).map((pot) => {
+    return h('div', { class: 'pots' }, ...potsForLevel(roundLevel).map((pot) => {
       const c = COLORS[pot];
       return Button([
         h('span', { class: 'pot__swatch', 'aria-hidden': 'true', style: `--paint:${c.hex}` }),
@@ -89,10 +101,7 @@ export const colorsPage: Page = (ctx) => {
             chameleon(c, COLORS[c].name[lang]), h('figcaption', {}, biText(COLORS[c].name, lang))))),
           h('p', {}, tr({ es: 'Los camaleones se van a descansar. ¡Vuelve cuando quieras!', en: 'The chameleons are off for a rest. Come back whenever you like!' }, lang)),
           h('div', { class: 'row' },
-            Button(tr({ es: 'Otra vez', en: 'Play again' }, lang), { onClick: () => {
-              ctx.refresh();
-              ctx.root.querySelector<HTMLElement>('[data-focus^="pot-"]:not(:disabled)')?.focus();
-            }, focusKey: 'play-again' }),
+            Button(tr({ es: 'Otra vez', en: 'Play again' }, lang), { onClick: playAgain, focusKey: 'play-again' }),
             Button(tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'secondary', href: '#/' })),
         ], 'sun', 'end-card'));
         return wrap;
@@ -115,7 +124,7 @@ export const colorsPage: Page = (ctx) => {
             ]),
             Panel(`🎨 ${tr({ es: 'Pintura', en: 'Paint' }, lang)}`, [
               pots(),
-              Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), { variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty', onClick: () => { bowl = []; draw(`pot-${potsForLevel(challenge.level)[0]}`); } }),
+              Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), { variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty', onClick: () => { bowl = []; draw(`pot-${potsForLevel(roundLevel)[0]}`); } }),
             ])),
         ),
         h('div', { class: 'message message--on', role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, biText(status(), lang)),
