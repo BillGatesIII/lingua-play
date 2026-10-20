@@ -130,6 +130,7 @@ export const wordsPage: Page = (ctx) => {
         selected = [];
         solved = false;
         closed = false;
+        misses = 0;
         message = null;
         solvedWords.length = 0;
       }
