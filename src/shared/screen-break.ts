@@ -16,7 +16,10 @@ export interface ScreenBalance {
 
 const emptyBalance = (): ScreenBalance => ({ screenSeconds: 0, restSeconds: 0, hiddenAt: null, breakArmed: false });
 
+let sessionFallback: ScreenBalance | null = null;
+
 export function loadScreenBalance(): ScreenBalance {
+  if (sessionFallback) return { ...sessionFallback };
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(SCREEN_BREAK_KEY) ?? 'null');
     if (!raw || typeof raw !== 'object') return emptyBalance();
@@ -39,8 +42,9 @@ export function loadScreenBalance(): ScreenBalance {
 function save(balance: ScreenBalance): ScreenBalance {
   try {
     localStorage.setItem(SCREEN_BREAK_KEY, JSON.stringify(balance));
+    sessionFallback = null;
   } catch {
-    // The feature remains optional when local storage is unavailable.
+    sessionFallback = { ...balance };
   }
   return balance;
 }
