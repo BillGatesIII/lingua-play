@@ -108,7 +108,7 @@ function attachScreenBalance() {
   window.setInterval(() => {
     const path = location.hash.replace(/^#/, '') || '/';
     const now = Date.now();
-    const elapsed = Math.min(1, Math.floor((now - lastTick) / 1000));
+    const elapsed = Math.floor((now - lastTick) / 1000);
     lastTick = now;
     if (path !== '/' && document.visibilityState === 'visible' && elapsed > 0 && loadScreenBalance().restSeconds === 0) {
       const balance = addScreenSeconds(elapsed);
