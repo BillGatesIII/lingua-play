@@ -5,10 +5,10 @@ import { applyLegs, type Clue, clueText, distance, generateLevel, shortestPath, 
 describe('compass logic', () => {
   it('generates solvable levels whose target is inside the map', () => {
     const rng = mulberry32(42);
-    for (const band of ['7-10', '11-14'] as const) {
+    for (const level of [0, 1, 2] as const) {
       for (let i = 0; i < 5; i++) {
         for (let n = 0; n < 40; n++) {
-          const l = generateLevel(rng, band, i);
+          const l = generateLevel(rng, level, i);
           expect(l.target.x).toBeGreaterThanOrEqual(1);
           expect(l.target.x).toBeLessThanOrEqual(l.size);
           expect(l.target.y).toBeGreaterThanOrEqual(1);
@@ -25,7 +25,7 @@ describe('compass logic', () => {
   });
 
   it('north increases y and edges block movement', () => {
-    const l = generateLevel(mulberry32(1), '7-10', 0);
+    const l = generateLevel(mulberry32(1), 0, 0);
     const free = { ...l, rocks: [] };
     expect(step(free, { x: 2, y: 2 }, 'N').pos).toEqual({ x: 2, y: 3 });
     expect(step(free, { x: 1, y: 1 }, 'W').blocked).toBe(true);

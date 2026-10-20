@@ -5,10 +5,10 @@ import { PRODUCTS, basketMatches, billFor, checkChange, generateOrder, orderSpee
 describe('market logic', () => {
   it('always needs change and the numbers add up', () => {
     const rng = mulberry32(1);
-    for (const band of ['7-10', '11-14'] as const) {
+    for (const level of [0, 1, 2] as const) {
       for (let i = 0; i < 5; i++) {
         for (let n = 0; n < 50; n++) {
-          const o = generateOrder(rng, band, i);
+          const o = generateOrder(rng, level, i);
           expect(o.total).toBe(orderTotal(o.lines));
           expect(o.paid).toBeGreaterThan(o.total);
           expect(o.change).toBe(o.paid - o.total);
@@ -24,7 +24,7 @@ describe('market logic', () => {
   });
 
   it('matches baskets exactly', () => {
-    const o = generateOrder(mulberry32(3), '7-10', 0);
+    const o = generateOrder(mulberry32(3), 0, 0);
     const ok = Object.fromEntries(o.lines.map((l) => [l.product.id, l.qty]));
     expect(basketMatches(o, ok)).toBe(true);
     expect(basketMatches(o, { ...ok, [o.lines[0].product.id]: o.lines[0].qty + 1 })).toBe(false);
@@ -33,14 +33,14 @@ describe('market logic', () => {
   });
 
   it('checks change', () => {
-    const o = generateOrder(mulberry32(5), '7-10', 0);
+    const o = generateOrder(mulberry32(5), 0, 0);
     expect(checkChange(o, [o.change])).toBe('exact');
     expect(checkChange(o, [o.change + 1])).toBe('too-much');
     expect(checkChange(o, [o.change - 1])).toBe('too-little');
   });
 
   it('speaks in both languages', () => {
-    const o = generateOrder(mulberry32(7), '7-10', 0);
+    const o = generateOrder(mulberry32(7), 0, 0);
     expect(orderSpeech(o, 'es')).toContain('Quiero');
     expect(orderSpeech(o, 'en')).toContain('would like');
   });

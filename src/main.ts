@@ -10,9 +10,12 @@ import { recipePage } from './games/recipe/recipe';
 import { wordsPage } from './games/words/words';
 import { landingPage } from './pages/landing';
 import type { Page, PageCleanup } from './pages/types';
-import { loadProgress, updateProgress, type AgeBand } from './shared/storage';
-import type { Lang } from './shared/i18n';
-import { Button } from './ui/components';
+import { loadProgress, updateProgress } from './shared/storage';
+import {
+  addScreenSeconds, beginScreenBreak, formatScreenTime, loadScreenBalance, updateScreenBreakVisibility,
+} from './shared/screen-break';
+import { tr, type Lang } from './shared/i18n';
+import { Button, Card } from './ui/components';
 import { h } from './ui/dom';
 
 const routes: Record<string, Page> = {
@@ -33,29 +36,25 @@ app.append(header, main);
 let cleanup: void | PageCleanup;
 
 function drawHeader() {
-  const { lang, band } = loadProgress().settings;
+  const { lang } = loadProgress().settings;
   const focusedKey = header.contains(document.activeElement)
     ? (document.activeElement as HTMLElement).dataset.focus
     : undefined;
-  const updateSettings = (settings: { lang: Lang; band: AgeBand }) => {
+  const updateSettings = (nextLang: Lang) => {
     const current = loadProgress().settings;
-    if (current.lang === settings.lang && current.band === settings.band) return;
-    updateProgress((p) => { p.settings = settings; });
-    const { lang: nextLang, band: nextBand } = settings;
+    if (current.lang === nextLang) return;
+    updateProgress((p) => { p.settings = { lang: nextLang }; });
     document.documentElement.lang = nextLang;
     drawHeader();
-    if (cleanup?.updateSettings) cleanup.updateSettings(nextLang, nextBand);
+    if (cleanup?.updateSettings) cleanup.updateSettings(nextLang);
     else render();
   };
   header.replaceChildren(
     h('a', { class: 'logo', href: '#/' }, h('span', { 'aria-hidden': 'true' }, '🦜 '), 'Lingua Play'),
     h('div', { class: 'toolbar' },
-      h('div', { class: 'seg', role: 'group', 'aria-label': 'Language / Idioma' },
-        Button('Español', { variant: 'ghost', pressed: lang === 'es', focusKey: 'language-es', onClick: () => updateSettings({ lang: 'es', band }) }),
-        Button('English', { variant: 'ghost', pressed: lang === 'en', focusKey: 'language-en', onClick: () => updateSettings({ lang: 'en', band }) })),
-      h('div', { class: 'seg', role: 'group', 'aria-label': lang === 'es' ? 'Edad' : 'Age' },
-        Button(lang === 'es' ? '7–10 años' : 'Ages 7–10', { variant: 'ghost', pressed: band === '7-10', focusKey: 'band-7-10', onClick: () => updateSettings({ lang, band: '7-10' }) }),
-        Button(lang === 'es' ? '11–14 años' : 'Ages 11–14', { variant: 'ghost', pressed: band === '11-14', focusKey: 'band-11-14', onClick: () => updateSettings({ lang, band: '11-14' }) }))),
+    h('div', { class: 'seg', role: 'group', 'aria-label': 'Language / Idioma' },
+      Button('Español', { variant: 'ghost', pressed: lang === 'es', focusKey: 'language-es', onClick: () => updateSettings('es') }),
+      Button('English', { variant: 'ghost', pressed: lang === 'en', focusKey: 'language-en', onClick: () => updateSettings('en') })),
   );
   if (focusedKey) {
     Array.from(header.querySelectorAll<HTMLElement>('[data-focus]'))
@@ -65,13 +64,60 @@ function drawHeader() {
 
 function render() {
   if (typeof cleanup === 'function') cleanup();
-  const { lang, band } = loadProgress().settings;
+  const { lang } = loadProgress().settings;
   document.documentElement.lang = lang;
   drawHeader();
   main.replaceChildren();
+  const balance = loadScreenBalance();
+  if (balance.restSeconds > 0) {
+    header.replaceChildren();
+    main.append(Card([
+      h('p', { class: 'screen-break__art', 'aria-hidden': 'true' }, '🌿'),
+      h('h1', {}, tr({ es: 'Pausa fuera de pantalla', en: 'Screen-free pause' }, lang)),
+      h('p', {}, tr({
+        es: `Has acumulado ${formatScreenTime(balance.restSeconds)} de descanso. Es el mismo tiempo que has pasado jugando.`,
+        en: `Your screen-free pause is ${formatScreenTime(balance.restSeconds)} — the same time you spent playing.`,
+      }, lang)),
+      h('p', {}, tr({
+        es: 'Deja el dispositivo y prueba algo real: estírate, dibuja un mapa o busca algo azul. El descanso solo cuenta mientras esta página no está visible.',
+        en: 'Put the device down and try something real: stretch, draw a map, or find something blue. The pause counts only while this page is out of view.',
+      }, lang)),
+      !balance.breakArmed
+        ? Button(tr({ es: 'Dejar el dispositivo y empezar', en: 'Put the device away and begin' }, lang), {
+          large: true,
+          onClick: () => {
+            beginScreenBreak();
+            render();
+          },
+        })
+        : h('p', { class: 'screen-break__waiting', role: 'status', 'aria-live': 'polite' }, tr({
+          es: '¡Bien! Cierra esta pestaña o pon el dispositivo en reposo. El tiempo empezará cuando la pantalla deje de estar visible.',
+          en: 'Good choice! Close this tab or put the device to sleep. The pause begins when the screen is no longer visible.',
+        }, lang)),
+    ], 'leaf', 'screen-break'));
+    return;
+  }
   const path = location.hash.replace(/^#/, '') || '/';
   const page = Object.hasOwn(routes, path) ? routes[path] : landingPage;
-  cleanup = page({ root: main, lang, band, refresh: render });
+  cleanup = page({ root: main, lang, refresh: render });
+}
+
+function attachScreenBalance() {
+  let lastTick = Date.now();
+  window.setInterval(() => {
+    const path = location.hash.replace(/^#/, '') || '/';
+    const now = Date.now();
+    const elapsed = Math.floor((now - lastTick) / 1000);
+    lastTick = now;
+    if (path !== '/' && document.visibilityState === 'visible' && elapsed > 0) {
+      const balance = addScreenSeconds(elapsed);
+      if (balance.restSeconds > 0) render();
+    }
+  }, 1000);
+  document.addEventListener('visibilitychange', () => {
+    const balance = updateScreenBreakVisibility(document.hidden);
+    if (!document.hidden && balance.restSeconds === 0) render();
+  });
 }
 
 window.addEventListener('hashchange', () => {
@@ -84,4 +130,6 @@ document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click
   main.focus();
   main.scrollIntoView();
 });
+updateScreenBreakVisibility(false);
+attachScreenBalance();
 render();

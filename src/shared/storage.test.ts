@@ -15,7 +15,7 @@ describe('storage', () => {
 
   it('sanitizes untrusted data', () => {
     const p = sanitize({ settings: { lang: 'fr', band: '11-14' }, market: { served: -3, stickers: ['🍎', 5] }, compass: { found: 2.7 } });
-    expect(p.settings).toEqual({ lang: 'es', band: '11-14' });
+    expect(p.settings).toEqual({ lang: 'es' });
     expect(p.market).toEqual({ served: 0, stickers: ['🍎'] });
     expect(p.compass.found).toBe(2);
   });

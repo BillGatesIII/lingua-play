@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
-  COLORS, ROUND_LENGTH, clueText, generateRound, maxPots, mix, potsForBand, targetsForBand, togglePot,
+  COLORS, ROUND_LENGTH, clueText, generateRound, maxPots, mix, potsForLevel, targetsForLevel, togglePot,
 } from './logic';
 
 describe('colors logic', () => {
@@ -26,30 +26,30 @@ describe('colors logic', () => {
     expect(togglePot(['red', 'blue'], 'yellow', 3)).toEqual(['red', 'blue', 'yellow']);
   });
 
-  it('every target can be mixed from the band\'s pots within the bowl limit', () => {
-    for (const band of ['7-10', '11-14'] as const) {
-      const pots = potsForBand(band);
+  it('every target can be mixed from the adaptive pots within the bowl limit', () => {
+    for (const level of [0, 1, 2] as const) {
+      const pots = potsForLevel(level);
       const reachable = new Set<string>();
       const walk = (bowl: typeof pots, from: number) => {
         const c = mix(bowl);
         if (c) reachable.add(c);
-        if (bowl.length === maxPots(band)) return;
+        if (bowl.length === maxPots(level)) return;
         for (let i = from; i < pots.length; i++) walk([...bowl, pots[i]], i + 1);
       };
       walk([], 0);
-      for (const t of targetsForBand(band)) expect(reachable.has(t)).toBe(true);
+      for (const t of targetsForLevel(level)) expect(reachable.has(t)).toBe(true);
     }
   });
 
   it('generates varied rounds of different colours', () => {
     const rng = mulberry32(7);
     const seen = new Set<string>();
-    for (const band of ['7-10', '11-14'] as const) {
+    for (const level of [0, 1, 2] as const) {
       for (let n = 0; n < 30; n++) {
-        const round = generateRound(rng, band);
+        const round = generateRound(rng, level);
         expect(round).toHaveLength(ROUND_LENGTH);
         expect(new Set(round).size).toBe(ROUND_LENGTH);
-        for (const c of round) expect(targetsForBand(band)).toContain(c);
+        for (const c of round) expect(targetsForLevel(level)).toContain(c);
         seen.add(round.join());
       }
     }
