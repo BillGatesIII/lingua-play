@@ -12,7 +12,7 @@ import { landingPage } from './pages/landing';
 import type { Page, PageCleanup } from './pages/types';
 import { loadProgress, updateProgress } from './shared/storage';
 import {
-  accumulateVisibleMilliseconds, addScreenSeconds, beginScreenBreak, formatScreenTime, loadScreenBalance, updateScreenBreakVisibility,
+  accumulateVisibleMilliseconds, addScreenSeconds, beginScreenBreak, formatScreenTime, loadScreenBalance, SCREEN_BREAK_KEY, updateScreenBreakVisibility,
 } from './shared/screen-break';
 import { tr, type Lang } from './shared/i18n';
 import { Button, Card } from './ui/components';
@@ -35,6 +35,7 @@ app.append(header, main);
 
 let cleanup: void | PageCleanup;
 let resetScreenTimer: () => void = () => {};
+let breakShown = false;
 
 function drawHeader() {
   const { lang } = loadProgress().settings;
@@ -71,7 +72,8 @@ function render() {
   drawHeader();
   main.replaceChildren();
   const balance = loadScreenBalance();
-  if (balance.restSeconds > 0) {
+  breakShown = balance.restSeconds > 0;
+  if (breakShown) {
     header.replaceChildren();
     main.append(Card([
       h('p', { class: 'screen-break__art', 'aria-hidden': 'true' }, '🌿'),
@@ -104,32 +106,42 @@ function render() {
   cleanup = page({ root: main, lang, refresh: render });
 }
 
+const currentPath = () => location.hash.replace(/^#/, '') || '/';
+
 function attachScreenBalance() {
   let lastTick = Date.now();
   let remainder = 0;
-  resetScreenTimer = () => {
-    lastTick = Date.now();
-    remainder = 0;
-  };
-  window.setInterval(() => {
-    const path = location.hash.replace(/^#/, '') || '/';
+  let countedPath = currentPath();
+  let countedVisible = document.visibilityState === 'visible';
+  const record = () => {
     const now = Date.now();
     const elapsedMs = Math.max(0, now - lastTick);
     lastTick = now;
-    if (path !== '/' && document.visibilityState === 'visible' && loadScreenBalance().restSeconds === 0) {
+    if (countedPath !== '/' && countedVisible && loadScreenBalance().restSeconds === 0) {
       const accumulated = accumulateVisibleMilliseconds(remainder, elapsedMs);
       remainder = accumulated.remainder;
-      if (accumulated.seconds === 0) return;
-      const balance = addScreenSeconds(accumulated.seconds);
-      if (balance.restSeconds > 0) render();
+      if (accumulated.seconds > 0 && addScreenSeconds(accumulated.seconds).restSeconds > 0) render();
     } else remainder = 0;
+  };
+  resetScreenTimer = () => {
+    record();
+    countedPath = currentPath();
+    countedVisible = document.visibilityState === 'visible';
+  };
+  window.setInterval(() => {
+    record();
+    if ((loadScreenBalance().restSeconds > 0) !== breakShown) render();
   }, 1000);
+  window.addEventListener('storage', (event) => {
+    if (event.key !== null && event.key !== SCREEN_BREAK_KEY) return;
+    if ((loadScreenBalance().restSeconds > 0) !== breakShown) render();
+  });
   document.addEventListener('visibilitychange', () => {
     resetScreenTimer();
     const hadBreakDue = loadScreenBalance().restSeconds > 0;
     const balance = updateScreenBreakVisibility(document.hidden);
     if (!document.hidden && hadBreakDue) {
-      if (balance.restSeconds === 0 && (location.hash.replace(/^#/, '') || '/') !== '/') location.hash = '#/';
+      if (balance.restSeconds === 0 && currentPath() !== '/') location.hash = '#/';
       else render();
     }
   });
