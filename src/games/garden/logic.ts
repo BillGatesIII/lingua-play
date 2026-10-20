@@ -1,7 +1,7 @@
 import type { Bi } from '../../shared/i18n';
 import { numberWord } from '../../shared/i18n';
 import { randInt, shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
+import type { ChallengeLevel } from '../../shared/adaptive';
 
 export interface PatternPuzzle {
   sequence: number[];
@@ -21,8 +21,8 @@ function options(rng: Rng, answer: number, spread: number): number[] {
   return shuffle(rng, [answer, ...distractors]);
 }
 
-export function generatePattern(rng: Rng, band: AgeBand, index: number): PatternPuzzle {
-  if (band === '7-10') {
+export function generatePattern(rng: Rng, level: ChallengeLevel, index: number): PatternPuzzle {
+  if (level === 0) {
     const start = randInt(rng, 1, 10);
     const step = randInt(rng, 2, 5);
     const sequence = [start, start + step, start + step * 2];
@@ -37,7 +37,7 @@ export function generatePattern(rng: Rng, band: AgeBand, index: number): Pattern
     };
   }
 
-  if (index % 2 === 0) {
+  if (level === 1 && index % 2 === 0) {
     const start = randInt(rng, 2, 9);
     const factor = randInt(rng, 2, 3);
     const sequence = [start, start * factor, start * factor ** 2];

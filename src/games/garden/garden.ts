@@ -4,18 +4,21 @@ import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
+import { createAdaptiveChallenge } from '../../shared/adaptive';
 import { GARDEN_LENGTH, generatePattern, isPatternSolved, type PatternPuzzle } from './logic';
 
 export const gardenPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
+  const challenge = createAdaptiveChallenge();
   const rng = mulberry32((Date.now() ^ 0x369dea0f) >>> 0);
   let index = 0;
-  let puzzle: PatternPuzzle = generatePattern(rng, band, index);
+  let puzzle: PatternPuzzle = generatePattern(rng, challenge.level, index);
   let solved = false;
   let closed = false;
   let translate = false;
   let message: Bi | null = null;
   const flowers: string[] = [];
+  let misses = 0;
   const host = h('div', { class: 'world world--garden' });
   ctx.root.append(host);
 
@@ -23,9 +26,12 @@ export const gardenPage: Page = (ctx) => {
     if (solved || closed) return;
     if (isPatternSolved(puzzle, value)) {
       solved = true;
+      challenge.complete(misses);
+      misses = 0;
       flowers.push('🌷');
       message = { es: '¡La secuencia sigue creciendo! 🌱', en: 'The pattern keeps growing! 🌱' };
     } else {
+      misses++;
       message = { es: '¡Mira cómo cambia cada maceta e inténtalo de nuevo!', en: 'Watch how each flower bed changes and try again!' };
     }
     draw(solved ? 'next-pattern' : undefined);
@@ -35,7 +41,7 @@ export const gardenPage: Page = (ctx) => {
     index++;
     if (index >= GARDEN_LENGTH) closed = true;
     else {
-      puzzle = generatePattern(rng, band, index);
+      puzzle = generatePattern(rng, challenge.level, index);
       solved = false;
     }
     message = null;
@@ -91,17 +97,8 @@ export const gardenPage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+    updateSettings(nextLang: typeof lang) {
       lang = nextLang;
-      if (band !== nextBand) {
-        band = nextBand;
-        index = 0;
-        puzzle = generatePattern(rng, band, index);
-        solved = false;
-        closed = false;
-        message = null;
-        flowers.length = 0;
-      }
       draw();
     },
   });

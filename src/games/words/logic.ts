@@ -1,6 +1,6 @@
 import type { Bi, Lang } from '../../shared/i18n';
 import { pick, shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
+import type { ChallengeLevel } from '../../shared/adaptive';
 
 export interface Word {
   emoji: string;
@@ -32,14 +32,14 @@ export const WORD_ROUND_LENGTH = 5;
 
 const wordLength = (word: Word, lang: Lang): number => word.answer[lang].length;
 
-export function generateWordPuzzle(rng: Rng, band: AgeBand, lang: Lang): WordPuzzle {
+export function generateWordPuzzle(rng: Rng, level: ChallengeLevel, lang: Lang): WordPuzzle {
   const pool = WORDS.filter((word) => {
     const length = wordLength(word, lang);
-    return band === '7-10' ? length <= 5 : length >= 4;
+    return level === 0 ? length <= 5 : level === 1 ? length >= 4 : length >= 5;
   });
   const word = pick(rng, pool);
   const answer = word.answer[lang];
-  const distractors = Array.from({ length: band === '7-10' ? 2 : 3 }, () =>
+  const distractors = Array.from({ length: [2, 3, 4][level] }, () =>
     pick(rng, [...'abcdefgilmnoprstuv']));
   const letters = shuffle(rng, [...answer, ...distractors]);
   return { ...word, tiles: letters.map((letter, id) => ({ id, letter })) };

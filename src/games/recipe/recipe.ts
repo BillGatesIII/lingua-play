@@ -4,18 +4,21 @@ import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
+import { createAdaptiveChallenge } from '../../shared/adaptive';
 import { INGREDIENTS, RECIPE_LENGTH, generateRecipe, recipeMatches, recipeSpeech, recipeTotal, type Recipe } from './logic';
 
 export const recipePage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
+  const challenge = createAdaptiveChallenge();
   const rng = mulberry32((Date.now() ^ 0x7f4a7c15) >>> 0);
   let index = 0;
-  let recipe: Recipe = generateRecipe(rng, band);
+  let recipe: Recipe = generateRecipe(rng, challenge.level);
   let bowl: Record<string, number> = {};
   let solved = false;
   let closed = false;
   let translate = false;
   let message: Bi | null = null;
+  let misses = 0;
   const dishes: string[] = [];
   const host = h('div', { class: 'world world--recipe' });
   ctx.root.append(host);
@@ -30,9 +33,12 @@ export const recipePage: Page = (ctx) => {
   function stir() {
     if (recipeMatches(recipe, bowl)) {
       solved = true;
+      challenge.complete(misses);
+      misses = 0;
       dishes.push(recipe.lines.map((line) => line.ingredient.emoji).join(' '));
       message = { es: '¡La receta está perfecta! 🍽️', en: 'The recipe is just right! 🍽️' };
     } else {
+      misses++;
       message = { es: '¡Prueba otra vez! Puedes añadir o quitar ingredientes.', en: 'Try again! You can add or remove ingredients.' };
     }
     draw(solved ? 'next-recipe' : undefined);
@@ -42,7 +48,7 @@ export const recipePage: Page = (ctx) => {
     index++;
     if (index >= RECIPE_LENGTH) closed = true;
     else {
-      recipe = generateRecipe(rng, band);
+      recipe = generateRecipe(rng, challenge.level);
       bowl = {};
       solved = false;
     }
@@ -120,18 +126,8 @@ export const recipePage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+    updateSettings(nextLang: typeof lang) {
       lang = nextLang;
-      if (band !== nextBand) {
-        band = nextBand;
-        index = 0;
-        recipe = generateRecipe(rng, band);
-        bowl = {};
-        solved = false;
-        closed = false;
-        message = null;
-        dishes.length = 0;
-      }
       draw();
     },
   });

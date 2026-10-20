@@ -1,6 +1,7 @@
 import { other, tr, type Bi } from '../../shared/i18n';
 import { mulberry32, pick } from '../../shared/rng';
 import { updateProgress } from '../../shared/storage';
+import { createAdaptiveChallenge } from '../../shared/adaptive';
 import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
@@ -17,10 +18,11 @@ const KEYS: Record<string, Dir> = {
 const samePos = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 
 export const compassPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
+  const challenge = createAdaptiveChallenge();
   const rng = mulberry32((Date.now() ^ 0x85ebca6b) >>> 0);
   let index = 0;
-  let level: Level = generateLevel(rng, band, index);
+  let level: Level = generateLevel(rng, challenge.level, index);
   let pos: Pos = level.start;
   let used = 0;
   let dug: Pos[] = [];
@@ -28,6 +30,7 @@ export const compassPage: Page = (ctx) => {
   let found = false;
   let closed = false;
   let translate = false;
+  let misses = 0;
   const loot: string[] = [];
 
   const host = h('div', { class: 'world world--compass' });
@@ -38,9 +41,15 @@ export const compassPage: Page = (ctx) => {
 
   function move(dir: Dir) {
     if (found || closed) return;
-    if (left() <= 0) return say({ es: '¡Se acabó el viento! 🌬️ Cava aquí o vuelve a empezar.', en: 'The wind has died! 🌬️ Dig here or start over.' });
+    if (left() <= 0) {
+      misses++;
+      return say({ es: '¡Se acabó el viento! 🌬️ Cava aquí o vuelve a empezar.', en: 'The wind has died! 🌬️ Dig here or start over.' });
+    }
     const r = step(level, pos, dir);
-    if (r.blocked) return say({ es: '¡Roca o borde del mapa! 🪨 Busca otro camino.', en: 'A rock or the map edge! 🪨 Find another way.' });
+    if (r.blocked) {
+      misses++;
+      return say({ es: '¡Roca o borde del mapa! 🪨 Busca otro camino.', en: 'A rock or the map edge! 🪨 Find another way.' });
+    }
     pos = r.pos;
     used++;
     say(null);
@@ -51,6 +60,8 @@ export const compassPage: Page = (ctx) => {
     if (samePos(pos, level.target)) {
       const prize = pick(rng, TREASURES);
       loot.push(prize);
+      challenge.complete(misses);
+      misses = 0;
       updateProgress((p) => {
         p.compass.found += 1;
         if (!p.compass.treasures.includes(prize)) p.compass.treasures.push(prize);
@@ -59,6 +70,7 @@ export const compassPage: Page = (ctx) => {
       return say({ es: `¡Tesoro! ${prize} ¡Lo encontraste!`, en: `Treasure! ${prize} You found it!` }, 'next-treasure');
     }
     if (dug.some((d) => samePos(d, pos))) return say({ es: 'Aquí ya cavaste. 🕳️', en: 'You already dug here. 🕳️' });
+    misses++;
     dug = [...dug, pos];
     const junk = pick(rng, JUNK);
     const temp = TEMPERATURE_TEXT[temperature(distance(pos, level.target))];
@@ -78,7 +90,7 @@ export const compassPage: Page = (ctx) => {
     index++;
     if (index >= VOYAGE_LENGTH) closed = true;
     else {
-      level = generateLevel(rng, band, index);
+      level = generateLevel(rng, challenge.level, index);
       pos = level.start; used = 0; dug = []; found = false;
     }
     message = null;
@@ -184,9 +196,8 @@ export const compassPage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => document.removeEventListener('keydown', onKey), {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+    updateSettings(nextLang: typeof lang) {
       lang = nextLang;
-      band = nextBand;
       draw();
     },
   });

@@ -1,6 +1,6 @@
 import { joinList, numberWord, type Bi, type Lang } from '../../shared/i18n';
 import { pick, randInt, shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
+import type { ChallengeLevel } from '../../shared/adaptive';
 
 export interface Product {
   id: string;
@@ -56,11 +56,10 @@ export function billFor(total: number): number {
 }
 
 /** `index` is the customer number within a day (0-based); orders grow as the day goes on. */
-export function generateOrder(rng: Rng, band: AgeBand, index: number): Order {
-  const young = band === '7-10';
-  const pool = young ? PRODUCTS.filter((p) => p.price <= 3) : PRODUCTS;
-  const lineCount = Math.min(young ? 1 + Math.floor(index / 2) : 2 + Math.floor(index / 2), 3);
-  const maxQty = young ? 3 : 5;
+export function generateOrder(rng: Rng, level: ChallengeLevel, index: number): Order {
+  const pool = level === 0 ? PRODUCTS.filter((p) => p.price <= 3) : level === 1 ? PRODUCTS.filter((p) => p.price <= 5) : PRODUCTS;
+  const lineCount = Math.min((level === 0 ? 1 : 2) + Math.floor(index / 2), 3);
+  const maxQty = level === 0 ? 3 : level === 1 ? 4 : 5;
   const lines = shuffle(rng, pool)
     .slice(0, lineCount)
     .map((product) => ({ product, qty: randInt(rng, 1, maxQty) }));

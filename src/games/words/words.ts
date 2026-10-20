@@ -4,19 +4,22 @@ import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
+import { createAdaptiveChallenge } from '../../shared/adaptive';
 import { WORD_ROUND_LENGTH, generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount, type WordPuzzle } from './logic';
 
 export const wordsPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
+  const challenge = createAdaptiveChallenge();
   const rng = mulberry32((Date.now() ^ 0x94d049bb) >>> 0);
   let index = 0;
-  let puzzle: WordPuzzle = generateWordPuzzle(rng, band, lang);
+  let puzzle: WordPuzzle = generateWordPuzzle(rng, challenge.level, lang);
   let selected: number[] = [];
   let solved = false;
   let closed = false;
   let translate = false;
   let message: Bi | null = null;
   const solvedWords: string[] = [];
+  let misses = 0;
   const host = h('div', { class: 'world world--words' });
   ctx.root.append(host);
 
@@ -39,9 +42,12 @@ export const wordsPage: Page = (ctx) => {
   function checkWord() {
     if (isWordSolved(puzzle, selected, lang)) {
       solved = true;
+      challenge.complete(misses);
+      misses = 0;
       solvedWords.push(`${puzzle.emoji} ${puzzle.answer[lang]}`);
       message = { es: '¡Palabra encontrada! 🎉', en: 'Word found! 🎉' };
     } else {
+      misses++;
       message = { es: '¡Casi! Cambia las letras y vuelve a probar.', en: 'Nearly! Rearrange the letters and try again.' };
     }
     draw(solved ? 'next-word' : undefined);
@@ -51,7 +57,7 @@ export const wordsPage: Page = (ctx) => {
     index++;
     if (index >= WORD_ROUND_LENGTH) closed = true;
     else {
-      puzzle = generateWordPuzzle(rng, band, lang);
+      puzzle = generateWordPuzzle(rng, challenge.level, lang);
       selected = [];
       solved = false;
     }
@@ -115,14 +121,12 @@ export const wordsPage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+    updateSettings(nextLang: typeof lang) {
       const languageChanged = lang !== nextLang;
-      const bandChanged = band !== nextBand;
       lang = nextLang;
-      band = nextBand;
-      if (languageChanged || bandChanged) {
+      if (languageChanged) {
         index = 0;
-        puzzle = generateWordPuzzle(rng, band, lang);
+        puzzle = generateWordPuzzle(rng, challenge.level, lang);
         selected = [];
         solved = false;
         closed = false;

@@ -1,6 +1,6 @@
 import type { Bi, Lang } from '../../shared/i18n';
 import { shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
+import type { ChallengeLevel } from '../../shared/adaptive';
 
 export type PotId = 'red' | 'yellow' | 'blue' | 'white';
 export type ColorId = PotId | 'orange' | 'green' | 'purple' | 'pink' | 'lightblue' | 'brown' | 'grey';
@@ -25,17 +25,19 @@ export const COLORS: Record<ColorId, ColorInfo> = {
 
 const PRIMARIES: PotId[] = ['red', 'yellow', 'blue'];
 
-/** Paint pots on the shelf. The older band also gets white. */
-export const potsForBand = (band: AgeBand): PotId[] => (band === '7-10' ? PRIMARIES : [...PRIMARIES, 'white']);
+/** Paint pots and mixing capacity grow with demonstrated confidence. */
+export const potsForLevel = (level: ChallengeLevel): PotId[] => (level === 0 ? PRIMARIES : [...PRIMARIES, 'white']);
 
 /** How many pots fit in the mixing bowl at once. */
-export const maxPots = (band: AgeBand): number => (band === '7-10' ? 2 : 3);
+export const maxPots = (level: ChallengeLevel): number => (level === 0 ? 2 : 3);
 
 /** Colours a chameleon can ask for. */
-export const targetsForBand = (band: AgeBand): ColorId[] =>
-  band === '7-10'
+export const targetsForLevel = (level: ChallengeLevel): ColorId[] =>
+  level === 0
     ? ['red', 'yellow', 'blue', 'orange', 'green', 'purple']
-    : ['red', 'yellow', 'blue', 'white', 'orange', 'green', 'purple', 'pink', 'lightblue', 'brown'];
+    : level === 1
+      ? ['red', 'yellow', 'blue', 'white', 'orange', 'green', 'purple', 'pink', 'lightblue']
+      : ['red', 'yellow', 'blue', 'white', 'orange', 'green', 'purple', 'pink', 'lightblue', 'brown'];
 
 const RECIPES: Record<string, ColorId> = {
   red: 'red',
@@ -64,8 +66,8 @@ export function togglePot(bowl: readonly PotId[], pot: PotId, max: number): PotI
 }
 
 /** One round: a few different chameleons, in random order. */
-export function generateRound(rng: Rng, band: AgeBand): ColorId[] {
-  return shuffle(rng, targetsForBand(band)).slice(0, ROUND_LENGTH);
+export function generateRound(rng: Rng, level: ChallengeLevel): ColorId[] {
+  return shuffle(rng, targetsForLevel(level)).slice(0, ROUND_LENGTH);
 }
 
 export const clueText = (color: ColorId, lang: Lang): string =>

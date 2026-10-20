@@ -1,7 +1,7 @@
 import type { Bi, Lang } from '../../shared/i18n';
 import { joinList, numberWord } from '../../shared/i18n';
 import { randInt, shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
+import type { ChallengeLevel } from '../../shared/adaptive';
 
 export interface Ingredient {
   id: string;
@@ -26,12 +26,12 @@ export interface Recipe {
 
 export const RECIPE_LENGTH = 4;
 
-export function generateRecipe(rng: Rng, band: AgeBand): Recipe {
-  const ingredients = shuffle(rng, [...INGREDIENTS]).slice(0, band === '7-10' ? 2 : 3);
+export function generateRecipe(rng: Rng, level: ChallengeLevel): Recipe {
+  const ingredients = shuffle(rng, [...INGREDIENTS]).slice(0, [2, 2, 3][level]);
   return {
     lines: ingredients.map((ingredient) => ({
       ingredient,
-      quantity: randInt(rng, band === '7-10' ? 1 : 2, band === '7-10' ? 5 : 8),
+      quantity: randInt(rng, level === 2 ? 2 : 1, [5, 6, 8][level]),
     })),
   };
 }

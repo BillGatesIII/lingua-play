@@ -1,6 +1,7 @@
 import { mulberry32, pick } from '../../shared/rng';
 import { tr, other, type Bi } from '../../shared/i18n';
 import { updateProgress } from '../../shared/storage';
+import { createAdaptiveChallenge } from '../../shared/adaptive';
 import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
@@ -13,16 +14,18 @@ import {
 type Stage = 'basket' | 'change' | 'served' | 'closed';
 
 export const marketPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
+  const challenge = createAdaptiveChallenge();
   const rng = mulberry32((Date.now() ^ 0x9e3779b9) >>> 0);
   const stage = { v: 'basket' as Stage };
   let index = 0;
-  let order: Order = generateOrder(rng, band, index);
+  let order: Order = generateOrder(rng, challenge.level, index);
   let customer = pick(rng, CUSTOMERS);
   let basket: Basket = {};
   let coins: number[] = [];
   let message: Bi | null = null;
   let translate = false;
+  let misses = 0;
   const stickers: string[] = [];
 
   const root = ctx.root;
@@ -39,7 +42,7 @@ export const marketPage: Page = (ctx) => {
     if (index >= CUSTOMERS_PER_DAY) {
       stage.v = 'closed';
     } else {
-      order = generateOrder(rng, band, index);
+      order = generateOrder(rng, challenge.level, index);
       customer = pick(rng, CUSTOMERS);
       basket = {};
       coins = [];
@@ -54,13 +57,19 @@ export const marketPage: Page = (ctx) => {
       stage.v = 'change';
       say({ es: '¡Perfecto! 😄 Ahora el cliente te da el dinero. ¿Cuánto cambio le devuelves?', en: 'Perfect! 😄 Now the customer hands you money. How much change do you give back?' }, 'coin-1');
     } else {
+      misses++;
       say(basketMistake(order, basket, rng));
     }
   }
 
   function submitChange() {
     const result = checkChange(order, coins);
-    if (result !== 'exact') return say(changeFeedback(result), 'give-change');
+    if (result !== 'exact') {
+      misses++;
+      return say(changeFeedback(result), 'give-change');
+    }
+    challenge.complete(misses);
+    misses = 0;
     const sticker = pick(rng, PRODUCTS).emoji;
     stickers.push(sticker);
     updateProgress((p) => {
@@ -196,9 +205,8 @@ export const marketPage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => {}, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+    updateSettings(nextLang: typeof lang) {
       lang = nextLang;
-      band = nextBand;
       draw();
     },
   });

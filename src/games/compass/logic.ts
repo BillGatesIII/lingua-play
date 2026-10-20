@@ -1,7 +1,7 @@
 import type { Bi, Lang } from '../../shared/i18n';
 import { joinList, numberWord } from '../../shared/i18n';
 import { pick, randInt, shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
+import type { ChallengeLevel } from '../../shared/adaptive';
 
 export type Dir = 'N' | 'E' | 'S' | 'W';
 export interface Pos {
@@ -116,13 +116,12 @@ function randomLegs(rng: Rng, count: number, maxN: number): Leg[] {
 const KINDS: readonly Clue['kind'][] = ['relative', 'relative', 'landmark', 'coords', 'landmark'];
 
 /** `index` is the treasure number within a voyage (0-based). Always solvable. */
-export function generateLevel(rng: Rng, band: AgeBand, index: number): Level {
-  const young = band === '7-10';
-  const size = young ? 6 : 8;
+export function generateLevel(rng: Rng, level: ChallengeLevel, index: number): Level {
+  const size = [6, 7, 8][level];
   const kind = KINDS[index % KINDS.length];
-  const rockCount = (young ? 3 : 6) + Math.min(index, 3);
-  const maxN = Math.min(young ? 4 : 5, size - 2);
-  const legCount = young ? (index < 2 ? 1 : 2) : 2 + (index > 2 ? 1 : 0);
+  const rockCount = [3, 4, 6][level] + Math.min(index, 3);
+  const maxN = Math.min([3, 4, 5][level], size - 2);
+  const legCount = level === 0 ? (index < 2 ? 1 : 2) : level === 1 ? 2 : 2 + (index > 2 ? 1 : 0);
 
   for (let attempt = 0; attempt < 500; attempt++) {
     const rnd = (): Pos => ({ x: randInt(rng, 1, size), y: randInt(rng, 1, size) });
@@ -152,9 +151,9 @@ export function generateLevel(rng: Rng, band: AgeBand, index: number): Level {
     rocks.push(...free.slice(0, rockCount));
     const best = shortestPath(size, rocks, start, target);
     if (best < 0) continue;
-    return { size, start, target, landmarkPos, rocks, clue, budget: best + (young ? 4 : 2) };
+    return { size, start, target, landmarkPos, rocks, clue, budget: best + [4, 3, 2][level] };
   }
-  throw new Error(`Could not generate a solvable level (band=${band}, index=${index}) after 500 attempts`);
+  throw new Error(`Could not generate a solvable level (level=${level}, index=${index}) after 500 attempts`);
 }
 
 const legText = (leg: Leg, lang: Lang): string => {

@@ -4,19 +4,22 @@ import type { Page } from '../../pages/types';
 import { Button, Card, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
+import { createAdaptiveChallenge } from '../../shared/adaptive';
 import {
-  COLORS, ROUND_LENGTH, clueText, generateRound, maxPots, mix, potsForBand, togglePot, type ColorId, type PotId,
+  COLORS, ROUND_LENGTH, clueText, generateRound, maxPots, mix, potsForLevel, togglePot, type ColorId, type PotId,
 } from './logic';
 
 export const colorsPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
+  const challenge = createAdaptiveChallenge();
   const rng = mulberry32((Date.now() ^ 0x27d4eb2f) >>> 0);
-  let round = generateRound(rng, band);
+  let round = generateRound(rng, challenge.level);
   let index = 0;
   let bowl: PotId[] = [];
   let solved = false;
   let closed = false;
   let translate = false;
+  let attempts = 0;
 
   const host = h('div', { class: 'world world--colors' });
   ctx.root.append(host);
@@ -26,17 +29,22 @@ export const colorsPage: Page = (ctx) => {
 
   function pour(pot: PotId) {
     if (solved || closed) return;
-    bowl = togglePot(bowl, pot, maxPots(band));
-    if (mixed() === target()) solved = true;
+    attempts++;
+    bowl = togglePot(bowl, pot, maxPots(challenge.level));
+    if (mixed() === target()) {
+      solved = true;
+      challenge.complete(attempts <= 2 ? 0 : attempts >= 5 ? 2 : 1);
+    }
     draw(solved ? 'next-chameleon' : undefined);
   }
 
   function next() {
     index++;
     bowl = [];
+    attempts = 0;
     solved = false;
     if (index >= ROUND_LENGTH) closed = true;
-    draw(closed ? 'play-again' : `pot-${potsForBand(band)[0]}`);
+    draw(closed ? 'play-again' : `pot-${potsForLevel(challenge.level)[0]}`);
   }
 
   function status(): Bi {
@@ -54,7 +62,7 @@ export const colorsPage: Page = (ctx) => {
       h('span', { 'aria-hidden': 'true' }, '🦎'));
 
   function pots(): HTMLElement {
-    return h('div', { class: 'pots' }, ...potsForBand(band).map((pot) => {
+    return h('div', { class: 'pots' }, ...potsForLevel(challenge.level).map((pot) => {
       const c = COLORS[pot];
       return Button([
         h('span', { class: 'pot__swatch', 'aria-hidden': 'true', style: `--paint:${c.hex}` }),
@@ -107,7 +115,7 @@ export const colorsPage: Page = (ctx) => {
             ]),
             Panel(`🎨 ${tr({ es: 'Pintura', en: 'Paint' }, lang)}`, [
               pots(),
-              Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), { variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty', onClick: () => { bowl = []; draw(`pot-${potsForBand(band)[0]}`); } }),
+              Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), { variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty', onClick: () => { bowl = []; draw(`pot-${potsForLevel(challenge.level)[0]}`); } }),
             ])),
         ),
         h('div', { class: 'message message--on', role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, biText(status(), lang)),
@@ -119,14 +127,8 @@ export const colorsPage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
-      const bandChanged = nextBand !== band;
+    updateSettings(nextLang: typeof lang) {
       lang = nextLang;
-      band = nextBand;
-      if (bandChanged) {
-        round = generateRound(rng, band);
-        index = 0; bowl = []; solved = false; closed = false;
-      }
       draw();
     },
   });
