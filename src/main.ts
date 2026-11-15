@@ -5,9 +5,11 @@ import './styles/games.css';
 import { colorsPage } from './games/colors/colors';
 import { compassPage } from './games/compass/compass';
 import { detectivePage } from './games/detective/detective';
+import { gardenPage } from './games/garden/garden';
 import { marketPage } from './games/market/market';
 import { recipePage } from './games/recipe/recipe';
 import { stationPage } from './games/station/station';
+import { wordsPage } from './games/words/words';
 import { landingPage } from './pages/landing';
 import type { Page, PageCleanup } from './pages/types';
 import { loadProgress, updateProgress } from './shared/storage';
@@ -23,6 +25,8 @@ const routes: Record<string, Page> = {
   '/recipe': recipePage,
   '/station': stationPage,
   '/detective': detectivePage,
+  '/words': wordsPage,
+  '/garden': gardenPage,
 };
 
 const app = document.getElementById('app')!;

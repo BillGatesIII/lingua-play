@@ -1,4 +1,5 @@
 import { other, tr, type Bi } from '../../shared/i18n';
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
@@ -66,6 +67,7 @@ export const detectivePage: Page = (ctx) => {
     index++;
     if (index >= CASES_PER_ROUND) {
       closed = true;
+      completeGameRound();
     } else {
       current = generateCase(rng, index);
       cleared = new Set();
@@ -142,6 +144,7 @@ export const detectivePage: Page = (ctx) => {
           againLabel: { es: 'Más misterios', en: 'More mysteries' },
           againFocusKey: 'another-casebook',
           onAgain: () => ctx.refresh(),
+          onBreakChange: () => draw(),
           lang,
         }));
         return wrap;

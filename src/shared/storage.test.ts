@@ -27,6 +27,8 @@ describe('storage', () => {
     expect(p.recipe).toEqual({ cooked: 0, dishes: [] });
     expect(p.station).toEqual({ dispatched: 0, stamps: [] });
     expect(p.detective).toEqual({ solved: 0, badges: [] });
+    expect(p.words).toEqual({ solved: 0, badges: [] });
+    expect(p.garden).toEqual({ planted: 0, flowers: [] });
   });
 
   it('persists updates and can be erased', () => {

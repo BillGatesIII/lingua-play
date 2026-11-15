@@ -1,3 +1,4 @@
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick, shuffle } from '../../shared/rng';
 import { tr, other, type Bi } from '../../shared/i18n';
 import { updateProgress } from '../../shared/storage';
@@ -40,6 +41,7 @@ export const marketPage: Page = (ctx) => {
     index++;
     if (index >= CUSTOMERS_PER_DAY) {
       stage.v = 'closed';
+      completeGameRound();
     } else {
       order = generateOrder(rng, index);
       customer = queue[index];
@@ -173,6 +175,7 @@ export const marketPage: Page = (ctx) => {
           againLabel: { es: 'Otro día de mercado', en: 'Another market day' },
           againFocusKey: 'another-day',
           onAgain: () => ctx.refresh(),
+          onBreakChange: () => draw(),
           lang,
         }));
         return wrap;

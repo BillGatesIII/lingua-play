@@ -1,4 +1,5 @@
 import { other, tr, type Bi } from '../../shared/i18n';
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
@@ -65,6 +66,7 @@ export const recipePage: Page = (ctx) => {
     index++;
     if (index >= RECIPES_PER_ROUND) {
       closed = true;
+      completeGameRound();
     } else {
       recipe = generateRecipe(rng, index);
       chosen = [];
@@ -123,6 +125,7 @@ export const recipePage: Page = (ctx) => {
           againLabel: { es: 'Cocinar otra vez', en: 'Cook again' },
           againFocusKey: 'another-kitchen',
           onAgain: () => ctx.refresh(),
+          onBreakChange: () => draw(),
           lang,
         }));
         return wrap;

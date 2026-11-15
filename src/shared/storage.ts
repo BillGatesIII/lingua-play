@@ -8,6 +8,8 @@ export interface Progress {
   recipe: { cooked: number; dishes: string[] };
   station: { dispatched: number; stamps: string[] };
   detective: { solved: number; badges: string[] };
+  words: { solved: number; badges: string[] };
+  garden: { planted: number; flowers: string[] };
 }
 
 export const STORAGE_KEY = 'linguaplay.v1';
@@ -21,6 +23,8 @@ export const defaultProgress = (): Progress => ({
   recipe: { cooked: 0, dishes: [] },
   station: { dispatched: 0, stamps: [] },
   detective: { solved: 0, badges: [] },
+  words: { solved: 0, badges: [] },
+  garden: { planted: 0, flowers: [] },
 });
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
@@ -39,6 +43,8 @@ export function sanitize(raw: unknown): Progress {
   d.recipe = { cooked: num(r.recipe?.cooked), dishes: strs(r.recipe?.dishes) };
   d.station = { dispatched: num(r.station?.dispatched), stamps: strs(r.station?.stamps) };
   d.detective = { solved: num(r.detective?.solved), badges: strs(r.detective?.badges) };
+  d.words = { solved: num(r.words?.solved), badges: strs(r.words?.badges) };
+  d.garden = { planted: num(r.garden?.planted), flowers: strs(r.garden?.flowers) };
   return d;
 }
 

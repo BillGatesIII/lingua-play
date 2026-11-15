@@ -29,8 +29,10 @@ npm run deploy:t630 # test, build and deploy to the local t630 nginx server
 | **Recipe Lab** 🍳 | Hungry animal friends request wacky dishes. Pick the ingredients, fill the visual measuring jug with `¼`, `½` and `1`-cup scoops, and finish with the requested cooking verb (*corta / mezcla / hornea / enfría*). | **Language:** food vocabulary, cooking imperative verbs, and fraction words (*un cuarto*, *media taza*, *tres cuartos*). **Maths:** adding unit fractions (`¼ + ½ = ¾`) and doubling recipes (`× 2`) later in the round. |
 | **Train Station** 🚂 | Travellers tell you when their train leaves (or arrives). Turn the station's interactive analog clock hands and dispatch the train on time. | **Language:** natural Spanish & English time-telling (*y cuarto*, *y media*, *menos cuarto*, *quarter past/to*). **Maths:** reading an analog clock, working up to 5-minute intervals, delays, trip durations, and early arrival times. |
 | **Mystery Detective** 🔎 | Inspector Parrot presents 4–6 animal suspects and a set of clues. Rule out suspects who don't fit the clues and accuse the culprit. Five cases make a shift. | **Language:** negation (*no lleva gafas*), clothing/snack vocabulary, habitats, and comparisons (*mayor que*, *par/impar*). **Logic & Maths:** boolean set elimination, even/odd numbers, and inequality comparisons. |
+| **Word Workshop** 🔤 | Berta the Owl shares a picture and clue. Snap letter tiles into slots (or type on your keyboard) to spell the matching Spanish or English word. | **Language:** vocabulary from definitions and spelling across 4–8 letter words; silly made-up word reactions on mistakes. |
+| **Bloom Garden** 🌷 | Maya the Bee shows a growing flowerbed with a missing pot (at the end or in the middle!). Pick the right seed packet to make the garden bloom. | **Language:** comparison and pattern instructions (*más que*, *menos que*, *el doble*, *alternan*). **Maths:** arithmetic growth, countdowns, missing middle numbers, multiplication sequences, and alternating jumps. |
 
-Every game shows the clue in the chosen primary language; a 🦜 *Translate* button reveals the other language at no penalty. Instead of a manual age selector, each 5-step round gently ramps up from straightforward warm-ups to cleverer multi-step puzzles for ages 8–12.
+Every game shows the clue in the chosen primary language; a 🦜 *Translate* button reveals the other language at no penalty. Instead of a manual age selector or countdown timer, each 5-step round gently ramps up for ages 8–12, and after two finished rounds a friendly screen-free break card invites kids outside to play.
 
 ## Design principles
 
@@ -56,7 +58,7 @@ Reusable components live in [`src/ui/components.ts`](src/ui/components.ts) (`But
 
 ```
 src/
-  main.ts            hash router + header (language / age band)
+  main.ts            hash router + header (language)
   pages/             landing page + page types
   games/<game>/      logic.ts (pure, tested) + <game>.ts (UI)
   shared/            i18n, seeded RNG, localStorage progress

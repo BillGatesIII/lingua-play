@@ -1,4 +1,5 @@
 import { other, tr, type Bi } from '../../shared/i18n';
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick } from '../../shared/rng';
 import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
@@ -93,8 +94,10 @@ export const compassPage: Page = (ctx) => {
 
   function next() {
     index++;
-    if (index >= VOYAGE_LENGTH) closed = true;
-    else {
+    if (index >= VOYAGE_LENGTH) {
+      closed = true;
+      completeGameRound();
+    } else {
       level = generateLevel(rng, index);
       pos = level.start; used = 0; bonusWind = 0; pickupTaken = false;
       trail = [level.start]; dug = []; prevDigDist = null; found = false;
@@ -213,6 +216,7 @@ export const compassPage: Page = (ctx) => {
           againLabel: { es: 'Otro viaje', en: 'Another voyage' },
           againFocusKey: 'another-voyage',
           onAgain: () => ctx.refresh(),
+          onBreakChange: () => draw(),
           lang,
         }));
         return wrap;

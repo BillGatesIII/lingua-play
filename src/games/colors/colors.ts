@@ -1,4 +1,5 @@
 import { other, tr, type Bi } from '../../shared/i18n';
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
@@ -45,7 +46,10 @@ export const colorsPage: Page = (ctx) => {
     index++;
     bowl = [];
     solved = false;
-    if (index >= ROUND_LENGTH) closed = true;
+    if (index >= ROUND_LENGTH) {
+      closed = true;
+      completeGameRound();
+    }
     draw(closed ? 'play-again' : `pot-${POTS[0]}`);
   }
 
@@ -101,6 +105,7 @@ export const colorsPage: Page = (ctx) => {
             ctx.refresh();
             ctx.root.querySelector<HTMLElement>('[data-focus^="pot-"]:not(:disabled)')?.focus();
           },
+          onBreakChange: () => draw(),
           lang,
         }));
         return wrap;

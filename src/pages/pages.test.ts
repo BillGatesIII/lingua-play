@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { colorsPage } from '../games/colors/colors';
 import { compassPage } from '../games/compass/compass';
 import { detectivePage } from '../games/detective/detective';
+import { gardenPage } from '../games/garden/garden';
 import { marketPage } from '../games/market/market';
 import { recipePage } from '../games/recipe/recipe';
 import { stationPage } from '../games/station/station';
+import { wordsPage } from '../games/words/words';
 import { clearProgress } from '../shared/storage';
 import { landingPage } from './landing';
 import type { Page } from './types';
@@ -24,6 +26,8 @@ describe('pages smoke & language updates', () => {
     ['recipe', recipePage],
     ['station', stationPage],
     ['detective', detectivePage],
+    ['words', wordsPage],
+    ['garden', gardenPage],
   ];
 
   it.each(pages)('renders %s and handles language updates cleanly', (_name, page) => {

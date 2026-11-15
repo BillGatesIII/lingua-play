@@ -77,6 +77,24 @@ const GAMES: readonly GameEntry[] = [
     tone: 'lemon',
     btnVariant: 'secondary',
   },
+  {
+    route: '#/words',
+    title: 'Word Workshop',
+    art: '🔤🦉📚',
+    tag: { es: 'Letras · Ortografía', en: 'Letters · Spelling' },
+    desc: { es: 'Descifra pistas y ordena letras para encontrar cada palabra.', en: 'Solve clues and arrange letter tiles to discover each word.' },
+    tone: 'sea',
+    btnVariant: 'primary',
+  },
+  {
+    route: '#/garden',
+    title: 'Bloom Garden',
+    art: '🌷🐝🌻',
+    tag: { es: 'Series · Patrones', en: 'Sequences · Patterns' },
+    desc: { es: 'Observa cómo crecen las flores y planta el paquete de semillas correcto.', en: 'Watch how the flowers grow and plant the right seed packet.' },
+    tone: 'leaf',
+    btnVariant: 'primary',
+  },
 ];
 
 export const landingPage: Page = (ctx) => {
@@ -119,7 +137,9 @@ export const landingPage: Page = (ctx) => {
             shelf({ es: 'Colores del camaleón', en: 'Chameleon colours' }, progress.colors.colours),
             shelf({ es: 'Platos de la cocina', en: 'Kitchen dishes' }, progress.recipe.dishes),
             shelf({ es: 'Sellos de tren', en: 'Train stamps' }, progress.station.stamps),
-            shelf({ es: 'Casos resueltos', en: 'Solved cases' }, progress.detective.badges)),
+            shelf({ es: 'Casos resueltos', en: 'Solved cases' }, progress.detective.badges),
+            shelf({ es: 'Palabras mágicas', en: 'Word badges' }, progress.words.badges),
+            shelf({ es: 'Flores del jardín', en: 'Garden flowers' }, progress.garden.flowers)),
           confirmingErase
             ? h('div', { class: 'confirm-box', role: 'alertdialog', 'aria-label': tr({ es: 'Confirmar borrado', en: 'Confirm erase' }, lang) },
                 h('p', { class: 'confirm-box__text' }, tr({ es: '¿Borrar todo lo guardado en este dispositivo?', en: 'Erase everything saved on this device?' }, lang)),

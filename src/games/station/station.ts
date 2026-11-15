@@ -1,4 +1,5 @@
 import { other, tr, type Bi } from '../../shared/i18n';
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
@@ -64,6 +65,7 @@ export const stationPage: Page = (ctx) => {
     index++;
     if (index >= TRAINS_PER_ROUND) {
       closed = true;
+      completeGameRound();
     } else {
       challenge = generateTrain(rng, index);
       clock = pickStartClock(challenge);
@@ -134,6 +136,7 @@ export const stationPage: Page = (ctx) => {
           againLabel: { es: 'Otro turno', en: 'Another shift' },
           againFocusKey: 'another-shift',
           onAgain: () => ctx.refresh(),
+          onBreakChange: () => draw(),
           lang,
         }));
         return wrap;
