@@ -1,17 +1,21 @@
 import { other, tr, type Bi } from '../../shared/i18n';
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
+import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
-import { Button, Card, Panel, biText } from '../../ui/components';
+import { Button, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
+import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
-  COLORS, ROUND_LENGTH, clueText, generateRound, maxPots, mix, potsForBand, togglePot, type ColorId, type PotId,
+  CHAMELEONS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, generateRound, mix, mixFeedback,
+  playfulClue, togglePot, type ColorId, type PotId,
 } from './logic';
 
 export const colorsPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
   const rng = mulberry32((Date.now() ^ 0x27d4eb2f) >>> 0);
-  let round = generateRound(rng, band);
+  let round = generateRound(rng);
   let index = 0;
   let bowl: PotId[] = [];
   let solved = false;
@@ -26,8 +30,15 @@ export const colorsPage: Page = (ctx) => {
 
   function pour(pot: PotId) {
     if (solved || closed) return;
-    bowl = togglePot(bowl, pot, maxPots(band));
-    if (mixed() === target()) solved = true;
+    bowl = togglePot(bowl, pot, MAX_POTS);
+    if (mixed() === target()) {
+      solved = true;
+      const emoji = COLORS[target()].emoji;
+      updateProgress((p) => {
+        p.colors.painted += 1;
+        if (!p.colors.colours.includes(emoji)) p.colors.colours.push(emoji);
+      });
+    }
     draw(solved ? 'next-chameleon' : undefined);
   }
 
@@ -35,26 +46,30 @@ export const colorsPage: Page = (ctx) => {
     index++;
     bowl = [];
     solved = false;
-    if (index >= ROUND_LENGTH) closed = true;
-    draw(closed ? 'play-again' : `pot-${potsForBand(band)[0]}`);
+    if (index >= ROUND_LENGTH) {
+      closed = true;
+      completeGameRound();
+    }
+    draw(closed ? 'play-again' : `pot-${POTS[0]}`);
   }
 
   function status(): Bi {
     const m = mixed();
     if (solved && m) return { es: `¡Sí! ¡Qué ${COLORS[m].name.es}! 🎉`, en: `Yes! Look at that ${COLORS[m].name.en}! 🎉` };
     if (!m) return { es: 'Toca los botes de pintura para mezclar.', en: 'Tap the paint pots to mix.' };
-    return {
-      es: `Tu camaleón ahora es ${COLORS[m].name.es}. ¡Prueba otra mezcla!`,
-      en: `Your chameleon is now ${COLORS[m].name.en}. Try another mix!`,
-    };
+    return mixFeedback(m, rng);
   }
 
-  const chameleon = (color: ColorId | null, label: string): HTMLElement =>
-    h('div', { class: 'chameleon', role: 'img', 'aria-label': label, style: `--paint:${color ? COLORS[color].hex : '#fffaf0'}` },
-      h('span', { 'aria-hidden': 'true' }, '🦎'));
+  const chameleon = (color: ColorId | null, label: string, happy = false): HTMLElement =>
+    h('div', {
+      class: `chameleon ${happy ? 'chameleon--happy' : ''}`.trim(),
+      role: 'img',
+      'aria-label': label,
+      style: `--paint:${color ? COLORS[color].hex : '#fffaf0'}`,
+    }, h('span', { 'aria-hidden': 'true' }, '🦎'));
 
   function pots(): HTMLElement {
-    return h('div', { class: 'pots' }, ...potsForBand(band).map((pot) => {
+    return h('div', { class: 'pots' }, ...POTS.map((pot) => {
       const c = COLORS[pot];
       return Button([
         h('span', { class: 'pot__swatch', 'aria-hidden': 'true', style: `--paint:${c.hex}` }),
@@ -69,48 +84,68 @@ export const colorsPage: Page = (ctx) => {
   function draw(focusTarget?: string) {
     renderKeepingFocus(host, () => {
       const wrap = h('div', { class: 'game' });
-      wrap.append(h('header', { class: 'game__head' },
-        h('div', {}, h('h1', { class: 'game__title' }, '🎨 Color Chameleon'),
-          h('p', { class: 'muted' }, `${tr({ es: 'Camaleón', en: 'Chameleon' }, lang)} ${Math.min(index + 1, ROUND_LENGTH)} / ${ROUND_LENGTH}`)),
-        Button('← ' + tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'ghost', href: '#/' })));
+      wrap.append(GameHeader({
+        title: '🎨 Color Chameleon',
+        noun: { es: 'Camaleón', en: 'Chameleon' },
+        index, total: ROUND_LENGTH, lang,
+      }));
 
       if (closed) {
-        wrap.append(Card([
-          h('h2', {}, tr({ es: '¡Qué galería tan colorida! 🖼️', en: 'What a colourful gallery! 🖼️' }, lang)),
-          h('div', { class: 'gallery' }, ...round.map((c) => h('figure', { class: 'gallery__item' },
-            chameleon(c, COLORS[c].name[lang]), h('figcaption', {}, biText(COLORS[c].name, lang))))),
-          h('p', {}, tr({ es: 'Los camaleones se van a descansar. ¡Vuelve cuando quieras!', en: 'The chameleons are off for a rest. Come back whenever you like!' }, lang)),
-          h('div', { class: 'row' },
-            Button(tr({ es: 'Otra vez', en: 'Play again' }, lang), { onClick: () => {
-              ctx.refresh();
-              ctx.root.querySelector<HTMLElement>('[data-focus^="pot-"]:not(:disabled)')?.focus();
-            }, focusKey: 'play-again' }),
-            Button(tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'secondary', href: '#/' })),
-        ], 'sun', 'end-card'));
+        wrap.append(EndCard({
+          tone: 'leaf',
+          title: { es: '¡Qué galería tan colorida! 🖼️', en: 'What a colourful gallery! 🖼️' },
+          art: h('div', { class: 'gallery' }, ...round.map((c) =>
+            h('figure', { class: 'gallery__item' },
+              chameleon(c, COLORS[c].name[lang], true),
+              h('figcaption', {}, biText(COLORS[c].name, lang))))),
+          body: { es: 'Los camaleones se van a descansar. ¡Vuelve cuando quieras!', en: 'The chameleons are off for a rest. Come back whenever you like!' },
+          againLabel: { es: 'Otra vez', en: 'Play again' },
+          againFocusKey: 'play-again',
+          onAgain: () => {
+            ctx.refresh();
+            ctx.root.querySelector<HTMLElement>('[data-focus^="pot-"]:not(:disabled)')?.focus();
+          },
+          onBreakChange: () => draw(),
+          lang,
+        }));
         return wrap;
       }
 
-      const clue = (l: typeof lang) => clueText(target(), l);
+      const pal = CHAMELEONS[index % CHAMELEONS.length];
+      const clue = (l: typeof lang) => playfulClue(target(), index, l);
       const shown = mixed();
+
       append(wrap, [
+        CharacterBubble({
+          emoji: pal.emoji,
+          mood: solved ? '✨' : undefined,
+          name: tr(pal.name, lang),
+          text: clue(lang),
+          subText: clue(other(lang)),
+          showSub: translate,
+          lang,
+          translatePressed: translate,
+          onTranslate: () => { translate = !translate; draw(); },
+        }),
         h('div', { class: 'cols cols--map' },
           h('div', { class: 'stage' },
-            chameleon(shown, shown ? COLORS[shown].name[lang] : tr({ es: 'sin pintar', en: 'unpainted' }, lang)),
-            h('p', { class: 'bowl', role: 'img',
-              'aria-label': `${tr({ es: 'Cuenco de mezcla', en: 'Mixing bowl' }, lang)}: ${bowl.map((p) => COLORS[p].name[lang]).join(', ') || tr({ es: 'vacío', en: 'empty' }, lang)}` },
-              h('span', { 'aria-hidden': 'true' }, '🥣 '), bowl.map((p) => COLORS[p].emoji).join(' ') || '—')),
-          h('div', {},
-            Panel(`📜 ${tr({ es: 'Pedido', en: 'Request' }, lang)}`, [
-              h('p', { class: 'clue', lang }, clue(lang)),
-              translate ? h('p', { class: 'clue clue--sub', lang: other(lang) }, clue(other(lang))) : null,
-              Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, focusKey: 'translate', onClick: () => { translate = !translate; draw(); } }),
-            ]),
-            Panel(`🎨 ${tr({ es: 'Pintura', en: 'Paint' }, lang)}`, [
-              pots(),
-              Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), { variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty', onClick: () => { bowl = []; draw(`pot-${potsForBand(band)[0]}`); } }),
-            ])),
-        ),
-        h('div', { class: 'message message--on', role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, biText(status(), lang)),
+            chameleon(shown, shown ? COLORS[shown].name[lang] : tr({ es: 'sin pintar', en: 'unpainted' }, lang), solved),
+            h('p', {
+              class: 'bowl', role: 'img',
+              'aria-label': `${tr({ es: 'Cuenco de mezcla', en: 'Mixing bowl' }, lang)}: ${bowl.map((p) => COLORS[p].name[lang]).join(', ') || tr({ es: 'vacío', en: 'empty' }, lang)}`,
+            },
+            h('span', { 'aria-hidden': 'true' }, '🥣'),
+            ...(bowl.length
+              ? bowl.map((p) => h('span', { class: 'chip', 'aria-hidden': 'true', style: `--paint:${COLORS[p].hex}` }))
+              : [h('span', { class: 'muted' }, '—')]))),
+          Panel(`🎨 ${tr({ es: 'Pintura', en: 'Paint' }, lang)} (${bowl.length}/${MAX_POTS})`, [
+            pots(),
+            Button(tr({ es: 'Vaciar el cuenco', en: 'Empty the bowl' }, lang), {
+              variant: 'ghost', disabled: solved || bowl.length === 0, focusKey: 'empty',
+              onClick: () => { bowl = []; draw(`pot-${POTS[0]}`); },
+            }),
+          ])),
+        StatusBanner(status(), lang, true),
         solved ? Button(tr({ es: 'Siguiente camaleón →', en: 'Next chameleon →' }, lang), { onClick: next, large: true, focusKey: 'next-chameleon' }) : null,
       ]);
       return wrap;
@@ -119,14 +154,8 @@ export const colorsPage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
-      const bandChanged = nextBand !== band;
+    updateSettings(nextLang: typeof lang) {
       lang = nextLang;
-      band = nextBand;
-      if (bandChanged) {
-        round = generateRound(rng, band);
-        index = 0; bowl = []; solved = false; closed = false;
-      }
       draw();
     },
   });

@@ -1,20 +1,30 @@
 import type { Lang } from './i18n';
 
-export type AgeBand = '7-10' | '11-14';
-
 export interface Progress {
-  settings: { lang: Lang; band: AgeBand };
+  settings: { lang: Lang };
   market: { served: number; stickers: string[] };
   compass: { found: number; treasures: string[] };
+  colors: { painted: number; colours: string[] };
+  recipe: { cooked: number; dishes: string[] };
+  station: { dispatched: number; stamps: string[] };
+  detective: { solved: number; badges: string[] };
+  words: { solved: number; badges: string[] };
+  garden: { planted: number; flowers: string[] };
 }
 
 export const STORAGE_KEY = 'linguaplay.v1';
 let sessionProgress: Progress | null = null;
 
 export const defaultProgress = (): Progress => ({
-  settings: { lang: 'es', band: '7-10' },
+  settings: { lang: 'es' },
   market: { served: 0, stickers: [] },
   compass: { found: 0, treasures: [] },
+  colors: { painted: 0, colours: [] },
+  recipe: { cooked: 0, dishes: [] },
+  station: { dispatched: 0, stamps: [] },
+  detective: { solved: 0, badges: [] },
+  words: { solved: 0, badges: [] },
+  garden: { planted: 0, flowers: [] },
 });
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
@@ -27,9 +37,14 @@ export function sanitize(raw: unknown): Progress {
   if (!raw || typeof raw !== 'object') return d;
   const r = raw as Record<string, any>;
   if (r.settings?.lang === 'es' || r.settings?.lang === 'en') d.settings.lang = r.settings.lang;
-  if (r.settings?.band === '7-10' || r.settings?.band === '11-14') d.settings.band = r.settings.band;
   d.market = { served: num(r.market?.served), stickers: strs(r.market?.stickers) };
   d.compass = { found: num(r.compass?.found), treasures: strs(r.compass?.treasures) };
+  d.colors = { painted: num(r.colors?.painted), colours: strs(r.colors?.colours) };
+  d.recipe = { cooked: num(r.recipe?.cooked), dishes: strs(r.recipe?.dishes) };
+  d.station = { dispatched: num(r.station?.dispatched), stamps: strs(r.station?.stamps) };
+  d.detective = { solved: num(r.detective?.solved), badges: strs(r.detective?.badges) };
+  d.words = { solved: num(r.words?.solved), badges: strs(r.words?.badges) };
+  d.garden = { planted: num(r.garden?.planted), flowers: strs(r.garden?.flowers) };
   return d;
 }
 

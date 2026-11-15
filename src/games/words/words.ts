@@ -1,16 +1,23 @@
 import { other, tr, type Bi } from '../../shared/i18n';
+import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
+import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
-import { Button, Card, Panel, biText } from '../../ui/components';
+import { Button, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
-import { WORD_ROUND_LENGTH, generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount, type WordPuzzle } from './logic';
+import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
+import {
+  WORD_ROUND_LENGTH, generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount, wordMistake,
+  type WordPuzzle,
+} from './logic';
 
 export const wordsPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
   const rng = mulberry32((Date.now() ^ 0x94d049bb) >>> 0);
   let index = 0;
-  let puzzle: WordPuzzle = generateWordPuzzle(rng, band, lang);
+  let usedEmojis: string[] = [];
+  let puzzle: WordPuzzle = generateWordPuzzle(rng, index, lang, usedEmojis);
   let selected: number[] = [];
   let solved = false;
   let closed = false;
@@ -21,37 +28,47 @@ export const wordsPage: Page = (ctx) => {
   ctx.root.append(host);
 
   function selectTile(id: number) {
+    if (solved || closed) return;
     if (!selected.includes(id) && selected.length < wordLetterCount(puzzle, lang)) {
       selected = [...selected, id];
       message = null;
-      draw(selected.length === wordLetterCount(puzzle, lang)
-        ? 'check-word'
-        : `tile-${puzzle.tiles.find((tile) => !selected.includes(tile.id))!.id}`);
+      const full = selected.length === wordLetterCount(puzzle, lang);
+      const nextTile = puzzle.tiles.find((tile) => !selected.includes(tile.id));
+      draw(full ? 'check-word' : nextTile ? `tile-${nextTile.id}` : undefined);
     }
   }
 
   function removeTile(id: number) {
+    if (solved || closed) return;
     selected = selected.filter((tileId) => tileId !== id);
     message = null;
     draw(`tile-${id}`);
   }
 
   function checkWord() {
+    if (solved || closed) return;
     if (isWordSolved(puzzle, selected, lang)) {
       solved = true;
+      usedEmojis = [...usedEmojis, puzzle.emoji];
       solvedWords.push(`${puzzle.emoji} ${puzzle.answer[lang]}`);
+      updateProgress((p) => {
+        p.words.solved += 1;
+        if (!p.words.badges.includes(puzzle.emoji)) p.words.badges.push(puzzle.emoji);
+      });
       message = { es: '¡Palabra encontrada! 🎉', en: 'Word found! 🎉' };
     } else {
-      message = { es: '¡Casi! Cambia las letras y vuelve a probar.', en: 'Nearly! Rearrange the letters and try again.' };
+      message = wordMistake(selectedWord(puzzle, selected), rng);
     }
     draw(solved ? 'next-word' : undefined);
   }
 
   function next() {
     index++;
-    if (index >= WORD_ROUND_LENGTH) closed = true;
-    else {
-      puzzle = generateWordPuzzle(rng, band, lang);
+    if (index >= WORD_ROUND_LENGTH) {
+      closed = true;
+      completeGameRound();
+    } else {
+      puzzle = generateWordPuzzle(rng, index, lang, usedEmojis);
       selected = [];
       solved = false;
     }
@@ -59,54 +76,115 @@ export const wordsPage: Page = (ctx) => {
     draw(closed ? 'play-again' : `tile-${puzzle.tiles[0].id}`);
   }
 
+  const onKey = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || solved || closed) return;
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.key === 'Backspace' && selected.length > 0) {
+      e.preventDefault();
+      removeTile(selected[selected.length - 1]);
+      return;
+    }
+    if (e.key === 'Enter' && selected.length === wordLetterCount(puzzle, lang)) {
+      e.preventDefault();
+      checkWord();
+      return;
+    }
+    if (e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
+      const ch = e.key.toLowerCase();
+      const match = puzzle.tiles.find((t) => !selected.includes(t.id) && t.letter.toLowerCase() === ch);
+      if (match) {
+        e.preventDefault();
+        selectTile(match.id);
+      }
+    }
+  };
+  document.addEventListener('keydown', onKey);
+
   function draw(focusTarget?: string) {
     renderKeepingFocus(host, () => {
       const wrap = h('div', { class: 'game' });
-      wrap.append(h('header', { class: 'game__head' },
-        h('div', {}, h('h1', { class: 'game__title' }, '🔤 Word Workshop'),
-          h('p', { class: 'muted' }, `${tr({ es: 'Palabra', en: 'Word' }, lang)} ${Math.min(index + 1, WORD_ROUND_LENGTH)} / ${WORD_ROUND_LENGTH}`)),
-        Button(`← ${tr({ es: 'Inicio', en: 'Home' }, lang)}`, { variant: 'ghost', href: '#/' })));
+      wrap.append(GameHeader({
+        title: '🔤 Word Workshop',
+        noun: { es: 'Palabra', en: 'Word' },
+        index, total: WORD_ROUND_LENGTH, lang,
+      }));
 
       if (closed) {
-        wrap.append(Card([
-          h('h2', {}, tr({ es: '¡Taller de palabras terminado! ✨', en: 'Word workshop complete! ✨' }, lang)),
-          h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'palabras encontradas', en: 'words found' }, lang) }, solvedWords.join(' · ')),
-          h('p', {}, tr({ es: '¡Buen trabajo con esas letras! Vuelve cuando quieras.', en: 'Great work with those letters! Come back whenever you like.' }, lang)),
-          h('div', { class: 'row' },
-            Button(tr({ es: 'Otra vez', en: 'Play again' }, lang), { onClick: () => ctx.refresh(), focusKey: 'play-again' }),
-            Button(tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'secondary', href: '#/' })),
-        ], 'sun', 'end-card'));
+        wrap.append(EndCard({
+          tone: 'sea',
+          title: { es: '¡Taller de palabras terminado! ✨', en: 'Word workshop complete! ✨' },
+          art: h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'palabras encontradas', en: 'words found' }, lang) }, solvedWords.join(' · ')),
+          body: { es: '¡Buen trabajo con esas letras! Vuelve cuando quieras.', en: 'Great work with those letters! Come back whenever you like.' },
+          againLabel: { es: 'Otra vez', en: 'Play again' },
+          againFocusKey: 'play-again',
+          onAgain: () => ctx.refresh(),
+          onBreakChange: () => draw(),
+          lang,
+        }));
         return wrap;
       }
 
-      const clue = puzzle.clue[lang];
+      const targetLen = wordLetterCount(puzzle, lang);
       const answer = selectedWord(puzzle, selected);
+      const slots = Array.from({ length: targetLen }, (_, slotIdx) => {
+        const tileId = selected[slotIdx];
+        if (tileId === undefined) {
+          return h('span', { class: 'letter-slot letter-slot--empty', 'aria-hidden': 'true' }, '_');
+        }
+        const tile = puzzle.tiles.find((t) => t.id === tileId)!;
+        return Button(tile.letter.toUpperCase(), {
+          variant: 'ghost', className: 'letter-tile letter-tile--selected', disabled: solved,
+          focusKey: `slot-${slotIdx}`,
+          ariaLabel: `${tr({ es: 'Quitar letra', en: 'Remove letter' }, lang)} ${tile.letter}`,
+          onClick: () => removeTile(tileId),
+        });
+      });
+
       const tiles = puzzle.tiles.map((tile) => Button(tile.letter.toUpperCase(), {
-        variant: 'secondary', className: 'letter-tile', disabled: solved || selected.includes(tile.id) || selected.length >= wordLetterCount(puzzle, lang),
-        focusKey: `tile-${tile.id}`, ariaLabel: `${tr({ es: 'Letra', en: 'Letter' }, lang)} ${tile.letter}`,
+        variant: 'secondary', className: 'letter-tile',
+        disabled: solved || selected.includes(tile.id) || selected.length >= targetLen,
+        focusKey: `tile-${tile.id}`,
+        ariaLabel: `${tr({ es: 'Letra', en: 'Letter' }, lang)} ${tile.letter}`,
         onClick: () => selectTile(tile.id),
       }));
+
       append(wrap, [
+        CharacterBubble({
+          emoji: '🦉',
+          mood: solved ? puzzle.emoji : undefined,
+          name: tr({ es: 'Berta el búho', en: 'Berta the owl' }, lang),
+          text: puzzle.clue[lang],
+          subText: puzzle.clue[other(lang)],
+          showSub: translate,
+          lang,
+          translatePressed: translate,
+          onTranslate: () => { translate = !translate; draw(); },
+        }),
         h('div', { class: 'cols cols--map' },
-          Panel(`🧩 ${tr({ es: 'Pista', en: 'Clue' }, lang)}`, [
-            h('div', { class: 'word-picture', role: 'img', 'aria-label': `${puzzle.emoji} ${clue}` }, puzzle.emoji),
-            h('p', { class: 'clue', lang }, clue),
-            translate ? h('p', { class: 'clue clue--sub', lang: other(lang) }, puzzle.clue[other(lang)]) : null,
-            Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, focusKey: 'translate', onClick: () => { translate = !translate; draw(); } }),
+          Panel(`🧩 ${tr({ es: 'Dibujo secreto', en: 'Mystery picture' }, lang)}`, [
+            h('div', { class: 'word-picture', role: 'img', 'aria-label': `${puzzle.emoji} ${puzzle.clue[lang]}` }, puzzle.emoji),
+            h('p', { class: 'muted' }, `${targetLen} ${tr({ es: 'letras', en: 'letters' }, lang)}`),
           ]),
           Panel(`🔠 ${tr({ es: 'Forma la palabra', en: 'Build the word' }, lang)}`, [
-            h('div', { class: 'word-answer', 'aria-live': 'polite', 'data-live': 'answer', 'aria-label': answer || tr({ es: 'Ninguna letra seleccionada', en: 'No letters selected' }, lang) },
-              ...selected.map((id) => Button(puzzle.tiles.find((tile) => tile.id === id)!.letter.toUpperCase(), {
-                variant: 'ghost', className: 'letter-tile letter-tile--selected', disabled: solved,
-                ariaLabel: `${tr({ es: 'Quitar letra', en: 'Remove letter' }, lang)} ${puzzle.tiles.find((tile) => tile.id === id)!.letter}`,
-                onClick: () => removeTile(id),
-              }))),
+            h('div', {
+              class: 'word-answer',
+              'aria-live': 'polite',
+              'data-live': 'answer',
+              'aria-label': answer || tr({ es: 'Ninguna letra seleccionada', en: 'No letters selected' }, lang),
+            }, ...slots),
             h('div', { class: 'letter-rack' }, ...tiles),
-            h('p', { class: 'muted' }, `${selected.length} / ${wordLetterCount(puzzle, lang)} ${tr({ es: 'letras', en: 'letters' }, lang)}`),
-            solved ? null : Button(biText({ es: '¡Listo!', en: 'Check!' }, lang), { onClick: checkWord, disabled: selected.length !== wordLetterCount(puzzle, lang), large: true, focusKey: 'check-word' }),
-          ]),
-        ),
-        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite', 'data-live': 'message' }, message ? biText(message, lang) : null),
+            h('p', { class: 'muted' }, tr({ es: 'Toca las letras o escríbelas con el teclado.', en: 'Tap the letters or type them on your keyboard.' }, lang)),
+            solved
+              ? null
+              : Button(biText({ es: '¡Comprobar!', en: 'Check!' }, lang), {
+                  onClick: checkWord,
+                  disabled: selected.length !== targetLen,
+                  large: true,
+                  focusKey: 'check-word',
+                }),
+          ])),
+        StatusBanner(message, lang),
         solved ? Button(tr({ es: 'Siguiente palabra →', en: 'Next word →' }, lang), { onClick: next, large: true, focusKey: 'next-word' }) : null,
       ]);
       return wrap;
@@ -114,21 +192,18 @@ export const wordsPage: Page = (ctx) => {
   }
 
   draw();
-  return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
-      const languageChanged = lang !== nextLang;
-      const bandChanged = band !== nextBand;
+  return Object.assign(() => document.removeEventListener('keydown', onKey), {
+    updateSettings(nextLang: typeof lang) {
+      if (lang === nextLang) return;
       lang = nextLang;
-      band = nextBand;
-      if (languageChanged || bandChanged) {
-        index = 0;
-        puzzle = generateWordPuzzle(rng, band, lang);
-        selected = [];
-        solved = false;
-        closed = false;
-        message = null;
-        solvedWords.length = 0;
-      }
+      index = 0;
+      usedEmojis = [];
+      puzzle = generateWordPuzzle(rng, index, lang, usedEmojis);
+      selected = [];
+      solved = false;
+      closed = false;
+      message = null;
+      solvedWords.length = 0;
       draw();
     },
   });

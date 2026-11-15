@@ -36,7 +36,7 @@ export function Button(content: Child | Child[], o: ButtonOptions = {}): HTMLEle
   );
 }
 
-export type Tone = 'sun' | 'sea' | 'berry' | 'leaf' | 'plain';
+export type Tone = 'sun' | 'sea' | 'berry' | 'leaf' | 'peach' | 'lemon' | 'plain';
 
 export function Card(children: Child[], tone: Tone = 'plain', className = ''): HTMLElement {
   return h('div', { class: `card card--${tone} ${className}`.trim() }, ...children);

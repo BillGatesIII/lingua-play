@@ -1,7 +1,6 @@
 import type { Bi, Lang } from '../../shared/i18n';
 import { joinList, numberWord } from '../../shared/i18n';
 import { pick, randInt, shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
 
 export type Dir = 'N' | 'E' | 'S' | 'W';
 export interface Pos {
@@ -43,13 +42,15 @@ export interface Leg {
 export type Clue =
   | { kind: 'relative'; legs: Leg[] }
   | { kind: 'landmark'; legs: Leg[]; landmark: Landmark }
-  | { kind: 'coords'; x: number; y: number };
+  | { kind: 'coords'; x: number; y: number }
+  | { kind: 'coords-legs'; from: Pos; legs: Leg[] };
 
 export interface Level {
   size: number;
   start: Pos;
   target: Pos;
   landmarkPos?: Pos;
+  windPickup?: Pos;
   rocks: Pos[];
   clue: Clue;
   budget: number;
@@ -113,16 +114,16 @@ function randomLegs(rng: Rng, count: number, maxN: number): Leg[] {
   return legs;
 }
 
-const KINDS: readonly Clue['kind'][] = ['relative', 'relative', 'landmark', 'coords', 'landmark'];
+const VOYAGE_KINDS: readonly Clue['kind'][] = ['relative', 'relative', 'landmark', 'coords', 'coords-legs'];
 
-/** `index` is the treasure number within a voyage (0-based). Always solvable. */
-export function generateLevel(rng: Rng, band: AgeBand, index: number): Level {
-  const young = band === '7-10';
-  const size = young ? 6 : 8;
-  const kind = KINDS[index % KINDS.length];
-  const rockCount = (young ? 3 : 6) + Math.min(index, 3);
-  const maxN = Math.min(young ? 4 : 5, size - 2);
-  const legCount = young ? (index < 2 ? 1 : 2) : 2 + (index > 2 ? 1 : 0);
+/** `index` is the treasure number within a voyage (0-based). Progresses smoothly for ages 8-12. */
+export function generateLevel(rng: Rng, index: number): Level {
+  const size = 7;
+  const kind = VOYAGE_KINDS[index % VOYAGE_KINDS.length];
+  const rockCount = 3 + Math.min(index, 4);
+  const maxN = index < 2 ? 4 : 5;
+  const legCount = index === 0 ? 1 : 2;
+  const slack = index < 2 ? 4 : index < 4 ? 3 : 2;
 
   for (let attempt = 0; attempt < 500; attempt++) {
     const rnd = (): Pos => ({ x: randInt(rng, 1, size), y: randInt(rng, 1, size) });
@@ -133,6 +134,12 @@ export function generateLevel(rng: Rng, band: AgeBand, index: number): Level {
     if (kind === 'coords') {
       target = rnd();
       clue = { kind, x: target.x, y: target.y };
+    } else if (kind === 'coords-legs') {
+      const from = rnd();
+      const legs = randomLegs(rng, 2, maxN);
+      target = applyLegs(from, legs);
+      if (same(from, target)) continue;
+      clue = { kind, from, legs };
     } else {
       const legs = randomLegs(rng, legCount, maxN);
       if (kind === 'relative') {
@@ -146,15 +153,18 @@ export function generateLevel(rng: Rng, band: AgeBand, index: number): Level {
     }
     if (!inside(size, target) || same(target, start)) continue;
     if (landmarkPos && (same(landmarkPos, start) || same(landmarkPos, target))) continue;
-    const rocks: Pos[] = [];
     const free = shuffle(rng, Array.from({ length: size * size }, (_, i) => ({ x: (i % size) + 1, y: Math.floor(i / size) + 1 })))
       .filter((p) => !same(p, start) && !same(p, target) && !(landmarkPos && same(p, landmarkPos)));
-    rocks.push(...free.slice(0, rockCount));
+    const rocks = free.slice(0, rockCount);
     const best = shortestPath(size, rocks, start, target);
     if (best < 0) continue;
-    return { size, start, target, landmarkPos, rocks, clue, budget: best + (young ? 4 : 2) };
+    const windCandidate = free[rockCount];
+    const windPickup = index >= 1 && windCandidate && shortestPath(size, rocks, start, windCandidate) > 0
+      ? windCandidate
+      : undefined;
+    return { size, start, target, landmarkPos, windPickup, rocks, clue, budget: best + slack };
   }
-  throw new Error(`Could not generate a solvable level (band=${band}, index=${index}) after 500 attempts`);
+  throw new Error(`Could not generate a solvable level (index=${index}) after 500 attempts`);
 }
 
 const legText = (leg: Leg, lang: Lang): string => {
@@ -171,6 +181,11 @@ export function clueText(clue: Clue, lang: Lang): string {
       : `X marks the spot at x = ${clue.x}, y = ${clue.y}.`;
   }
   const list = joinList(clue.legs.map((l) => legText(l, lang)), lang);
+  if (clue.kind === 'coords-legs') {
+    return lang === 'es'
+      ? `Desde x = ${clue.from.x}, y = ${clue.from.y}: ${list}. ¡Cava!`
+      : `From x = ${clue.from.x}, y = ${clue.from.y}: ${list}. Dig!`;
+  }
   if (clue.kind === 'relative') {
     return lang === 'es' ? `Desde el barco: ${list}. ¡Cava!` : `From the ship: ${list}. Dig!`;
   }
@@ -187,3 +202,10 @@ export const TEMPERATURE_TEXT: Record<Temperature, Bi> = {
   warm: { es: 'Tibio 🌤️', en: 'Warm 🌤️' },
   cold: { es: 'Frío ❄️', en: 'Cold ❄️' },
 };
+
+export function temperatureTrend(prevDist: number | null, currDist: number): Bi | null {
+  if (prevDist === null) return null;
+  if (currDist < prevDist) return { es: '¡Más caliente que antes!', en: 'Warmer than last time!' };
+  if (currDist > prevDist) return { es: '¡Más frío que antes!', en: 'Colder than last time!' };
+  return { es: '¡Igual de cerca!', en: 'Just as close!' };
+}

@@ -1,6 +1,5 @@
 import { joinList, numberWord, type Bi, type Lang } from '../../shared/i18n';
 import { pick, randInt, shuffle, type Rng } from '../../shared/rng';
-import type { AgeBand } from '../../shared/storage';
 
 export interface Product {
   id: string;
@@ -25,62 +24,100 @@ export const PRODUCTS: readonly Product[] = [
 export const COINS = [1, 2, 5, 10, 20] as const;
 const BILLS = [5, 10, 20, 50, 100];
 
+export type LinePhrase = 'count' | 'pair' | 'half-dozen' | 'double';
+
 export interface OrderLine {
   product: Product;
   qty: number;
+  phrase?: LinePhrase;
 }
 export interface Order {
   lines: OrderLine[];
   total: number;
+  discount: number;
   paid: number;
   change: number;
 }
 
-export const CUSTOMERS = [
-  { emoji: '👵', name: { es: 'la abuela Rosa', en: 'Grandma Rosa' } },
-  { emoji: '🧑‍🍳', name: { es: 'el chef Paco', en: 'Chef Paco' } },
-  { emoji: '🧒', name: { es: 'Lucía', en: 'Lucía' } },
-  { emoji: '🧙', name: { es: 'el mago Merlín', en: 'Merlin the wizard' } },
-  { emoji: '🐲', name: { es: 'el dragón Dino', en: 'Dino the dragon' } },
-  { emoji: '🧑‍🚀', name: { es: 'la astronauta Ana', en: 'Ana the astronaut' } },
-] as const;
+export interface Customer {
+  emoji: string;
+  name: Bi;
+  greeting: Bi;
+}
+
+export const CUSTOMERS: readonly Customer[] = [
+  { emoji: '👵', name: { es: 'la abuela Rosa', en: 'Grandma Rosa' }, greeting: { es: '¡Hola, cielo!', en: 'Hello, dear!' } },
+  { emoji: '🧑‍🍳', name: { es: 'el chef Paco', en: 'Chef Paco' }, greeting: { es: '¡A cocinar!', en: "Let's cook!" } },
+  { emoji: '🧒', name: { es: 'Lucía', en: 'Lucía' }, greeting: { es: '¡Buenas!', en: 'Hi there!' } },
+  { emoji: '🧙', name: { es: 'el mago Merlín', en: 'Merlin the wizard' }, greeting: { es: '¡Abracadabra!', en: 'Abracadabra!' } },
+  { emoji: '🐲', name: { es: 'el dragón Dino', en: 'Dino the dragon' }, greeting: { es: '¡Grrr-hola!', en: 'Grrr-hello!' } },
+  { emoji: '🧑‍🚀', name: { es: 'la astronauta Ana', en: 'Ana the astronaut' }, greeting: { es: '¡Saludos desde la Luna!', en: 'Greetings from the Moon!' } },
+];
 
 export const CUSTOMERS_PER_DAY = 5;
 
 export const orderTotal = (lines: readonly OrderLine[]): number =>
   lines.reduce((sum, l) => sum + l.product.price * l.qty, 0);
 
-/** Smallest bill strictly larger than the total, so there is always change to give. */
+/** Smallest bill strictly larger than the due amount, so there is always change to give. */
 export function billFor(total: number): number {
   return BILLS.find((b) => b > total) ?? Math.ceil((total + 1) / 100) * 100;
 }
 
-/** `index` is the customer number within a day (0-based); orders grow as the day goes on. */
-export function generateOrder(rng: Rng, band: AgeBand, index: number): Order {
-  const young = band === '7-10';
-  const pool = young ? PRODUCTS.filter((p) => p.price <= 3) : PRODUCTS;
-  const lineCount = Math.min(young ? 1 + Math.floor(index / 2) : 2 + Math.floor(index / 2), 3);
-  const maxQty = young ? 3 : 5;
-  const lines = shuffle(rng, pool)
+/** `index` is the customer number within a day (0-based); orders grow naturally for ages 8-12. */
+export function generateOrder(rng: Rng, index: number): Order {
+  const pool = index === 0 ? PRODUCTS.filter((p) => p.price <= 3) : PRODUCTS;
+  const lineCount = index === 0 ? randInt(rng, 1, 2) : index < 3 ? 2 : 3;
+  const maxQty = index < 2 ? 3 : 4;
+  const lines: OrderLine[] = shuffle(rng, pool)
     .slice(0, lineCount)
-    .map((product) => ({ product, qty: randInt(rng, 1, maxQty) }));
+    .map((product) => ({ product, qty: randInt(rng, 1, maxQty), phrase: 'count' as LinePhrase }));
+
+  if (index === 1 && lines[0].qty <= 3) {
+    lines[0].qty = 2;
+    lines[0].phrase = 'pair';
+  } else if (index === 2 && lines.length >= 2) {
+    lines[1].qty = lines[0].qty * 2;
+    lines[1].phrase = 'double';
+  } else if (index === 3 && lines[0].product.price <= 2) {
+    lines[0].qty = 6;
+    lines[0].phrase = 'half-dozen';
+  }
+
   const total = orderTotal(lines);
-  const paid = billFor(total);
-  return { lines, total, paid, change: paid - total };
+  const discount = index >= 3 && total >= 8 ? pick(rng, [2, 3]) : 0;
+  const due = total - discount;
+  const paid = billFor(due);
+  return { lines, total, discount, paid, change: paid - due };
 }
 
 export function lineText(line: OrderLine, lang: Lang): string {
   const names = line.product[lang];
+  if (line.phrase === 'pair' && line.qty === 2) {
+    return lang === 'es' ? `un par de ${names.many}` : `a pair of ${names.many}`;
+  }
+  if (line.phrase === 'half-dozen' && line.qty === 6) {
+    return lang === 'es' ? `media docena de ${names.many}` : `half a dozen ${names.many}`;
+  }
+  if (line.phrase === 'double') {
+    return lang === 'es' ? `el doble de ${names.many}` : `twice as many ${names.many}`;
+  }
   const name = line.qty === 1 ? names.one : names.many;
   return `${numberWord(line.qty, lang, line.product.gender)} ${name}`;
 }
 
-export function orderSpeech(order: Order, lang: Lang): string {
+export function orderSpeech(order: Order, lang: Lang, customer?: Customer): string {
   const list = joinList(order.lines.map((l) => lineText(l, lang)), lang);
-  return lang === 'es' ? `¡Hola! Quiero ${list}, por favor.` : `Hello! I would like ${list}, please.`;
+  const greet = customer ? `${customer.greeting[lang]} ` : lang === 'es' ? '¡Hola! ' : 'Hello! ';
+  return lang === 'es' ? `${greet}Quiero ${list}, por favor.` : `${greet}I would like ${list}, please.`;
 }
 
 export function paySpeech(order: Order, lang: Lang): string {
+  if (order.discount > 0) {
+    return lang === 'es'
+      ? `Tengo un cupón de ${order.discount} monedas. Aquí tienes ${order.paid} monedas.`
+      : `I have a ${order.discount}-coin coupon. Here you go, ${order.paid} coins.`;
+  }
   return lang === 'es'
     ? `Aquí tienes ${order.paid} monedas.`
     : `Here you go, ${order.paid} coins.`;

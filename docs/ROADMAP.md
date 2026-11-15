@@ -26,7 +26,7 @@
 
 1. **Playtest with children** (7–14) and adjust difficulty, text length and rewards.
 2. Audio: optional recorded Spanish/English pronunciation (self-hosted, no third-party services).
-3. Playtest the expanded game collection, including more advanced recipe fractions and word puzzles.
+3. ✅ Eight games live: **Market Quest**, **Compass Island**, **Color Chameleon**, **Recipe Lab**, **Train Station**, **Mystery Detective**, **Word Workshop**, and **Bloom Garden**, with a natural round-based outdoor break invitation after every two rounds.
 4. More content: bigger vocabulary packs, regional Spanish variants, new customers/landmarks.
 5. PWA / offline support, still without tracking.
 6. Parent/teacher view: export and import progress as a local file (no accounts).
