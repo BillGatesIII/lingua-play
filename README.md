@@ -16,6 +16,7 @@ npm run dev       # http://localhost:5173
 npm test          # unit tests (Vitest)
 npm run build     # type-check + production build into dist/
 npm run preview   # serve the production build
+npm run deploy:t630 # test, build and deploy to the local t630 nginx server
 ```
 
 ## The games (and where the learning hides)

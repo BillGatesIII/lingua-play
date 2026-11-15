@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy:t630": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-t630.ps1"
   },
   "devDependencies": {
     "jsdom": "^30.1.3",
