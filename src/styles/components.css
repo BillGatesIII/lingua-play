@@ -19,9 +19,11 @@
 .card { border: var(--border); border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: var(--shadow-lg); background: var(--white); }
 .card--sun { background: linear-gradient(160deg, #fff1b8, #ffc766); }
 .card--sea { background: linear-gradient(160deg, #d6f6fb, #7fd3e6); }
-.card--berry { background: #e5dcff; }
-.card--leaf { background: #cdf3df; }
+.card--berry { background: linear-gradient(160deg, #ede7ff, #d4c4ff); }
+.card--leaf { background: linear-gradient(160deg, #dff9ec, #9be5be); }
+.card--peach { background: linear-gradient(160deg, #ffe7de, #ffb8a3); }
+.card--lemon { background: linear-gradient(160deg, #fff9c9, #f7e479); }
 
 /* Panel */
 .panel { background: var(--white); border: var(--border); border-radius: var(--radius-md); padding: var(--space-4); box-shadow: var(--shadow-md); margin-bottom: var(--space-4); }
-.panel__title { font-size: var(--text-lg); }
+.panel__title { font-size: var(--text-lg); display: flex; align-items: center; gap: var(--space-2); }

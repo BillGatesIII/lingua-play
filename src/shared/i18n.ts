@@ -4,12 +4,18 @@ export type Bi = { es: string; en: string };
 export const other = (lang: Lang): Lang => (lang === 'es' ? 'en' : 'es');
 export const tr = (b: Bi, lang: Lang): string => b[lang];
 
-const ES_NUM = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'];
-const EN_NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const ES_NUM = [
+  'cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez',
+  'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte',
+];
+const EN_NUM = [
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty',
+];
 
-/** Number as a word (0-10), falling back to digits. Spanish "uno" becomes "un/una" by gender. */
+/** Number as a word (0-20), falling back to digits. Spanish "uno" becomes "un/una" by gender. */
 export function numberWord(n: number, lang: Lang, gender: 'm' | 'f' = 'm'): string {
-  if (!Number.isInteger(n) || n < 0 || n > 10) return String(n);
+  if (!Number.isInteger(n) || n < 0 || n > 20) return String(n);
   if (lang === 'en') return EN_NUM[n];
   return n === 1 && gender === 'f' ? 'una' : ES_NUM[n];
 }

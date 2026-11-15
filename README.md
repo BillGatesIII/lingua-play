@@ -1,6 +1,6 @@
 # 🦜 Lingua Play
 
-Ad-free, tracker-free Spanish/English games for kids aged 7–14, where the language and maths are *part of the game rules* – not quizzes stuck on top.
+Ad-free, tracker-free Spanish/English games for kids aged 8–12, where the language and maths are *part of the game rules* – not quizzes stuck on top.
 
 ## Vision
 
@@ -22,11 +22,14 @@ npm run preview   # serve the production build
 
 | Game | Play loop | Hidden learning |
 | --- | --- | --- |
-| **Market Quest** 🛒 | Customers ask for goods in Spanish or English; you fill the bag from the stall, take their bill and hand back change. Five customers make a market day; you earn a sticker for each happy customer. | **Language:** product names and number words (*tres manzanas*, *un queso*) are the only way to know what to sell. **Maths:** the total is never shown – prices sit on the stall signs, so you add up quantities × prices, then subtract from the bill to give the right change. Mistakes have silly consequences (a customer wears 8 bananas as a hat), never a red cross. |
-| **Compass Island** 🧭 | Read a treasure-map clue, sail around rocks with a limited number of wind gusts, then dig. Five treasures make a voyage. | **Language:** the clue is the only source of the target, using *norte/sur/este/oeste* (north/south/east/west) and number words. **Maths:** you turn clues ("from the lighthouse, three steps west and two north", or "x = 5, y = 3") into coordinates, count steps and plan a route within a step budget. A wrong dig returns a funny object plus a *frío / tibio / caliente* hint, which teaches distance comparison. |
-| **Color Chameleon** 🎨 | A chameleon asks to be painted a colour. Tap paint pots into the mixing bowl and watch it change instantly; the right mix finishes it. Five chameleons make a round that ends in a little gallery, and *Play again* is one tap away. Nothing is saved or scored. | **Language:** the colour is only given by name (*pinta el camaleón de morado*), and the live colour name of your mix teaches more names as you experiment. **Colour mixing:** red + yellow = orange, and so on; ages 11–14 add a white pot (pink, light blue) and three-pot brown. Wrong mixes are just another colour, never a mistake. |
+| **Market Quest** 🛒 | Customers ask for goods in Spanish or English; you fill the bag from the stall, take their bill (and coupons!) and hand back change. Five customers make a market day; you earn a sticker for each happy customer. | **Language:** product names, number words (*tres manzanas*), and quantifiers (*un par de*, *media docena*, *el doble de*) are the only way to know what to sell. **Maths:** totals are never shown – you multiply prices, apply coupons on later customers, and subtract from the bill. Mistakes have silly consequences, never a red cross. |
+| **Compass Island** 🧭 | Read a treasure-map clue, sail around rocks on a `7 × 7` sea with a limited number of wind gusts (catching optional tailwinds 💨), then dig. Tap adjacent squares, the D-pad or arrow keys. Five treasures make a voyage. | **Language:** the clue is the only source of the target, using *norte/sur/este/oeste* and number words. **Maths:** turn clues (relative steps, landmarks, coordinates, and combined coordinates + steps) into routes within a step budget. Wrong digs give funny junk plus *frío / tibio / caliente* and warmer/colder hints. |
+| **Color Chameleon** 🎨 | A chameleon asks to be painted a colour (sometimes with playful riddles!). Tap paint pots into the mixing bowl and watch it change instantly; the right mix finishes it. Five chameleons make a round that ends in a little gallery. | **Language:** colour names and similes (*verde como una rana*), plus live colour feedback as you experiment. **Colour mixing:** rounds progress naturally from primaries and secondaries to tints, shades, and three-pot mixes (lavender, mint, dark green, brown). |
+| **Recipe Lab** 🍳 | Hungry animal friends request wacky dishes. Pick the ingredients, fill the visual measuring jug with `¼`, `½` and `1`-cup scoops, and finish with the requested cooking verb (*corta / mezcla / hornea / enfría*). | **Language:** food vocabulary, cooking imperative verbs, and fraction words (*un cuarto*, *media taza*, *tres cuartos*). **Maths:** adding unit fractions (`¼ + ½ = ¾`) and doubling recipes (`× 2`) later in the round. |
+| **Train Station** 🚂 | Travellers tell you when their train leaves (or arrives). Turn the station's interactive analog clock hands and dispatch the train on time. | **Language:** natural Spanish & English time-telling (*y cuarto*, *y media*, *menos cuarto*, *quarter past/to*). **Maths:** reading an analog clock, working up to 5-minute intervals, delays, trip durations, and early arrival times. |
+| **Mystery Detective** 🔎 | Inspector Parrot presents 4–6 animal suspects and a set of clues. Rule out suspects who don't fit the clues and accuse the culprit. Five cases make a shift. | **Language:** negation (*no lleva gafas*), clothing/snack vocabulary, habitats, and comparisons (*mayor que*, *par/impar*). **Logic & Maths:** boolean set elimination, even/odd numbers, and inequality comparisons. |
 
-Every game shows the clue in the chosen primary language; a 🦜 *Translate* button reveals the other language at no penalty. The age band (7–10 / 11–14) changes ranges: smaller numbers and fewer legs/rocks for the younger band; bigger orders, bigger maps and tighter budgets for the older.
+Every game shows the clue in the chosen primary language; a 🦜 *Translate* button reveals the other language at no penalty. Instead of a manual age selector, each 5-step round gently ramps up from straightforward warm-ups to cleverer multi-step puzzles for ages 8–12.
 
 ## Design principles
 
@@ -46,7 +49,7 @@ Tokens live in [`src/styles/tokens.css`](src/styles/tokens.css):
 - **Spacing / radius / shadow:** `--space-1…7`, `--radius-sm…pill`, `--shadow-sm/md/lg` (flat "sticker" shadows).
 - **Motion:** `--ease-pop`, `--dur`; small bobs and pops only.
 
-Reusable components are in [`src/ui/components.ts`](src/ui/components.ts): `Button` (primary / secondary / ghost), `Card` (sun / sea / berry / leaf / plain), `Panel`, and `biText` for primary-plus-secondary language text.
+Reusable components live in [`src/ui/components.ts`](src/ui/components.ts) (`Button`, `Card`, `Panel`, `biText`) and [`src/ui/gameShell.ts`](src/ui/gameShell.ts) (`GameHeader`, `StepDots`, `CharacterBubble`, `StatusBanner`, `EndCard`).
 
 ## Code layout
 

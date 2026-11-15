@@ -1,10 +1,11 @@
-import { mulberry32, pick } from '../../shared/rng';
+import { mulberry32, pick, shuffle } from '../../shared/rng';
 import { tr, other, type Bi } from '../../shared/i18n';
 import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
-import { Button, Card, Panel, biText } from '../../ui/components';
+import { Button, Panel, biText } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
+import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
   COINS, CUSTOMERS, CUSTOMERS_PER_DAY, PRODUCTS, basketMatches, basketMistake, changeFeedback,
   checkChange, generateOrder, orderSpeech, paySpeech, sumCoins, type Basket, type Order,
@@ -13,12 +14,13 @@ import {
 type Stage = 'basket' | 'change' | 'served' | 'closed';
 
 export const marketPage: Page = (ctx) => {
-  let { lang, band } = ctx;
+  let { lang } = ctx;
   const rng = mulberry32((Date.now() ^ 0x9e3779b9) >>> 0);
   const stage = { v: 'basket' as Stage };
+  const queue = shuffle(rng, CUSTOMERS).slice(0, CUSTOMERS_PER_DAY);
   let index = 0;
-  let order: Order = generateOrder(rng, band, index);
-  let customer = pick(rng, CUSTOMERS);
+  let order: Order = generateOrder(rng, index);
+  let customer = queue[index];
   let basket: Basket = {};
   let coins: number[] = [];
   let message: Bi | null = null;
@@ -39,8 +41,8 @@ export const marketPage: Page = (ctx) => {
     if (index >= CUSTOMERS_PER_DAY) {
       stage.v = 'closed';
     } else {
-      order = generateOrder(rng, band, index);
-      customer = pick(rng, CUSTOMERS);
+      order = generateOrder(rng, index);
+      customer = queue[index];
       basket = {};
       coins = [];
       stage.v = 'basket';
@@ -71,16 +73,6 @@ export const marketPage: Page = (ctx) => {
     say({ es: `¡Cliente feliz! 🎉 Te regala una pegatina ${sticker}`, en: `Happy customer! 🎉 You got a sticker ${sticker}` }, 'next-customer');
   }
 
-  const speech = (): HTMLElement => {
-    const text = (l: typeof lang) => (stage.v === 'basket' ? orderSpeech(order, l) : paySpeech(order, l));
-    return h(
-      'div',
-      { class: 'bubble' },
-      h('p', { class: 'bubble__main', lang }, text(lang)),
-      translate ? h('p', { class: 'bubble__sub', lang: other(lang) }, text(other(lang))) : null,
-    );
-  };
-
   function scene(): HTMLElement {
     const products = h('div', { class: 'shelf' },
       ...PRODUCTS.map((p) =>
@@ -102,13 +94,13 @@ export const marketPage: Page = (ctx) => {
   function basketPanel(): HTMLElement {
     const entries = PRODUCTS.filter((p) => (basket[p.id] ?? 0) > 0);
     const list = entries.length
-      ? h('ul', { class: 'basket' }, ...entries.map((p) =>
-          h('li', {},
-            h('span', { 'aria-hidden': 'true' }, p.emoji),
-            h('span', { lang }, p[lang].one), ` × ${basket[p.id]} `,
-            stage.v === 'basket'
-              ? removeBtn(p.id)
-              : null)))
+      ? h('ul', { class: 'basket' }, ...entries.map((p) => {
+          const qty = basket[p.id];
+          return h('li', {},
+            h('span', { class: 'basket__dots', 'aria-hidden': 'true' }, p.emoji.repeat(Math.min(qty, 8))),
+            h('span', { lang }, qty === 1 ? p[lang].one : p[lang].many), ` × ${qty} `,
+            stage.v === 'basket' ? removeBtn(p.id) : null);
+        }))
       : h('p', { class: 'muted' }, tr({ es: 'La bolsa está vacía. ¡Toca los productos!', en: 'The bag is empty. Tap the products!' }, lang));
     return Panel(`🧺 ${tr({ es: 'Bolsa', en: 'Bag' }, lang)}`, [
       list,
@@ -118,8 +110,8 @@ export const marketPage: Page = (ctx) => {
 
   function removeBtn(id: string): HTMLElement {
     const p = PRODUCTS.find((x) => x.id === id)!;
-    const b = Button('−', {
-      variant: 'ghost', className: 'btn--mini',
+    return Button('−', {
+      variant: 'ghost', className: 'btn--mini', focusKey: `rm-${id}`,
       ariaLabel: `${tr({ es: 'Quitar', en: 'Remove one' }, lang)} ${p[lang].one}`,
       onClick: () => {
         const { [id]: n, ...rest } = basket;
@@ -128,22 +120,27 @@ export const marketPage: Page = (ctx) => {
         draw();
       },
     });
-    b.dataset.focus = `rm-${id}`;
-    return b;
   }
 
   function changePanel(): HTMLElement {
-    const tray = h('div', { class: 'coins' }, ...COINS.map((c) => {
-      const b = Button(`🪙 ${c}`, {
-        variant: 'secondary', className: 'coin', disabled: stage.v !== 'change',
+    const tray = h('div', { class: 'coins' }, ...COINS.map((c) =>
+      Button(`🪙 ${c}`, {
+        variant: 'secondary', className: 'coin', disabled: stage.v !== 'change', focusKey: `coin-${c}`,
         ariaLabel: `${tr({ es: 'Dar moneda de', en: 'Give coin worth' }, lang)} ${c}`,
         onClick: () => { coins = [...coins, c]; message = null; draw(); },
-      });
-      b.dataset.focus = `coin-${c}`;
-      return b;
-    }));
-    const empty = Button(tr({ es: 'Vaciar', en: 'Empty' }, lang), { variant: 'ghost', className: 'btn--mini', disabled: stage.v !== 'change', onClick: () => { coins = []; message = null; draw(); } });
-    empty.dataset.focus = 'empty-coins';
+      })));
+    const placed = coins.length && stage.v === 'change'
+      ? h('div', { class: 'coins-placed' }, ...coins.map((c, idx) =>
+          Button(`🪙 ${c} ×`, {
+            variant: 'ghost', className: 'coin-chip', focusKey: `rm-coin-${idx}`,
+            ariaLabel: `${tr({ es: 'Quitar moneda de', en: 'Remove coin worth' }, lang)} ${c}`,
+            onClick: () => { coins = coins.filter((_, i) => i !== idx); message = null; draw(); },
+          })))
+      : null;
+    const empty = Button(tr({ es: 'Vaciar', en: 'Empty' }, lang), {
+      variant: 'ghost', className: 'btn--mini', disabled: stage.v !== 'change', focusKey: 'empty-coins',
+      onClick: () => { coins = []; message = null; draw('coin-1'); },
+    });
     const pouch = h('p', {
       class: coins.length ? 'pouch' : 'muted',
       'aria-live': 'polite',
@@ -153,7 +150,7 @@ export const marketPage: Page = (ctx) => {
       : tr({ es: 'Elige monedas para el cambio.', en: 'Pick coins for the change.' }, lang),
     coins.length ? empty : null);
     return Panel(`💰 ${tr({ es: 'Caja', en: 'Till' }, lang)}`, [
-      tray, pouch,
+      tray, placed, pouch,
       stage.v === 'change' ? Button(biText({ es: 'Dar el cambio', en: 'Give the change' }, lang), { onClick: submitChange, disabled: coins.length === 0, focusKey: 'give-change' }) : null,
     ]);
   }
@@ -161,33 +158,49 @@ export const marketPage: Page = (ctx) => {
   function draw(focusTarget?: string) {
     renderKeepingFocus(host, () => {
       const wrap = h('div', { class: 'game' });
-      const head = h('header', { class: 'game__head' },
-        h('div', {}, h('h1', { class: 'game__title' }, '🛒 Market Quest'),
-          h('p', { class: 'muted' }, `${tr({ es: 'Cliente', en: 'Customer' }, lang)} ${Math.min(index + 1, CUSTOMERS_PER_DAY)} / ${CUSTOMERS_PER_DAY}`)),
-        Button('← ' + tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'ghost', href: '#/' }));
-      wrap.append(head);
+      wrap.append(GameHeader({
+        title: '🛒 Market Quest',
+        noun: { es: 'Cliente', en: 'Customer' },
+        index, total: CUSTOMERS_PER_DAY, lang,
+      }));
 
       if (stage.v === 'closed') {
-        wrap.append(Card([
-          h('h2', {}, tr({ es: '¡El mercado cierra por hoy! 🌙', en: 'The market is closed for today! 🌙' }, lang)),
-          h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'pegatinas', en: 'stickers' }, lang) }, stickers.join(' ')),
-          h('p', {}, tr({ es: 'Vuelve cuando quieras. ¡Tus pegatinas te esperan!', en: 'Come back whenever you like. Your stickers will wait!' }, lang)),
-          h('div', { class: 'row' },
-            Button(tr({ es: 'Otro día de mercado', en: 'Another market day' }, lang), { onClick: () => ctx.refresh(), focusKey: 'another-day' }),
-            Button(tr({ es: 'Inicio', en: 'Home' }, lang), { variant: 'secondary', href: '#/' })),
-        ], 'sun', 'end-card'));
+        wrap.append(EndCard({
+          tone: 'sun',
+          title: { es: '¡El mercado cierra por hoy! 🌙', en: 'The market is closed for today! 🌙' },
+          art: h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'pegatinas', en: 'stickers' }, lang) }, stickers.join(' ')),
+          body: { es: 'Vuelve cuando quieras. ¡Tus pegatinas te esperan!', en: 'Come back whenever you like. Your stickers will wait!' },
+          againLabel: { es: 'Otro día de mercado', en: 'Another market day' },
+          againFocusKey: 'another-day',
+          onAgain: () => ctx.refresh(),
+          lang,
+        }));
         return wrap;
       }
 
+      const text = (l: typeof lang) => (stage.v === 'basket' ? orderSpeech(order, l, customer) : paySpeech(order, l));
+      const moneyExtra = stage.v === 'change'
+        ? h('div', { class: 'row' },
+            h('span', { class: 'bill-badge' }, `💵 ${order.paid} ${tr({ es: 'monedas', en: 'coins' }, lang)}`),
+            order.discount > 0 ? h('span', { class: 'coupon-badge' }, `🎟️ −${order.discount}`) : null)
+        : null;
+
       append(wrap, [
-        h('div', { class: 'customer' },
-          h('div', { class: 'customer__face', 'aria-hidden': 'true' }, customer.emoji),
-          h('div', {}, h('p', { class: 'customer__name' }, tr(customer.name, lang)), stage.v === 'served' ? null : speech()),
-          Button(`🦜 ${tr({ es: 'Traducir', en: 'Translate' }, lang)}`, { variant: 'ghost', pressed: translate, focusKey: 'translate', onClick: () => { translate = !translate; draw(); } })),
+        CharacterBubble({
+          emoji: customer.emoji,
+          mood: stage.v === 'served' ? '🎉' : stage.v === 'change' ? '💳' : undefined,
+          name: tr(customer.name, lang),
+          text: stage.v === 'served' ? undefined : text(lang),
+          subText: stage.v === 'served' ? undefined : text(other(lang)),
+          showSub: translate,
+          lang,
+          translatePressed: translate,
+          onTranslate: () => { translate = !translate; draw(); },
+          extra: moneyExtra,
+        }),
         scene(),
         h('div', { class: 'cols' }, basketPanel(), changePanel()),
-        h('div', { class: `message ${message ? 'message--on' : ''}`, role: 'status', 'aria-live': 'polite', 'data-live': 'message' },
-          message ? biText(message, lang) : null),
+        StatusBanner(message, lang),
         stage.v === 'served' ? Button(tr({ es: 'Siguiente cliente →', en: 'Next customer →' }, lang), { onClick: nextCustomer, large: true, focusKey: 'next-customer' }) : null,
       ]);
       return wrap;
@@ -196,9 +209,8 @@ export const marketPage: Page = (ctx) => {
 
   draw();
   return Object.assign(() => {}, {
-    updateSettings(nextLang: typeof lang, nextBand: typeof band) {
+    updateSettings(nextLang: typeof lang) {
       lang = nextLang;
-      band = nextBand;
       draw();
     },
   });

@@ -25,7 +25,7 @@
 
 1. **Playtest with children** (7–14) and adjust difficulty, text length and rewards.
 2. Audio: optional recorded Spanish/English pronunciation (self-hosted, no third-party services).
-3. Third game (e.g. *Recipe Lab*: fractions and imperative verbs; or *Train Station*: clock reading and travel dialogues).
+3. ✅ Fourth, fifth and sixth games added: **Recipe Lab** (fractions and imperative verbs), **Train Station** (analog clock reading and travel time arithmetic) and **Mystery Detective** (bilingual logic deduction and number properties).
 4. More content: bigger vocabulary packs, regional Spanish variants, new customers/landmarks.
 5. PWA / offline support, still without tracking.
 6. Parent/teacher view: export and import progress as a local file (no accounts).

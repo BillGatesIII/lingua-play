@@ -19,6 +19,25 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Tiny hyperscript helper for SVG elements (no innerHTML). */
+export function svg<K extends keyof SVGElementTagNameMap>(
+  tag: K,
+  props: Props = {},
+  ...children: Child[]
+): SVGElementTagNameMap[K] {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v === null || v === undefined || v === false) continue;
+    if (typeof v === 'function' && k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (typeof v === 'function') continue;
+    else el.setAttribute(k, v === true ? '' : String(v));
+  }
+  append(el, children);
+  return el;
+}
+
 export function append(el: Element, children: Child[]): void {
   for (const c of children) if (c !== null && c !== false && c !== undefined) el.append(c);
 }
