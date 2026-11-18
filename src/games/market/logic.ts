@@ -173,5 +173,5 @@ export const checkChange = (order: Order, coins: readonly number[]): ChangeResul
 export function changeFeedback(result: Exclude<ChangeResult, 'exact'>): Bi {
   return result === 'too-much'
     ? { es: '¡Qué generoso! 🤑 Pero la tienda se queda sin monedas. Devuelve alguna.', en: "How generous! 🤑 But the shop is running out of coins. Take some back." }
-    : { es: '🪙 El cliente sacude la bolsa… ¡suenan pocas monedas! Faltan algunas.', en: '🪙 The customer shakes the pouch… it barely jingles! Some coins are missing.' };
+    : { es: '💰 El cliente sacude la bolsa… ¡suenan pocas monedas! Faltan algunas.', en: '💰 The customer shakes the pouch… it barely jingles! Some coins are missing.' };
 }

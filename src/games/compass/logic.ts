@@ -56,7 +56,7 @@ export interface Level {
   budget: number;
 }
 
-export const TREASURES = ['💎', '👑', '🏺', '🗝️', '🪙'] as const;
+export const TREASURES = ['💎', '👑', '🏺', '🗝️', '💰'] as const;
 export const JUNK: readonly { emoji: string; es: string; en: string }[] = [
   { emoji: '🥾', es: 'una bota vieja', en: 'an old boot' },
   { emoji: '🦀', es: 'un cangrejo gruñón', en: 'a grumpy crab' },
