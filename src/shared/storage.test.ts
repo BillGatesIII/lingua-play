@@ -38,6 +38,13 @@ describe('storage', () => {
     expect(loadProgress().market.served).toBe(0);
   });
 
+  it('migrates and deduplicates saved treasures', () => {
+    const p = sanitize({
+      compass: { found: 3, treasures: ['🪙', '💰', '💎', '💎'] },
+    });
+    expect(p.compass.treasures).toEqual(['💰', '💎']);
+  });
+
   it('retains updates in memory when storage writes fail and erases the fallback', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('storage unavailable');
