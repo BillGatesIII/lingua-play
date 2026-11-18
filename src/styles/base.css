@@ -1,5 +1,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+@media (max-width: 1100px), (max-height: 760px) {
+  html { font-size: 87.5%; }
+}
 body {
   margin: 0;
   font-family: var(--font);
@@ -49,4 +52,11 @@ a { color: var(--berry-deep); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+@media (max-height: 760px) {
+  .topbar { padding: var(--space-2) var(--space-4); }
+  .main { padding: var(--space-2) var(--space-4) var(--space-5); }
+  .row { margin: var(--space-2) 0; gap: var(--space-2); }
+  .cols { gap: var(--space-3); }
 }

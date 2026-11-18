@@ -38,7 +38,10 @@ export function sanitize(raw: unknown): Progress {
   const r = raw as Record<string, any>;
   if (r.settings?.lang === 'es' || r.settings?.lang === 'en') d.settings.lang = r.settings.lang;
   d.market = { served: num(r.market?.served), stickers: strs(r.market?.stickers) };
-  d.compass = { found: num(r.compass?.found), treasures: strs(r.compass?.treasures) };
+  d.compass = {
+    found: num(r.compass?.found),
+    treasures: [...new Set(strs(r.compass?.treasures).map((treasure) => treasure === '🪙' ? '💰' : treasure))],
+  };
   d.colors = { painted: num(r.colors?.painted), colours: strs(r.colors?.colours) };
   d.recipe = { cooked: num(r.recipe?.cooked), dishes: strs(r.recipe?.dishes) };
   d.station = { dispatched: num(r.station?.dispatched), stamps: strs(r.station?.stamps) };

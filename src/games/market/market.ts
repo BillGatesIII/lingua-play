@@ -4,7 +4,7 @@ import { tr, other, type Bi } from '../../shared/i18n';
 import { updateProgress } from '../../shared/storage';
 import type { Page } from '../../pages/types';
 import { Button, Panel, biText } from '../../ui/components';
-import { append, h } from '../../ui/dom';
+import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
@@ -13,6 +13,12 @@ import {
 } from './logic';
 
 type Stage = 'basket' | 'change' | 'served' | 'closed';
+
+function coinIcon(): SVGElement {
+  return svg('svg', { class: 'coin-icon', viewBox: '0 0 24 24', 'aria-hidden': 'true' },
+    svg('circle', { cx: 12, cy: 12, r: 10, fill: '#ffd23f', stroke: '#1f1b3d', 'stroke-width': 2.5 }),
+    svg('circle', { cx: 12, cy: 12, r: 5.5, fill: 'none', stroke: '#1f1b3d', 'stroke-width': 1.75 }));
+}
 
 export const marketPage: Page = (ctx) => {
   let { lang } = ctx;
@@ -87,7 +93,7 @@ export const marketPage: Page = (ctx) => {
           h('span', { class: 'product__emoji', 'aria-hidden': 'true' }, p.emoji),
           h('span', { class: 'product__name', lang }, p[lang].one),
           h('span', { class: 'product__name product__name--sub', lang: other(lang) }, p[other(lang)].one),
-          h('span', { class: 'product__price' }, `🪙 ${p.price}`),
+          h('span', { class: 'product__price' }, coinIcon(), ` ${p.price}`),
         )),
     );
     return h('div', { class: 'stall' }, h('div', { class: 'awning', 'aria-hidden': 'true' }), products);
@@ -126,14 +132,14 @@ export const marketPage: Page = (ctx) => {
 
   function changePanel(): HTMLElement {
     const tray = h('div', { class: 'coins' }, ...COINS.map((c) =>
-      Button(`🪙 ${c}`, {
+      Button([coinIcon(), ` ${c}`], {
         variant: 'secondary', className: 'coin', disabled: stage.v !== 'change', focusKey: `coin-${c}`,
         ariaLabel: `${tr({ es: 'Dar moneda de', en: 'Give coin worth' }, lang)} ${c}`,
         onClick: () => { coins = [...coins, c]; message = null; draw(); },
       })));
     const placed = coins.length && stage.v === 'change'
       ? h('div', { class: 'coins-placed' }, ...coins.map((c, idx) =>
-          Button(`🪙 ${c} ×`, {
+          Button([coinIcon(), ` ${c} ×`], {
             variant: 'ghost', className: 'coin-chip', focusKey: `rm-coin-${idx}`,
             ariaLabel: `${tr({ es: 'Quitar moneda de', en: 'Remove coin worth' }, lang)} ${c}`,
             onClick: () => { coins = coins.filter((_, i) => i !== idx); message = null; draw(); },
@@ -147,10 +153,9 @@ export const marketPage: Page = (ctx) => {
       class: coins.length ? 'pouch' : 'muted',
       'aria-live': 'polite',
       'data-live': 'change-total',
-    }, coins.length
-      ? `${tr({ es: 'Cambio', en: 'Change' }, lang)}: ${sumCoins(coins)} 🪙 `
-      : tr({ es: 'Elige monedas para el cambio.', en: 'Pick coins for the change.' }, lang),
-    coins.length ? empty : null);
+    }, ...(coins.length
+      ? [`${tr({ es: 'Cambio', en: 'Change' }, lang)}: ${sumCoins(coins)} `, coinIcon(), ' ', empty]
+      : [tr({ es: 'Elige monedas para el cambio.', en: 'Pick coins for the change.' }, lang)]));
     return Panel(`💰 ${tr({ es: 'Caja', en: 'Till' }, lang)}`, [
       tray, placed, pouch,
       stage.v === 'change' ? Button(biText({ es: 'Dar el cambio', en: 'Give the change' }, lang), { onClick: submitChange, disabled: coins.length === 0, focusKey: 'give-change' }) : null,

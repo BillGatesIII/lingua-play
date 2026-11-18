@@ -170,3 +170,65 @@
 
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 @keyframes pop { 0% { transform: scale(0.85); } 100% { transform: scale(1); } }
+
+.coin-icon { display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -0.15em; flex: none; }
+
+@media (max-height: 760px) {
+  /* Landing */
+  .hero { padding: var(--space-2) 0 var(--space-3); }
+  .hero__parrot { font-size: 2.75rem; }
+  .hero__title { font-size: clamp(2.1rem, 5.5vw, 3.25rem); margin-bottom: var(--space-1); }
+  .hero__tag { font-size: var(--text-md); margin-bottom: 0; }
+  .game-card { gap: var(--space-1); }
+  .game-card__art { font-size: 2.25rem; }
+  .game-card h2 { margin-bottom: var(--space-1); font-size: var(--text-lg); }
+  .game-card p { margin-bottom: var(--space-2); font-size: var(--text-sm); line-height: 1.35; }
+  .cols--games { gap: var(--space-3); margin-bottom: var(--space-4); }
+  .promises { margin-bottom: var(--space-4); gap: var(--space-2); }
+
+  /* Shared game chrome */
+  .world { padding: var(--space-4); }
+  .game > * + * { margin-top: var(--space-3); }
+  .message:not(.message--on) { min-height: 0; padding: 0; margin-top: 0; }
+  .customer { gap: var(--space-3); }
+  .customer__face { width: 4.25rem; height: 4.25rem; font-size: 2.75rem; }
+  .customer__mood { width: 1.75rem; height: 1.75rem; font-size: 1.15rem; }
+  .bubble { padding: var(--space-2) var(--space-3); }
+  .bubble__main { font-size: var(--text-md); }
+  .cols--map { grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr)); }
+
+  /* Market */
+  .awning { height: 1.5rem; }
+  .shelf { grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: var(--space-2); padding: var(--space-3); }
+  .product { padding: var(--space-1) var(--space-2); }
+  .product__emoji { font-size: 2rem; }
+  .coin { min-width: 3.25rem; min-height: 3.25rem; }
+
+  /* Compass */
+  .map-top, .sea { max-width: 22rem; }
+  .compass-rose { width: 3.5rem; height: 3.5rem; }
+  .dpad { max-width: 18rem; margin: var(--space-2) 0; }
+
+  /* Colors */
+  .chameleon { width: min(10.5rem, 45vw); font-size: clamp(3rem, 14vw, 4.75rem); }
+
+  /* Recipe */
+  .jug-svg { width: min(10rem, 45vw); }
+  .ing-btn { min-height: 4rem; }
+  .ing-btn__emoji { font-size: 1.65rem; }
+  .ingredients, .verbs { gap: var(--space-2); }
+
+  /* Station */
+  .clock-svg { width: min(12rem, 50vw); }
+
+  /* Detective */
+  .suspects { grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: var(--space-3); }
+  .suspect-card { padding: var(--space-2) var(--space-3); }
+  .suspect-card__avatar { font-size: 2.35rem; }
+
+  /* Words & Garden */
+  .word-picture { font-size: 3.5rem; }
+  .letter-tile, .letter-slot { min-width: 3rem; min-height: 3rem; }
+  .flower-sequence { margin: var(--space-2) 0; gap: var(--space-2); }
+  .flower-pot { min-width: 4.5rem; min-height: 5rem; }
+}
