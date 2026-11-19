@@ -206,8 +206,10 @@ export const marketPage: Page = (ctx) => {
           onTranslate: () => { translate = !translate; draw(); },
           extra: moneyExtra,
         }),
-        scene(),
-        h('div', { class: 'cols' }, basketPanel(), changePanel()),
+        stage.v === 'basket' ? scene() : null,
+        h('div', { class: 'cols cols--task' },
+          stage.v === 'basket' ? basketPanel() : null,
+          stage.v === 'change' ? changePanel() : null),
         StatusBanner(message, lang),
         stage.v === 'served' ? Button(tr({ es: 'Siguiente cliente →', en: 'Next customer →' }, lang), { onClick: nextCustomer, large: true, focusKey: 'next-customer' }) : null,
       ]);

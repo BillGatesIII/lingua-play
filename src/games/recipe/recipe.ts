@@ -134,6 +134,22 @@ export const recipePage: Page = (ctx) => {
       const chef = chefs[index % chefs.length];
       const maxLabel = quartersBadge(recipe.maxQuarters);
       const jugLabel = `${tr({ es: 'Jarra medidora', en: 'Measuring jug' }, lang)}: ${quartersBadge(quarters)} / ${maxLabel} ${tr({ es: 'tazas', en: 'cups' }, lang)}`;
+      const measureControls = h('div', { class: 'jug-controls' },
+        h('p', { class: 'jug-controls__title' }, `🥛 ${tr({ es: 'Medir', en: 'Measure' }, lang)}`),
+        h('div', { class: 'scoops' },
+          ...SCOOPS.filter((s) => s <= recipe.maxQuarters).map((s) =>
+            Button(`+ ${quartersBadge(s)}`, {
+              variant: 'secondary', disabled: solved || quarters >= recipe.maxQuarters,
+              focusKey: `scoop-${s}`,
+              ariaLabel: `${tr({ es: 'Añadir', en: 'Add' }, lang)} ${quartersBadge(s)}`,
+              onClick: () => addScoop(s),
+            })),
+          Button(tr({ es: 'Vaciar', en: 'Empty' }, lang), {
+            variant: 'ghost', disabled: solved || quarters === 0, focusKey: 'empty-jug',
+            onClick: () => { quarters = 0; say(null); },
+          }),
+        ),
+      );
 
       append(wrap, [
         CharacterBubble({
@@ -152,6 +168,7 @@ export const recipePage: Page = (ctx) => {
             measuringJug(),
             h('p', { class: 'jug-readout', role: 'img', 'aria-label': jugLabel },
               `${recipe.dish.emoji} ${quartersBadge(quarters)} ${tr({ es: 'taza(s)', en: 'cup(s)' }, lang)}`),
+            measureControls,
             chosen.length
               ? h('p', { class: 'bowl' },
                   ...chosen.map((id) => INGREDIENTS.find((i) => i.id === id)!.emoji))
@@ -170,21 +187,7 @@ export const recipePage: Page = (ctx) => {
                   onClick: () => toggleIngredient(ing.id),
                 }))),
             ]),
-            Panel(`🥛 2. ${tr({ es: 'Medir', en: 'Measure' }, lang)}`, [
-              h('div', { class: 'scoops' },
-                ...SCOOPS.filter((s) => s <= recipe.maxQuarters).map((s) =>
-                  Button(`+ ${quartersBadge(s)}`, {
-                    variant: 'secondary', disabled: solved || quarters >= recipe.maxQuarters,
-                    focusKey: `scoop-${s}`,
-                    ariaLabel: `${tr({ es: 'Añadir', en: 'Add' }, lang)} ${quartersBadge(s)}`,
-                    onClick: () => addScoop(s),
-                  })),
-                Button(tr({ es: 'Vaciar', en: 'Empty' }, lang), {
-                  variant: 'ghost', disabled: solved || quarters === 0, focusKey: 'empty-jug',
-                  onClick: () => { quarters = 0; say(null); },
-                })),
-            ]),
-            Panel(`👩‍🍳 3. ${tr({ es: 'Paso final', en: 'Final step' }, lang)}`, [
+            Panel(`👩‍🍳 2. ${tr({ es: 'Paso final', en: 'Final step' }, lang)}`, [
               h('div', { class: 'verbs' }, ...VERBS.map((v) =>
                 Button([
                   h('span', { 'aria-hidden': 'true' }, v.emoji),

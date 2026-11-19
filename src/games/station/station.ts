@@ -8,7 +8,7 @@ import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
-  TRAINS_PER_ROUND, TRAVELLERS, checkClock, generateTrain, sameTime, stepClock,
+  TRAINS_PER_ROUND, TRAVELLERS, checkClock, generateTrain, sameTime, stepClock, timeText,
   trainSpeech, type ClockTime, type TrainChallenge,
 } from './logic';
 
@@ -171,6 +171,9 @@ export const stationPage: Page = (ctx) => {
         h('div', { class: 'cols cols--map' },
           h('div', { class: 'station-stage', role: 'img', 'aria-label': clockLabel },
             analogClock(),
+            h('p', { class: 'target-time' },
+              `🎯 ${tr({ es: 'Pon el reloj en', en: 'Set the clock to' }, lang)} `,
+              h('strong', { lang }, timeText(challenge.target, lang))),
             h('p', { class: 'muted' }, tr({ es: 'Aguja roja = horas · Aguja negra = minutos', en: 'Red hand = hours · Black hand = minutes' }, lang))),
           Panel(`🕒 ${tr({ es: 'Ajustar el reloj', en: 'Set the clock' }, lang)}`, [
             h('div', { class: 'clock-controls' }, ...controls.map(([label, delta, fk]) =>

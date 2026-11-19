@@ -244,6 +244,10 @@ export const compassPage: Page = (ctx) => {
               TranslateButton(translate, lang, () => { translate = !translate; draw(); }),
             ]),
             Panel(`⛵ ${tr({ es: 'Navegar', en: 'Sail' }, lang)}`, [
+              h('p', { class: 'action-cue' }, tr({
+                es: 'Lee la pista, mueve el barco y cava cuando estés en el tesoro.',
+                en: 'Read the clue, move the boat, and dig when you are at the treasure.',
+              }, lang)),
               h('p', { class: 'wind', 'aria-live': 'polite', 'data-live': 'wind' },
                 `🌬️ ${windLeft} ${tr({ es: 'soplos de viento', en: 'gusts of wind' }, lang)} · x = ${pos.x}, y = ${pos.y}`,
                 pips),
