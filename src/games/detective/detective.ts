@@ -167,11 +167,12 @@ export const detectivePage: Page = (ctx) => {
           translatePressed: translate,
           onTranslate: () => { translate = !translate; draw(); },
         }),
-        Panel(`📋 ${tr({ es: 'Pistas del caso', en: 'Case clues' }, lang)}`, [
-          clueList,
-          h('p', { class: 'muted' }, tr({ es: 'Descarta a quienes no cumplan las pistas y acusa al culpable.', en: 'Rule out suspects who do not fit the clues, then accuse the culprit.' }, lang)),
-        ]),
-        h('div', { class: 'suspects' }, ...current.suspects.map(suspectCard)),
+        h('div', { class: 'detective-work' },
+          Panel(`📋 ${tr({ es: 'Pistas del caso', en: 'Case clues' }, lang)}`, [
+            clueList,
+            h('p', { class: 'muted' }, tr({ es: 'Descarta a quienes no cumplan las pistas y acusa al culpable.', en: 'Rule out suspects who do not fit the clues, then accuse the culprit.' }, lang)),
+          ]),
+          h('div', { class: 'suspects' }, ...current.suspects.map(suspectCard))),
         StatusBanner(message, lang),
         solved ? Button(tr({ es: 'Siguiente caso →', en: 'Next case →' }, lang), { onClick: nextCase, large: true, focusKey: 'next-case' }) : null,
       ]);

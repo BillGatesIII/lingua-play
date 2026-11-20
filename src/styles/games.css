@@ -34,6 +34,7 @@
 .end-card { text-align: center; }
 .end-card .row { justify-content: center; }
 .cols--map { grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr)); align-items: start; }
+.cols--task { grid-template-columns: minmax(0, 1fr); }
 
 /* Shared character & bubble */
 .customer { display: flex; gap: var(--space-4); align-items: center; flex-wrap: wrap; }
@@ -85,6 +86,7 @@
 .cell--step:hover { transform: scale(1.06); background: #fff1b8 !important; }
 .axis { color: var(--white); font-weight: 900; font-size: var(--text-xs); display: grid; place-items: center; }
 .legend { margin: 0; }
+.action-cue { margin: 0 0 var(--space-2); font-weight: 800; background: #dff9ec; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
 .clue { font-size: var(--text-lg); font-weight: 800; margin-bottom: var(--space-2); }
 .clue--sub { color: var(--ink-soft); font-weight: 600; font-size: var(--text-md); }
 .wind { font-weight: 800; }
@@ -115,6 +117,9 @@
 .jug-stage { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
 .jug-svg { width: min(14rem, 60vw); height: auto; }
 .jug-readout { font-size: var(--text-lg); font-weight: 900; background: var(--white); border: var(--border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-5); margin: 0; box-shadow: var(--shadow-sm); }
+.jug-controls { display: flex; flex-direction: column; align-items: center; width: min(18rem, 100%); background: var(--white); border: var(--border); border-radius: var(--radius-md); padding: var(--space-3); box-shadow: var(--shadow-sm); }
+.jug-controls__title { margin: 0 0 var(--space-2); font-size: var(--text-lg); font-weight: 900; }
+.jug-controls .scoops { justify-content: center; margin: 0; }
 .ingredients { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-3); margin-bottom: var(--space-3); }
 .ing-btn { flex-direction: column; padding: var(--space-2); min-height: 5rem; gap: var(--space-1); }
 .ing-btn[aria-pressed='true'] { background: var(--sun); }
@@ -127,6 +132,8 @@
 .station-stage { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
 .clock-svg { width: min(16rem, 65vw); height: auto; filter: drop-shadow(0 6px 0 rgb(31 27 61 / 0.2)); }
 .ticket-card { display: inline-flex; align-items: center; gap: var(--space-3); background: var(--sun); border: var(--border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-4); font-weight: 900; box-shadow: var(--shadow-sm); }
+.target-time { margin: 0; background: var(--white); border: var(--border); border-radius: var(--radius-pill); padding: var(--space-2) var(--space-4); font-size: var(--text-lg); box-shadow: var(--shadow-sm); text-align: center; }
+.target-time strong { display: block; }
 .clock-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
 
 /* Mystery Detective world */
@@ -146,6 +153,8 @@
 .suspect-card__name { margin: 0; font-size: var(--text-lg); }
 .suspect-card__traits { list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); font-weight: 700; flex: 1; }
 .suspect-card__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-1); }
+.detective-work { display: grid; grid-template-columns: minmax(14rem, 0.32fr) minmax(0, 1fr); align-items: start; gap: var(--space-4); }
+.detective-work > .panel { margin-bottom: 0; }
 
 /* Word Workshop world */
 .world--words { background: linear-gradient(180deg, #e5ddff, #b9aaff); }
@@ -231,4 +240,8 @@
   .letter-tile, .letter-slot { min-width: 3rem; min-height: 3rem; }
   .flower-sequence { margin: var(--space-2) 0; gap: var(--space-2); }
   .flower-pot { min-width: 4.5rem; min-height: 5rem; }
+}
+
+@media (max-width: 720px) {
+  .detective-work { grid-template-columns: 1fr; }
 }
