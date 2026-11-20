@@ -107,6 +107,8 @@ export const marketPage: Page = (ctx) => {
           return h('li', {},
             h('span', { class: 'basket__dots', 'aria-hidden': 'true' }, p.emoji.repeat(Math.min(qty, 8))),
             h('span', { lang }, qty === 1 ? p[lang].one : p[lang].many), ` × ${qty} `,
+            stage.v === 'change' ? h('span', { class: 'basket__price' },
+              `· ${tr({ es: 'precio unitario', en: 'unit price' }, lang)}: ${p.price} ${tr({ es: 'monedas', en: 'coins' }, lang)}`) : null,
             stage.v === 'basket' ? removeBtn(p.id) : null);
         }))
       : h('p', { class: 'muted' }, tr({ es: 'La bolsa está vacía. ¡Toca los productos!', en: 'The bag is empty. Tap the products!' }, lang));

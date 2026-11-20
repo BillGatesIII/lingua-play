@@ -169,7 +169,7 @@ export const stationPage: Page = (ctx) => {
             `${challenge.destination.emoji} ${tr(challenge.destination.name, lang)}`),
         }),
         h('div', { class: 'cols cols--map' },
-          h('div', { class: 'station-stage', role: 'img', 'aria-label': clockLabel },
+          h('div', { class: 'station-stage', role: 'group', 'aria-label': clockLabel },
             analogClock(),
             translate ? h('p', { class: 'target-time' },
               `🎯 ${tr({ es: 'Pon el reloj en', en: 'Set the clock to' }, lang)} `,
