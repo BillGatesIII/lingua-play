@@ -103,9 +103,6 @@
 .chameleon { width: min(14rem, 60vw); aspect-ratio: 1; border-radius: 50%; background: var(--paint); border: var(--border); box-shadow: var(--shadow-md); display: grid; place-items: center; font-size: clamp(4rem, 18vw, 6.5rem); transition: background-color var(--dur); animation: pop 300ms var(--ease-pop); position: relative; }
 .chameleon--happy::after { content: '✨'; position: absolute; top: 0.5rem; right: 0.75rem; font-size: 2rem; }
 .bowl { font-size: var(--text-lg); font-weight: 800; background: var(--white); border: var(--border); border-radius: var(--radius-pill); padding: var(--space-2) var(--space-5); margin: 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
-.target-color { display: inline-flex; align-items: center; gap: var(--space-2); background: var(--white); border: var(--border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-weight: 900; }
-.target-color__swatch { width: 1.75rem; height: 1.75rem; border: 2px solid var(--ink); border-radius: 50%; background: var(--paint); }
-.target-color__sub { color: var(--ink-soft); font-size: var(--text-xs); }
 .chip { width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--ink); background: var(--paint); display: inline-block; }
 .pots { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: var(--space-3); margin-bottom: var(--space-3); }
 .pot { display: flex; align-items: center; gap: var(--space-2); }

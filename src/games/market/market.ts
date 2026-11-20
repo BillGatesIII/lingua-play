@@ -208,7 +208,7 @@ export const marketPage: Page = (ctx) => {
         }),
         stage.v === 'basket' ? scene() : null,
         h('div', { class: 'cols cols--task' },
-          stage.v === 'basket' ? basketPanel() : null,
+          stage.v !== 'served' ? basketPanel() : null,
           stage.v === 'change' ? changePanel() : null),
         StatusBanner(message, lang),
         stage.v === 'served' ? Button(tr({ es: 'Siguiente cliente →', en: 'Next customer →' }, lang), { onClick: nextCustomer, large: true, focusKey: 'next-customer' }) : null,
