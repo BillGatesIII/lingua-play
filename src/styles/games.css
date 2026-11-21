@@ -1,6 +1,13 @@
 /* Landing */
 .hero { text-align: center; padding: var(--space-5) 0; }
 .hero__parrot { font-size: 4rem; margin: 0; animation: bob 3s ease-in-out infinite; }
+.hero__parrot-btn { background: none; border: 0; font: inherit; line-height: 1; padding: var(--space-1); cursor: pointer; border-radius: 50%; transition: transform var(--dur) var(--ease-pop); }
+.hero__parrot-btn:hover { transform: scale(1.1) rotate(-4deg); }
+.hero__parrot-btn:active { transform: scale(0.95); }
+.badge-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.badge-chip { background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius-pill); padding: 2px var(--space-3); font-size: var(--text-xl); line-height: 1.2; cursor: pointer; box-shadow: var(--shadow-sm); transition: transform var(--dur) var(--ease-pop); }
+.badge-chip:hover { transform: translateY(-2px) scale(1.08); background: var(--sun); }
+.badge-chip:active { transform: scale(0.95); }
 .hero__title { font-size: var(--text-hero); letter-spacing: -0.02em; color: var(--berry-deep); text-shadow: 3px 3px 0 var(--sun); }
 .hero__tag { font-size: var(--text-lg); display: flex; justify-content: center; }
 .hero__tag .bi { align-items: center; }
@@ -38,14 +45,17 @@
 
 /* Shared character & bubble */
 .customer { display: flex; gap: var(--space-4); align-items: center; flex-wrap: wrap; }
-.customer__face { position: relative; font-size: 3.75rem; background: var(--white); border: var(--border); border-radius: 50%; width: 5.5rem; height: 5.5rem; display: grid; place-items: center; box-shadow: var(--shadow-md); animation: bob 3.5s ease-in-out infinite; flex: none; }
+.customer__face { position: relative; font-size: 3.75rem; background: var(--white); border: var(--border); border-radius: 50%; width: 5.5rem; height: 5.5rem; display: grid; place-items: center; box-shadow: var(--shadow-md); animation: bob 3.5s ease-in-out infinite; flex: none; padding: 0; font-family: inherit; }
+.customer__face--btn { cursor: pointer; transition: transform var(--dur) var(--ease-pop); }
+.customer__face--btn:hover { transform: scale(1.06); }
 .customer__mood { position: absolute; right: -0.35rem; bottom: -0.25rem; font-size: 1.5rem; background: var(--sun); border: 2px solid var(--ink); border-radius: 50%; width: 2.1rem; height: 2.1rem; display: grid; place-items: center; }
 .customer__body { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; flex: 1; min-width: min(14rem, 100%); }
 .customer__name { font-weight: 900; margin: 0; }
 .bubble { background: var(--white); border: var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); max-width: 36rem; box-shadow: var(--shadow-sm); }
+.bubble--interactive { cursor: pointer; transition: transform var(--dur) var(--ease-pop), background-color var(--dur); }
+.bubble--interactive:hover { transform: translateY(-2px); background: #fffdf4; }
 .bubble p { margin: 0; }
 .bubble__main { font-size: var(--text-lg); font-weight: 800; }
-.bubble__sub { color: var(--ink-soft); margin-top: var(--space-1); }
 
 /* Market world */
 .world--market { background: linear-gradient(180deg, #ffd9a0, #ffb3a7); }
@@ -159,6 +169,8 @@
 /* Word Workshop world */
 .world--words { background: linear-gradient(180deg, #e5ddff, #b9aaff); }
 .word-picture { font-size: 5rem; text-align: center; }
+.word-picture-btn { display: block; margin: 0 auto; background: none; border: 0; font: inherit; font-size: 5rem; line-height: 1.1; cursor: pointer; border-radius: var(--radius-md); padding: var(--space-1) var(--space-3); transition: transform var(--dur) var(--ease-pop); }
+.word-picture-btn:hover { transform: scale(1.08); }
 .word-answer, .letter-rack, .number-choices { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
 .letter-tile { min-width: 3.5rem; min-height: 3.5rem; padding: var(--space-1); font-size: var(--text-xl); }
 .letter-tile--selected { background: var(--sun); color: var(--ink); }
@@ -167,11 +179,22 @@
 /* Bloom Garden world */
 .world--garden { background: linear-gradient(180deg, #d9f6c8, #a6dc91); }
 .flower-sequence { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-4) 0; }
-.flower-pot { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 5.25rem; min-height: 6rem; background: #e5f4ff; border: var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); font-size: var(--text-xl); padding: var(--space-2); }
+.flower-pot { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 5.25rem; min-height: 6rem; background: #e5f4ff; border: var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); font-size: var(--text-xl); padding: var(--space-2); font-family: inherit; color: var(--ink); cursor: pointer; transition: transform var(--dur) var(--ease-pop); }
+.flower-pot:hover { transform: translateY(-2px) scale(1.04); }
 .flower-pot span { font-size: 1.75rem; }
 .flower-pot--empty { background: var(--white); border-style: dashed; }
 .flower-pot--bloomed { background: #dff9ec; animation: pop 300ms var(--ease-pop); }
 .number-choice { min-width: 5.5rem; min-height: 4rem; font-size: var(--text-lg); }
+
+/* Interactive English speech triggers */
+.chameleon--btn, .clock-btn, .ticket-card--btn, .compass-rose-btn, .clue-btn {
+  cursor: pointer; font-family: inherit; color: inherit;
+}
+.clock-btn, .compass-rose-btn, .clue-btn { background: none; border: 0; padding: 0; text-align: left; }
+.clue-btn { font-weight: inherit; font-size: inherit; line-height: inherit; border-radius: var(--radius-sm); padding: 2px var(--space-1); }
+.clue-btn:hover { background: rgb(255 255 255 / 0.65); }
+.suspect-card__trait-btn { background: none; border: 0; padding: 1px 4px; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-sm); }
+.suspect-card__trait-btn:hover { background: var(--paper); }
 
 /* Play break nudge */
 .break-nudge { background: #dff9ec; border: var(--border); border-radius: var(--radius-md); padding: var(--space-4); margin: var(--space-4) auto; max-width: 34rem; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); box-shadow: var(--shadow-sm); }

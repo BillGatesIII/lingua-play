@@ -1,9 +1,11 @@
-import { other, tr, type Bi } from '../../shared/i18n';
+import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
+import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
+import { addHoverVoice, speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel, biText } from '../../ui/components';
+import { Button, Panel } from '../../ui/components';
 import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
@@ -13,7 +15,6 @@ import {
 } from './logic';
 
 export const stationPage: Page = (ctx) => {
-  let { lang } = ctx;
   const rng = mulberry32((Date.now() ^ 0x94d049bb) >>> 0);
   const travellers = shuffle(rng, TRAVELLERS);
   let index = 0;
@@ -21,7 +22,7 @@ export const stationPage: Page = (ctx) => {
   let clock: ClockTime = pickStartClock(challenge);
   let solved = false;
   let closed = false;
-  let translate = false;
+  let endCelebrated = false;
   let message: Bi | null = null;
   const stamps: string[] = [];
 
@@ -38,16 +39,22 @@ export const stationPage: Page = (ctx) => {
     draw(focusTarget);
   };
 
-  function adjust(delta: number) {
+  function adjust(delta: number, anchor?: HTMLElement) {
     if (solved || closed) return;
     clock = stepClock(clock, delta);
+    playSfx('tick');
+    speakEnglish(timeText(clock, 'en'), { anchor, mode: 'click' });
     say(null);
   }
 
-  function dispatch() {
+  function dispatch(anchor?: HTMLElement) {
     if (solved || closed) return;
     const err = checkClock(challenge.target, clock);
-    if (err) return say(err, 'dispatch');
+    if (err) {
+      playSfx('oops');
+      speakEnglish(err.en.includes('early') ? 'Too early!' : 'Too late!', { anchor, mode: 'click' });
+      return say(err, 'dispatch');
+    }
     solved = true;
     const stamp = challenge.destination.emoji;
     stamps.push(stamp);
@@ -55,6 +62,8 @@ export const stationPage: Page = (ctx) => {
       p.station.dispatched += 1;
       if (!p.station.stamps.includes(stamp)) p.station.stamps.push(stamp);
     });
+    playSfx('surprise');
+    speakEnglish(`Right on time! Off to ${challenge.destination.name.en}!`, { anchor, mode: 'click' });
     say({
       es: `¡En punto! 🎫 El tren parte rumbo a ${challenge.destination.name.es} ${stamp}`,
       en: `Right on time! 🎫 The train departs for ${challenge.destination.name.en} ${stamp}`,
@@ -66,10 +75,17 @@ export const stationPage: Page = (ctx) => {
     if (index >= TRAINS_PER_ROUND) {
       closed = true;
       completeGameRound();
+      if (!endCelebrated) {
+        endCelebrated = true;
+        playSfx('levelUp');
+      }
+      speakEnglish('All trains departed! Great job!');
     } else {
       challenge = generateTrain(rng, index);
       clock = pickStartClock(challenge);
       solved = false;
+      playSfx('step');
+      speakEnglish(travellers[index % travellers.length].name.en);
     }
     message = null;
     draw(closed ? 'another-shift' : 'ctrl-p60');
@@ -124,82 +140,107 @@ export const stationPage: Page = (ctx) => {
       wrap.append(GameHeader({
         title: '🚂 Train Station',
         noun: { es: 'Tren', en: 'Train' },
-        index, total: TRAINS_PER_ROUND, lang,
+        index, total: TRAINS_PER_ROUND,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'berry',
           title: { es: '¡Todos los trenes en marcha! 🚂', en: 'All trains departed! 🚂' },
-          art: h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'sellos', en: 'stamps' }, lang) }, stamps.join(' ')),
+          art: h('p', { class: 'big-emoji', 'aria-label': 'sellos' }, stamps.join(' ')),
           body: { es: 'Buen trabajo en la estación central. ¡Vuelve cuando quieras!', en: 'Great job at Central Station. Come back whenever you like!' },
           againLabel: { es: 'Otro turno', en: 'Another shift' },
           againFocusKey: 'another-shift',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
-          lang,
         }));
         return wrap;
       }
 
       const traveller = travellers[index % travellers.length];
       const pad = (n: number) => String(n).padStart(2, '0');
-      const clockLabel = `${tr({ es: 'Reloj de la estación', en: 'Station clock' }, lang)}: ${clock.hour}:${pad(clock.minute)}`;
-      const controls: [string, number, string][] = [
-        ['− 1 h', -60, 'ctrl-m60'],
-        ['+ 1 h', 60, 'ctrl-p60'],
-        ['− 15 min', -15, 'ctrl-m15'],
-        ['+ 15 min', 15, 'ctrl-p15'],
-        ['− 5 min', -5, 'ctrl-m5'],
-        ['+ 5 min', 5, 'ctrl-p5'],
+      const clockLabel = `Reloj de la estación: ${clock.hour}:${pad(clock.minute)}`;
+      const clockEnglish = timeText(clock, 'en');
+      const controls: [string, number, string, string][] = [
+        ['− 1 h', -60, 'ctrl-m60', 'minus one hour'],
+        ['+ 1 h', 60, 'ctrl-p60', 'plus one hour'],
+        ['− 15 min', -15, 'ctrl-m15', 'minus fifteen minutes'],
+        ['+ 15 min', 15, 'ctrl-p15', 'plus fifteen minutes'],
+        ['− 5 min', -5, 'ctrl-m5', 'minus five minutes'],
+        ['+ 5 min', 5, 'ctrl-p5', 'plus five minutes'],
       ];
+
+      const ticket = addHoverVoice(
+        h('button', {
+          type: 'button',
+          class: 'ticket-card ticket-card--btn',
+          'aria-label': `Destino: ${challenge.destination.name.es} (escuchar en inglés)`,
+          onclick: (e: MouseEvent) => {
+            playSfx('pop');
+            speakEnglish(challenge.destination.name.en, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+          },
+        }, `${challenge.destination.emoji} ${challenge.destination.name.es}`),
+        challenge.destination.name.en,
+      );
+
+      const clockBtn = addHoverVoice(
+        h('button', {
+          type: 'button',
+          class: 'clock-btn',
+          'aria-label': `${clockLabel} (escuchar la hora en inglés)`,
+          onclick: (e: MouseEvent) => {
+            playSfx('tick');
+            speakEnglish(clockEnglish, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+          },
+        }, analogClock()),
+        clockEnglish,
+      );
 
       append(wrap, [
         CharacterBubble({
           emoji: traveller.emoji,
           mood: solved ? '🎫' : undefined,
-          name: tr(traveller.name, lang),
-          text: trainSpeech(challenge, lang),
-          subText: trainSpeech(challenge, other(lang)),
-          showSub: translate,
-          lang,
-          translatePressed: translate,
-          onTranslate: () => { translate = !translate; draw(); },
-          extra: h('span', { class: 'ticket-card' },
-            `${challenge.destination.emoji} ${tr(challenge.destination.name, lang)}`),
+          name: traveller.name.es,
+          englishName: traveller.name.en,
+          text: trainSpeech(challenge, 'es'),
+          englishText: trainSpeech(challenge, 'en'),
+          extra: ticket,
         }),
         h('div', { class: 'cols cols--map' },
           h('div', { class: 'station-stage', role: 'group', 'aria-label': clockLabel },
-            analogClock(),
-            translate ? h('p', { class: 'target-time' },
-              `🎯 ${tr({ es: 'Pon el reloj en', en: 'Set the clock to' }, lang)} `,
-              h('strong', { lang }, timeText(challenge.target, lang))) : null,
-            h('p', { class: 'muted' }, tr({ es: 'Aguja roja = horas · Aguja negra = minutos', en: 'Red hand = hours · Black hand = minutes' }, lang))),
-          Panel(`🕒 ${tr({ es: 'Ajustar el reloj', en: 'Set the clock' }, lang)}`, [
-            h('div', { class: 'clock-controls' }, ...controls.map(([label, delta, fk]) =>
+            clockBtn,
+            h('p', { class: 'muted' }, 'Aguja roja = horas · Aguja negra = minutos')),
+          Panel('🕒 Ajustar el reloj', [
+            h('div', { class: 'clock-controls' }, ...controls.map(([label, delta, fk, voiceEn]) =>
               Button(label, {
                 variant: delta > 0 ? 'secondary' : 'ghost',
                 disabled: solved,
                 focusKey: fk,
                 ariaLabel: `${label} (${clockLabel})`,
-                onClick: () => adjust(delta),
+                voiceHover: voiceEn,
+                onClick: (e) => adjust(delta, e.currentTarget as HTMLElement),
               }))),
-            Button(biText({ es: '¡Dar salida al tren!', en: 'Dispatch train!' }, lang), {
-              onClick: dispatch, disabled: solved, large: true, focusKey: 'dispatch',
+            Button('¡Dar salida al tren!', {
+              onClick: (e) => dispatch(e.currentTarget as HTMLElement),
+              disabled: solved,
+              large: true,
+              focusKey: 'dispatch',
+              voiceHover: 'Dispatch train!',
             }),
           ])),
-        StatusBanner(message, lang),
-        solved ? Button(tr({ es: 'Siguiente tren →', en: 'Next train →' }, lang), { onClick: nextTrain, large: true, focusKey: 'next-train' }) : null,
+        StatusBanner(message),
+        solved
+          ? Button('Siguiente tren →', {
+              onClick: nextTrain,
+              large: true,
+              focusKey: 'next-train',
+              voiceHover: 'Next train',
+            })
+          : null,
       ]);
       return wrap;
     }, focusTarget);
   }
 
   draw();
-  return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang) {
-      lang = nextLang;
-      draw();
-    },
-  });
 };
