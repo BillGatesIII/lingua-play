@@ -11,7 +11,7 @@ import { clearProgress } from '../shared/storage';
 import { landingPage } from './landing';
 import type { Page } from './types';
 
-describe('pages smoke & language updates', () => {
+describe('pages smoke & Spanish UI rendering', () => {
   beforeEach(() => {
     localStorage.clear();
     clearProgress();
@@ -30,15 +30,11 @@ describe('pages smoke & language updates', () => {
     ['garden', gardenPage],
   ];
 
-  it.each(pages)('renders %s and handles language updates cleanly', (_name, page) => {
+  it.each(pages)('renders %s in Spanish and cleans up cleanly', (_name, page) => {
     const root = document.createElement('main');
     document.body.append(root);
-    const cleanup = page({ root, lang: 'es', refresh: () => {} });
+    const cleanup = page({ root, refresh: () => {} });
     expect(root.textContent?.length).toBeGreaterThan(20);
-    if (cleanup && 'updateSettings' in cleanup && cleanup.updateSettings) {
-      cleanup.updateSettings('en');
-      expect(root.textContent?.length).toBeGreaterThan(20);
-    }
     if (typeof cleanup === 'function') cleanup();
   });
 });

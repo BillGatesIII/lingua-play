@@ -15,12 +15,12 @@ describe('storage', () => {
 
   it('sanitizes untrusted data', () => {
     const p = sanitize({
-      settings: { lang: 'fr', band: '11-14' },
+      settings: { lang: 'fr', sound: 'yes', band: '11-14' },
       market: { served: -3, stickers: ['🍎', 5] },
       compass: { found: 2.7 },
       colors: { painted: 1, colours: ['🟣'] },
     });
-    expect(p.settings).toEqual({ lang: 'es' });
+    expect(p.settings).toEqual({ sound: true });
     expect(p.market).toEqual({ served: 0, stickers: ['🍎'] });
     expect(p.compass.found).toBe(2);
     expect(p.colors).toEqual({ painted: 1, colours: ['🟣'] });
@@ -49,8 +49,8 @@ describe('storage', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('storage unavailable');
     });
-    updateProgress((p) => { p.settings.lang = 'en'; });
-    expect(loadProgress().settings.lang).toBe('en');
+    updateProgress((p) => { p.settings.sound = false; });
+    expect(loadProgress().settings.sound).toBe(false);
     clearProgress();
     expect(loadProgress()).toEqual(defaultProgress());
     setItem.mockRestore();

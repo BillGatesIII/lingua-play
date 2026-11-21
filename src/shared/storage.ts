@@ -1,7 +1,5 @@
-import type { Lang } from './i18n';
-
 export interface Progress {
-  settings: { lang: Lang };
+  settings: { sound: boolean };
   market: { served: number; stickers: string[] };
   compass: { found: number; treasures: string[] };
   colors: { painted: number; colours: string[] };
@@ -16,7 +14,7 @@ export const STORAGE_KEY = 'linguaplay.v1';
 let sessionProgress: Progress | null = null;
 
 export const defaultProgress = (): Progress => ({
-  settings: { lang: 'es' },
+  settings: { sound: true },
   market: { served: 0, stickers: [] },
   compass: { found: 0, treasures: [] },
   colors: { painted: 0, colours: [] },
@@ -36,7 +34,7 @@ export function sanitize(raw: unknown): Progress {
   const d = defaultProgress();
   if (!raw || typeof raw !== 'object') return d;
   const r = raw as Record<string, any>;
-  if (r.settings?.lang === 'es' || r.settings?.lang === 'en') d.settings.lang = r.settings.lang;
+  if (typeof r.settings?.sound === 'boolean') d.settings.sound = r.settings.sound;
   d.market = { served: num(r.market?.served), stickers: strs(r.market?.stickers) };
   d.compass = {
     found: num(r.compass?.found),

@@ -1,23 +1,24 @@
-import { tr, type Bi } from '../shared/i18n';
+import { EMOJI_ENGLISH, addHoverVoice, speakEnglish } from '../shared/voice';
+import { playSfx } from '../shared/sfx';
 import { clearProgress, loadProgress } from '../shared/storage';
-import { Button, Card, biText, type Tone } from '../ui/components';
+import { Button, Card, type Tone } from '../ui/components';
 import { h } from '../ui/dom';
 import { renderKeepingFocus } from '../ui/focus';
 import type { Page } from './types';
 
-const PROMISES: { icon: string; text: Bi }[] = [
-  { icon: '🚫', text: { es: 'Sin anuncios', en: 'No ads' } },
-  { icon: '🕵️', text: { es: 'Sin rastreadores', en: 'No trackers' } },
-  { icon: '🌙', text: { es: 'Sin prisas ni rachas', en: 'No timers or streaks' } },
-  { icon: '💾', text: { es: 'Se guarda solo en tu dispositivo', en: 'Saved only on your device' } },
+const PROMISES: { icon: string; text: string }[] = [
+  { icon: '🚫', text: 'Sin anuncios' },
+  { icon: '🕵️', text: 'Sin rastreadores' },
+  { icon: '🌙', text: 'Sin prisas ni rachas' },
+  { icon: '💾', text: 'Se guarda solo en tu dispositivo' },
 ];
 
 interface GameEntry {
   route: string;
   title: string;
   art: string;
-  tag: Bi;
-  desc: Bi;
+  tag: string;
+  desc: string;
   tone: Tone;
   btnVariant: 'primary' | 'secondary';
 }
@@ -27,8 +28,8 @@ const GAMES: readonly GameEntry[] = [
     route: '#/market',
     title: 'Market Quest',
     art: '🍎🧀🍞',
-    tag: { es: 'Palabras · Sumas y cambio', en: 'Words · Totals & change' },
-    desc: { es: 'Atiende el puesto del mercado: llena la bolsa y devuelve el cambio.', en: 'Run the market stall: fill the bag and give the right change.' },
+    tag: 'Palabras · Sumas y cambio',
+    desc: 'Atiende el puesto del mercado: llena la bolsa y devuelve el cambio.',
     tone: 'sun',
     btnVariant: 'secondary',
   },
@@ -36,8 +37,8 @@ const GAMES: readonly GameEntry[] = [
     route: '#/compass',
     title: 'Compass Island',
     art: '🧭🏝️⛵',
-    tag: { es: 'Rumbos · Coordenadas', en: 'Directions · Coordinates' },
-    desc: { es: 'Sigue las pistas del mapa, navega entre rocas y encuentra el tesoro.', en: 'Follow the map clues, sail past the rocks and find the treasure.' },
+    tag: 'Rumbos · Coordenadas',
+    desc: 'Sigue las pistas del mapa, navega entre rocas y encuentra el tesoro.',
     tone: 'sea',
     btnVariant: 'primary',
   },
@@ -45,8 +46,8 @@ const GAMES: readonly GameEntry[] = [
     route: '#/colors',
     title: 'Color Chameleon',
     art: '🎨🦎🖌️',
-    tag: { es: 'Colores · Mezclas', en: 'Colours · Mixing' },
-    desc: { es: 'Mezcla pinturas y pinta al camaleón del color que pide.', en: 'Mix paints and colour the chameleon the way it asks.' },
+    tag: 'Colores · Mezclas',
+    desc: 'Mezcla pinturas y pinta al camaleón del color que pide.',
     tone: 'leaf',
     btnVariant: 'primary',
   },
@@ -54,8 +55,8 @@ const GAMES: readonly GameEntry[] = [
     route: '#/recipe',
     title: 'Recipe Lab',
     art: '🍳🍓🥛',
-    tag: { es: 'Verbos · Fracciones', en: 'Verbs · Fractions' },
-    desc: { es: 'Mide ¼, ½ y ¾ de taza, elige ingredientes y cocina platos locos.', en: 'Measure ¼, ½ and ¾ cups, pick ingredients and cook silly dishes.' },
+    tag: 'Verbos · Fracciones',
+    desc: 'Mide ¼, ½ y ¾ de taza, elige ingredientes y cocina platos locos.',
     tone: 'peach',
     btnVariant: 'secondary',
   },
@@ -63,8 +64,8 @@ const GAMES: readonly GameEntry[] = [
     route: '#/station',
     title: 'Train Station',
     art: '🚂🕒🎫',
-    tag: { es: 'La hora · Viajes', en: 'Telling time · Travel' },
-    desc: { es: 'Ajusta el reloj de la estación para que cada viajero suba a su tren.', en: 'Set the station clock so every traveller catches their train.' },
+    tag: 'La hora · Viajes',
+    desc: 'Ajusta el reloj de la estación para que cada viajero suba a su tren.',
     tone: 'berry',
     btnVariant: 'primary',
   },
@@ -72,8 +73,8 @@ const GAMES: readonly GameEntry[] = [
     route: '#/detective',
     title: 'Mystery Detective',
     art: '🔎🦊🍪',
-    tag: { es: 'Lógica · Pistas', en: 'Logic · Clues' },
-    desc: { es: 'Lee las pistas, descarta sospechosos y descubre quién fue.', en: 'Read the clues, rule out suspects and find out who did it.' },
+    tag: 'Lógica · Pistas',
+    desc: 'Lee las pistas, descarta sospechosos y descubre quién fue.',
     tone: 'lemon',
     btnVariant: 'secondary',
   },
@@ -81,8 +82,8 @@ const GAMES: readonly GameEntry[] = [
     route: '#/words',
     title: 'Word Workshop',
     art: '🔤🦉📚',
-    tag: { es: 'Letras · Ortografía', en: 'Letters · Spelling' },
-    desc: { es: 'Descifra pistas y ordena letras para encontrar cada palabra.', en: 'Solve clues and arrange letter tiles to discover each word.' },
+    tag: 'Letras · Ortografía',
+    desc: 'Descifra pistas y ordena letras para encontrar cada palabra.',
     tone: 'sea',
     btnVariant: 'primary',
   },
@@ -90,69 +91,114 @@ const GAMES: readonly GameEntry[] = [
     route: '#/garden',
     title: 'Bloom Garden',
     art: '🌷🐝🌻',
-    tag: { es: 'Series · Patrones', en: 'Sequences · Patterns' },
-    desc: { es: 'Observa cómo crecen las flores y planta el paquete de semillas correcto.', en: 'Watch how the flowers grow and plant the right seed packet.' },
+    tag: 'Series · Patrones',
+    desc: 'Observa cómo crecen las flores y planta el paquete de semillas correcto.',
     tone: 'leaf',
     btnVariant: 'primary',
   },
 ];
 
 export const landingPage: Page = (ctx) => {
-  let { lang } = ctx;
   let confirmingErase = false;
   const host = h('div');
   ctx.root.append(host);
 
-  const shelf = (title: Bi, items: string[]) =>
-    h('div', { class: 'shelf-row' }, h('h3', {}, tr(title, lang)),
-      h('p', { class: 'big-emoji', 'aria-label': items.join(' ') || '—' }, items.length ? items.join(' ') : '—'));
+  const badgeChip = (emoji: string) => {
+    const en = EMOJI_ENGLISH[emoji];
+    if (!en) return h('span', { class: 'big-emoji' }, emoji);
+    const btn = h('button', {
+      type: 'button',
+      class: 'badge-chip',
+      'aria-label': `${emoji} (${en})`,
+      onclick: (e: MouseEvent) => {
+        playSfx('pop');
+        speakEnglish(en, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+      },
+    }, emoji);
+    return addHoverVoice(btn, en);
+  };
+
+  const shelf = (title: string, items: string[]) =>
+    h('div', { class: 'shelf-row' },
+      h('h3', {}, title),
+      items.length
+        ? h('div', { class: 'badge-row' }, ...items.map(badgeChip))
+        : h('p', { class: 'big-emoji', 'aria-label': '—' }, '—'));
 
   function draw(focusTarget?: string) {
     renderKeepingFocus(host, () => {
       const progress = loadProgress();
       const wrap = h('div');
+
+      const parrotBtn = h('button', {
+        type: 'button',
+        class: 'hero__parrot-btn',
+        'aria-label': 'Loro de Lingua Play: escuchar saludo en inglés',
+        onclick: (e: MouseEvent) => {
+          playSfx('surprise');
+          speakEnglish("Hello! Let's play!", { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+        },
+      }, '🦜');
+      addHoverVoice(parrotBtn, "Hello! Let's play!");
+
+      const gameCards = GAMES.map((g) => {
+        const card = Card([
+          h('div', { class: 'game-card__art', 'aria-hidden': 'true' }, g.art),
+          h('span', { class: 'game-card__meta' }, g.tag),
+          h('h2', {}, g.title),
+          h('p', {}, g.desc),
+          Button('▶ Jugar', {
+            href: g.route,
+            large: true,
+            variant: g.btnVariant,
+            ariaLabel: `${g.title}: Jugar`,
+            voiceHover: `Play ${g.title}`,
+            onClick: () => playSfx('pop'),
+          }),
+        ], g.tone, 'game-card');
+        return addHoverVoice(card, g.title, 220);
+      });
+
       wrap.append(
         h('section', { class: 'hero' },
-          h('p', { class: 'hero__parrot', 'aria-hidden': 'true' }, '🦜'),
+          h('p', { class: 'hero__parrot' }, parrotBtn),
           h('h1', { class: 'hero__title' }, 'Lingua Play'),
-          h('p', { class: 'hero__tag' }, biText({ es: '¡Juega primero! Las palabras y los números vienen contigo.', en: 'Play first! Words and numbers come along for the ride.' }, lang))),
-        h('div', { class: 'cols cols--games' }, ...GAMES.map((g) =>
-          Card([
-            h('div', { class: 'game-card__art', 'aria-hidden': 'true' }, g.art),
-            h('span', { class: 'game-card__meta' }, tr(g.tag, lang)),
-            h('h2', {}, g.title),
-            h('p', {}, tr(g.desc, lang)),
-            Button(`▶ ${tr({ es: 'Jugar', en: 'Play' }, lang)}`, {
-              href: g.route, large: true, variant: g.btnVariant,
-              ariaLabel: `${g.title}: ${tr({ es: 'Jugar', en: 'Play' }, lang)}`,
-            }),
-          ], g.tone, 'game-card'))),
+          h('p', { class: 'hero__tag' }, '¡Juega primero! Las palabras en inglés y los números vienen contigo.')),
+        h('div', { class: 'cols cols--games' }, ...gameCards),
         h('ul', { class: 'promises' }, ...PROMISES.map((p) =>
-          h('li', {}, h('span', { 'aria-hidden': 'true' }, p.icon), ' ', tr(p.text, lang)))),
+          h('li', {}, h('span', { 'aria-hidden': 'true' }, p.icon), ' ', p.text))),
         Card([
-          h('h2', {}, tr({ es: 'Mi colección', en: 'My collection' }, lang)),
+          h('h2', {}, 'Mi colección'),
           h('div', { class: 'cols' },
-            shelf({ es: 'Pegatinas del mercado', en: 'Market stickers' }, progress.market.stickers),
-            shelf({ es: 'Tesoros de la isla', en: 'Island treasures' }, progress.compass.treasures),
-            shelf({ es: 'Colores del camaleón', en: 'Chameleon colours' }, progress.colors.colours),
-            shelf({ es: 'Platos de la cocina', en: 'Kitchen dishes' }, progress.recipe.dishes),
-            shelf({ es: 'Sellos de tren', en: 'Train stamps' }, progress.station.stamps),
-            shelf({ es: 'Casos resueltos', en: 'Solved cases' }, progress.detective.badges),
-            shelf({ es: 'Palabras mágicas', en: 'Word badges' }, progress.words.badges),
-            shelf({ es: 'Flores del jardín', en: 'Garden flowers' }, progress.garden.flowers)),
+            shelf('Pegatinas del mercado', progress.market.stickers),
+            shelf('Tesoros de la isla', progress.compass.treasures),
+            shelf('Colores del camaleón', progress.colors.colours),
+            shelf('Platos de la cocina', progress.recipe.dishes),
+            shelf('Sellos de tren', progress.station.stamps),
+            shelf('Casos resueltos', progress.detective.badges),
+            shelf('Palabras mágicas', progress.words.badges),
+            shelf('Flores del jardín', progress.garden.flowers)),
           confirmingErase
-            ? h('div', { class: 'confirm-box', role: 'alertdialog', 'aria-label': tr({ es: 'Confirmar borrado', en: 'Confirm erase' }, lang) },
-                h('p', { class: 'confirm-box__text' }, tr({ es: '¿Borrar todo lo guardado en este dispositivo?', en: 'Erase everything saved on this device?' }, lang)),
-                Button(tr({ es: 'Sí, borrar', en: 'Yes, erase' }, lang), {
-                  variant: 'primary', focusKey: 'confirm-erase',
-                  onClick: () => { clearProgress(); confirmingErase = false; ctx.refresh(); },
+            ? h('div', { class: 'confirm-box', role: 'alertdialog', 'aria-label': 'Confirmar borrado' },
+                h('p', { class: 'confirm-box__text' }, '¿Borrar todo lo guardado en este dispositivo?'),
+                Button('Sí, borrar', {
+                  variant: 'primary',
+                  focusKey: 'confirm-erase',
+                  onClick: () => {
+                    playSfx('remove');
+                    clearProgress();
+                    confirmingErase = false;
+                    ctx.refresh();
+                  },
                 }),
-                Button(tr({ es: 'Cancelar', en: 'Cancel' }, lang), {
-                  variant: 'ghost', focusKey: 'cancel-erase',
+                Button('Cancelar', {
+                  variant: 'ghost',
+                  focusKey: 'cancel-erase',
                   onClick: () => { confirmingErase = false; draw('erase-btn'); },
                 }))
-            : Button(tr({ es: 'Borrar mi progreso', en: 'Erase my progress' }, lang), {
-                variant: 'ghost', focusKey: 'erase-btn',
+            : Button('Borrar mi progreso', {
+                variant: 'ghost',
+                focusKey: 'erase-btn',
                 onClick: () => { confirmingErase = true; draw('cancel-erase'); },
               }),
         ], 'plain', 'collection'),
@@ -162,10 +208,4 @@ export const landingPage: Page = (ctx) => {
   }
 
   draw();
-  return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang) {
-      lang = nextLang;
-      draw();
-    },
-  });
 };

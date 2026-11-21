@@ -1,7 +1,9 @@
-import { other, tr, type Bi } from '../../shared/i18n';
+import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
+import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
+import { addHoverVoice, speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
 import { Button, Panel } from '../../ui/components';
 import { append, h, svg } from '../../ui/dom';
@@ -9,11 +11,10 @@ import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
   CHEFS, INGREDIENTS, RECIPES_PER_ROUND, SCOOPS, VERBS, checkRecipe, generateRecipe,
-  quartersBadge, recipeSpeech, type Recipe, type VerbId,
+  quartersBadge, quartersText, recipeSpeech, type Recipe, type VerbId,
 } from './logic';
 
 export const recipePage: Page = (ctx) => {
-  let { lang } = ctx;
   const rng = mulberry32((Date.now() ^ 0x517cc1b7) >>> 0);
   const chefs = shuffle(rng, CHEFS);
   let index = 0;
@@ -22,7 +23,7 @@ export const recipePage: Page = (ctx) => {
   let quarters = 0;
   let solved = false;
   let closed = false;
-  let translate = false;
+  let endCelebrated = false;
   let message: Bi | null = null;
   const cooked: string[] = [];
 
@@ -34,28 +35,42 @@ export const recipePage: Page = (ctx) => {
     draw(focusTarget);
   };
 
-  function toggleIngredient(id: string) {
+  function toggleIngredient(id: string, anchor?: HTMLElement) {
     if (solved || closed) return;
-    chosen = chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id];
+    const removing = chosen.includes(id);
+    chosen = removing ? chosen.filter((x) => x !== id) : [...chosen, id];
+    playSfx(removing ? 'remove' : 'pop');
+    if (!removing) {
+      const ing = INGREDIENTS.find((x) => x.id === id)!;
+      speakEnglish(ing.name.en, { anchor, mode: 'click' });
+    }
     say(null);
   }
 
-  function addScoop(q: number) {
+  function addScoop(q: number, anchor?: HTMLElement) {
     if (solved || closed) return;
     quarters = Math.min(recipe.maxQuarters, quarters + q);
+    playSfx('splash');
+    speakEnglish(quartersText(quarters, 'en'), { anchor, mode: 'click' });
     say(null);
   }
 
-  function tryVerb(verbId: VerbId) {
+  function tryVerb(verbId: VerbId, anchor?: HTMLElement) {
     if (solved || closed) return;
     const res = checkRecipe(recipe, chosen, quarters, verbId);
-    if (!res.ok) return say(res.reason, `verb-${verbId}`);
+    if (!res.ok) {
+      playSfx('oops');
+      speakEnglish(res.reason.en, { anchor, mode: 'click' });
+      return say(res.reason, `verb-${verbId}`);
+    }
     solved = true;
     cooked.push(recipe.dish.emoji);
     updateProgress((p) => {
       p.recipe.cooked += 1;
       if (!p.recipe.dishes.includes(recipe.dish.emoji)) p.recipe.dishes.push(recipe.dish.emoji);
     });
+    playSfx('surprise');
+    speakEnglish(`Yum! ${recipe.dish.name.en}!`, { anchor, mode: 'click' });
     say({
       es: `¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan deliciosa!`,
       en: `Yum! ${recipe.dish.emoji} What a delicious ${recipe.dish.name.en}!`,
@@ -67,11 +82,18 @@ export const recipePage: Page = (ctx) => {
     if (index >= RECIPES_PER_ROUND) {
       closed = true;
       completeGameRound();
+      if (!endCelebrated) {
+        endCelebrated = true;
+        playSfx('levelUp');
+      }
+      speakEnglish('Kitchen closed for today! Great cooking!');
     } else {
       recipe = generateRecipe(rng, index);
       chosen = [];
       quarters = 0;
       solved = false;
+      playSfx('step');
+      speakEnglish(chefs[index % chefs.length].name.en);
     }
     message = null;
     draw(closed ? 'another-kitchen' : `ing-${INGREDIENTS[0].id}`);
@@ -113,40 +135,58 @@ export const recipePage: Page = (ctx) => {
       wrap.append(GameHeader({
         title: '🍳 Recipe Lab',
         noun: { es: 'Receta', en: 'Recipe' },
-        index, total: RECIPES_PER_ROUND, lang,
+        index, total: RECIPES_PER_ROUND,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'peach',
           title: { es: '¡Cocina cerrada por hoy! 👨‍🍳', en: 'Kitchen closed for today! 👨‍🍳' },
-          art: h('p', { class: 'big-emoji', 'aria-label': tr({ es: 'platos', en: 'dishes' }, lang) }, cooked.join(' ')),
+          art: h('p', { class: 'big-emoji', 'aria-label': 'platos' }, cooked.join(' ')),
           body: { es: 'Todos los amigos terminaron felices y con la barriga llena.', en: 'All your friends left happy with full tummies!' },
           againLabel: { es: 'Cocinar otra vez', en: 'Cook again' },
           againFocusKey: 'another-kitchen',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
-          lang,
         }));
         return wrap;
       }
 
       const chef = chefs[index % chefs.length];
       const maxLabel = quartersBadge(recipe.maxQuarters);
-      const jugLabel = `${tr({ es: 'Jarra medidora', en: 'Measuring jug' }, lang)}: ${quartersBadge(quarters)} / ${maxLabel} ${tr({ es: 'tazas', en: 'cups' }, lang)}`;
+      const jugLabel = `Jarra medidora: ${quartersBadge(quarters)} / ${maxLabel} tazas`;
+      const jugEnglish = quarters > 0 ? quartersText(quarters, 'en') : 'empty';
+      const jugReadout = addHoverVoice(
+        h('button', {
+          type: 'button',
+          class: 'jug-readout clock-btn',
+          'aria-label': `${jugLabel} (escuchar en inglés)`,
+          onclick: (e: MouseEvent) => {
+            playSfx('pop');
+            speakEnglish(jugEnglish, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+          },
+        }, `${recipe.dish.emoji} ${quartersBadge(quarters)} taza(s)`),
+        jugEnglish,
+      );
+
       const measureControls = h('div', { class: 'jug-controls' },
-        h('p', { class: 'jug-controls__title' }, `🥛 ${tr({ es: 'Medir', en: 'Measure' }, lang)}`),
+        h('p', { class: 'jug-controls__title' }, '🥛 Medir'),
         h('div', { class: 'scoops' },
           ...SCOOPS.filter((s) => s <= recipe.maxQuarters).map((s) =>
             Button(`+ ${quartersBadge(s)}`, {
-              variant: 'secondary', disabled: solved || quarters >= recipe.maxQuarters,
+              variant: 'secondary',
+              disabled: solved || quarters >= recipe.maxQuarters,
               focusKey: `scoop-${s}`,
-              ariaLabel: `${tr({ es: 'Añadir', en: 'Add' }, lang)} ${quartersBadge(s)}`,
-              onClick: () => addScoop(s),
+              ariaLabel: `Añadir ${quartersBadge(s)}`,
+              voiceHover: quartersText(s, 'en'),
+              onClick: (e) => addScoop(s, e.currentTarget as HTMLElement),
             })),
-          Button(tr({ es: 'Vaciar', en: 'Empty' }, lang), {
-            variant: 'ghost', disabled: solved || quarters === 0, focusKey: 'empty-jug',
-            onClick: () => { quarters = 0; say(null); },
+          Button('Vaciar', {
+            variant: 'ghost',
+            disabled: solved || quarters === 0,
+            focusKey: 'empty-jug',
+            voiceHover: 'Empty',
+            onClick: () => { playSfx('remove'); quarters = 0; say(null); },
           }),
         ),
       );
@@ -155,63 +195,64 @@ export const recipePage: Page = (ctx) => {
         CharacterBubble({
           emoji: chef.emoji,
           mood: solved ? recipe.dish.emoji : undefined,
-          name: tr(chef.name, lang),
-          text: recipeSpeech(recipe, lang),
-          subText: recipeSpeech(recipe, other(lang)),
-          showSub: translate,
-          lang,
-          translatePressed: translate,
-          onTranslate: () => { translate = !translate; draw(); },
+          name: chef.name.es,
+          englishName: chef.name.en,
+          text: recipeSpeech(recipe, 'es'),
+          englishText: recipeSpeech(recipe, 'en'),
         }),
         h('div', { class: 'cols cols--map' },
           h('div', { class: 'jug-stage' },
             measuringJug(),
-            h('p', { class: 'jug-readout', role: 'img', 'aria-label': jugLabel },
-              `${recipe.dish.emoji} ${quartersBadge(quarters)} ${tr({ es: 'taza(s)', en: 'cup(s)' }, lang)}`),
+            jugReadout,
             measureControls,
             chosen.length
               ? h('p', { class: 'bowl' },
                   ...chosen.map((id) => INGREDIENTS.find((i) => i.id === id)!.emoji))
               : null),
           h('div', {},
-            Panel(`🧺 1. ${tr({ es: 'Ingredientes', en: 'Ingredients' }, lang)}`, [
+            Panel('🧺 1. Ingredientes', [
               h('div', { class: 'ingredients' }, ...INGREDIENTS.map((ing) =>
                 Button([
                   h('span', { class: 'ing-btn__emoji', 'aria-hidden': 'true' }, ing.emoji),
-                  h('span', { class: 'bi' },
-                    h('span', { class: 'bi__main', lang }, ing.name[lang]),
-                    h('span', { class: 'bi__sub', lang: other(lang) }, ing.name[other(lang)])),
+                  h('span', { lang: 'es' }, ing.name.es),
                 ], {
-                  variant: 'ghost', className: 'ing-btn', pressed: chosen.includes(ing.id), disabled: solved,
-                  focusKey: `ing-${ing.id}`, ariaLabel: `${ing.name[lang]} / ${ing.name[other(lang)]}`,
-                  onClick: () => toggleIngredient(ing.id),
+                  variant: 'ghost',
+                  className: 'ing-btn',
+                  pressed: chosen.includes(ing.id),
+                  disabled: solved,
+                  focusKey: `ing-${ing.id}`,
+                  ariaLabel: ing.name.es,
+                  voiceHover: ing.name.en,
+                  onClick: (e) => toggleIngredient(ing.id, e.currentTarget as HTMLElement),
                 }))),
             ]),
-            Panel(`👩‍🍳 2. ${tr({ es: 'Paso final', en: 'Final step' }, lang)}`, [
+            Panel('👩‍🍳 2. Paso final', [
               h('div', { class: 'verbs' }, ...VERBS.map((v) =>
                 Button([
                   h('span', { 'aria-hidden': 'true' }, v.emoji),
-                  h('span', { class: 'bi' },
-                    h('span', { class: 'bi__main', lang }, v.label[lang]),
-                    h('span', { class: 'bi__sub', lang: other(lang) }, v.label[other(lang)])),
+                  h('span', { lang: 'es' }, v.label.es),
                 ], {
-                  variant: 'primary', disabled: solved, focusKey: `verb-${v.id}`,
-                  ariaLabel: `${v.label[lang]} / ${v.label[other(lang)]}`,
-                  onClick: () => tryVerb(v.id),
+                  variant: 'primary',
+                  disabled: solved,
+                  focusKey: `verb-${v.id}`,
+                  ariaLabel: v.label.es,
+                  voiceHover: v.label.en,
+                  onClick: (e) => tryVerb(v.id, e.currentTarget as HTMLElement),
                 }))),
             ]))),
-        StatusBanner(message, lang),
-        solved ? Button(tr({ es: 'Siguiente receta →', en: 'Next recipe →' }, lang), { onClick: nextDish, large: true, focusKey: 'next-dish' }) : null,
+        StatusBanner(message),
+        solved
+          ? Button('Siguiente receta →', {
+              onClick: nextDish,
+              large: true,
+              focusKey: 'next-dish',
+              voiceHover: 'Next recipe',
+            })
+          : null,
       ]);
       return wrap;
     }, focusTarget);
   }
 
   draw();
-  return Object.assign(() => undefined, {
-    updateSettings(nextLang: typeof lang) {
-      lang = nextLang;
-      draw();
-    },
-  });
 };
