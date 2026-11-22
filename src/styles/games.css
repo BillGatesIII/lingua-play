@@ -182,7 +182,7 @@
 .number-choice { min-width: 5.5rem; min-height: 4rem; font-size: var(--text-lg); }
 
 /* Interactive English speech triggers */
-.chameleon--btn, .clock-btn, .ticket-card--btn, .compass-rose-btn, .clue-btn {
+.chameleon--btn, .clock-btn, .ticket-card--btn, .jug-readout--btn, .compass-rose-btn, .clue-btn {
   cursor: pointer; font-family: inherit; color: inherit;
 }
 .clock-btn, .compass-rose-btn, .clue-btn { background: none; border: 0; padding: 0; text-align: left; }

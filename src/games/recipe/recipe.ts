@@ -151,7 +151,7 @@ export const recipePage: Page = (ctx) => {
       const jugEnglish = quarters > 0 ? quartersText(quarters, 'en') : 'empty';
       const jugReadout = SpeakButton(`${recipe.dish.emoji} ${quartersBadge(quarters)} taza(s)`, {
         english: jugEnglish,
-        className: 'jug-readout clock-btn',
+        className: 'jug-readout jug-readout--btn',
         ariaLabel: `${jugLabel} (escuchar en inglés)`,
       });
 
