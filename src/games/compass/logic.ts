@@ -57,6 +57,13 @@ export interface Level {
 }
 
 export const TREASURES = ['💎', '👑', '🏺', '🗝️', '💰'] as const;
+export const TREASURE_NAMES: Record<(typeof TREASURES)[number], string> = {
+  '💎': 'diamond',
+  '👑': 'crown',
+  '🏺': 'treasure vase',
+  '🗝️': 'golden key',
+  '💰': 'bag of gold',
+};
 export const JUNK: readonly { emoji: string; es: string; en: string }[] = [
   { emoji: '🥾', es: 'una bota vieja', en: 'an old boot' },
   { emoji: '🦀', es: 'un cangrejo gruñón', en: 'a grumpy crab' },

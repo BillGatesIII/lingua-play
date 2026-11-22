@@ -36,12 +36,12 @@ export const SNACKS: Record<SnackKind, { emoji: string; es: string; en: string }
   carrot: { emoji: '🥕', es: 'zanahoria', en: 'carrot' },
 };
 
-export const MYSTERIES: readonly { emoji: string; prompt: Bi }[] = [
-  { emoji: '🍪', prompt: { es: '¿Quién se comió las galletas?', en: 'Who ate the cookies?' } },
-  { emoji: '🍍', prompt: { es: '¿Quién escondió la piña dorada?', en: 'Who hid the golden pineapple?' } },
-  { emoji: '🔑', prompt: { es: '¿Quién tiene la llave secreta?', en: 'Who has the secret key?' } },
-  { emoji: '🎸', prompt: { es: '¿Quién tocó la guitarra de noche?', en: 'Who played the guitar at night?' } },
-  { emoji: '👑', prompt: { es: '¿Quién probó la corona real?', en: 'Who tried on the royal crown?' } },
+export const MYSTERIES: readonly { emoji: string; name: string; prompt: Bi }[] = [
+  { emoji: '🍪', name: 'cookies', prompt: { es: '¿Quién se comió las galletas?', en: 'Who ate the cookies?' } },
+  { emoji: '🍍', name: 'golden pineapple', prompt: { es: '¿Quién escondió la piña dorada?', en: 'Who hid the golden pineapple?' } },
+  { emoji: '🔑', name: 'secret key', prompt: { es: '¿Quién tiene la llave secreta?', en: 'Who has the secret key?' } },
+  { emoji: '🎸', name: 'guitar', prompt: { es: '¿Quién tocó la guitarra de noche?', en: 'Who played the guitar at night?' } },
+  { emoji: '👑', name: 'royal crown', prompt: { es: '¿Quién probó la corona real?', en: 'Who tried on the royal crown?' } },
 ];
 
 export const CASES_PER_ROUND = 5;

@@ -1,11 +1,10 @@
-import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
-import { addHoverVoice, speakEnglish } from '../../shared/voice';
+import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel } from '../../ui/components';
+import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
@@ -22,8 +21,7 @@ export const wordsPage: Page = (ctx) => {
   let selected: number[] = [];
   let solved = false;
   let closed = false;
-  let endCelebrated = false;
-  let message: Bi | null = null;
+  let message: string | null = null;
   const solvedWords: string[] = [];
   const host = h('div', { class: 'world world--words' });
   ctx.root.append(host);
@@ -60,11 +58,11 @@ export const wordsPage: Page = (ctx) => {
       });
       playSfx('surprise');
       speakEnglish(`${puzzle.answer.en}! Great job!`, { anchor, mode: 'click' });
-      message = { es: '¡Palabra encontrada! 🎉', en: 'Word found! 🎉' };
+      message = '¡Palabra encontrada! 🎉';
     } else {
       playSfx('oops');
       speakEnglish('Almost! Try again!', { anchor, mode: 'click' });
-      message = wordMistake(selectedWord(puzzle, selected), rng);
+      message = wordMistake(selectedWord(puzzle, selected), rng).es;
     }
     draw(solved ? 'next-word' : undefined);
   }
@@ -74,10 +72,7 @@ export const wordsPage: Page = (ctx) => {
     if (index >= WORD_ROUND_LENGTH) {
       closed = true;
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('Word workshop complete! Great work!');
     } else {
       puzzle = generateWordPuzzle(rng, index, 'es', usedEmojis);
@@ -122,17 +117,18 @@ export const wordsPage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🔤 Word Workshop',
-        noun: { es: 'Palabra', en: 'Word' },
+        noun: 'Palabra',
         index, total: WORD_ROUND_LENGTH,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'sea',
-          title: { es: '¡Taller de palabras terminado! ✨', en: 'Word workshop complete! ✨' },
+          title: '¡Taller de palabras terminado! ✨',
           art: h('p', { class: 'big-emoji', 'aria-label': 'palabras encontradas' }, solvedWords.join(' · ')),
-          body: { es: '¡Buen trabajo con esas letras! Vuelve cuando quieras.', en: 'Great work with those letters! Come back whenever you like.' },
-          againLabel: { es: 'Otra vez', en: 'Play again' },
+          body: '¡Buen trabajo con esas letras! Vuelve cuando quieras.',
+          againLabel: 'Otra vez',
+          againVoice: 'Play again',
           againFocusKey: 'play-again',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
@@ -166,18 +162,11 @@ export const wordsPage: Page = (ctx) => {
         onClick: () => selectTile(tile.id),
       }));
 
-      const picBtn = addHoverVoice(
-        h('button', {
-          type: 'button',
-          class: 'word-picture-btn',
-          'aria-label': `${puzzle.emoji} ${puzzle.clue.es} (escuchar en inglés)`,
-          onclick: (e: MouseEvent) => {
-            playSfx('pop');
-            speakEnglish(puzzle.answer.en, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-          },
-        }, puzzle.emoji),
-        puzzle.answer.en,
-      );
+      const picBtn = SpeakButton(puzzle.emoji, {
+        english: puzzle.answer.en,
+        className: 'word-picture-btn',
+        ariaLabel: `${puzzle.emoji} ${puzzle.clue.es} (escuchar en inglés)`,
+      });
 
       append(wrap, [
         CharacterBubble({

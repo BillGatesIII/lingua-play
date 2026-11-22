@@ -81,14 +81,7 @@ export function finishPlayBreak(): PlayBreakState {
   });
 }
 
-export function dismissPlayBreak(): PlayBreakState {
-  const state = loadBreakState();
-  return saveBreakState({
-    roundsSinceBreak: 0,
-    totalBreaks: state.totalBreaks,
-    resting: false,
-  });
-}
+export const dismissPlayBreak = finishPlayBreak;
 
 export function resetBreakState(): PlayBreakState {
   memoryBreak = defaultBreak();

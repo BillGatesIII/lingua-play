@@ -1,9 +1,6 @@
 export type Lang = 'es' | 'en';
 export type Bi = { es: string; en: string };
 
-export const other = (lang: Lang): Lang => (lang === 'es' ? 'en' : 'es');
-export const tr = (b: Bi, lang: Lang): string => b[lang];
-
 const ES_NUM = [
   'cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez',
   'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte',

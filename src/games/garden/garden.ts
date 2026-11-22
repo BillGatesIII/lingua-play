@@ -1,11 +1,10 @@
-import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
-import { addHoverVoice, speakEnglish } from '../../shared/voice';
+import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel } from '../../ui/components';
+import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
@@ -22,8 +21,7 @@ export const gardenPage: Page = (ctx) => {
   let triedWrong = new Map<number, string>();
   let solved = false;
   let closed = false;
-  let endCelebrated = false;
-  let message: Bi | null = null;
+  let message: string | null = null;
   const flowers: string[] = [];
   const host = h('div', { class: 'world world--garden' });
   ctx.root.append(host);
@@ -40,13 +38,13 @@ export const gardenPage: Page = (ctx) => {
       });
       playSfx('surprise');
       speakEnglish(`${value}! The garden bloomed!`, { anchor, mode: 'click' });
-      message = { es: `¡Floreció el jardín! ${bloom} ¡La secuencia está completa!`, en: `The garden bloomed! ${bloom} The pattern is complete!` };
+      message = `¡Floreció el jardín! ${bloom} ¡La secuencia está completa!`;
     } else {
       const oops = gardenMistake(rng);
       triedWrong = new Map(triedWrong).set(value, oops.badge);
       playSfx('oops');
       speakEnglish('Oops! Try another!', { anchor, mode: 'click' });
-      message = oops.text;
+      message = oops.text.es;
     }
     draw(solved ? 'next-pattern' : undefined);
   }
@@ -56,10 +54,7 @@ export const gardenPage: Page = (ctx) => {
     if (index >= GARDEN_LENGTH) {
       closed = true;
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('What a lovely garden!');
     } else {
       puzzle = generatePattern(rng, index);
@@ -77,17 +72,18 @@ export const gardenPage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🌷 Bloom Garden',
-        noun: { es: 'Macizo', en: 'Flower bed' },
+        noun: 'Macizo',
         index, total: GARDEN_LENGTH,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'leaf',
-          title: { es: '¡Qué jardín tan bonito! 🌼', en: 'What a lovely garden! 🌼' },
+          title: '¡Qué jardín tan bonito! 🌼',
           art: h('p', { class: 'big-emoji', 'aria-label': 'flores' }, flowers.join(' ')),
-          body: { es: 'Las abejas y las flores te dan las gracias. ¡Vuelve cuando quieras!', en: 'The bees and flowers say thank you. Come back whenever you like!' },
-          againLabel: { es: 'Otra vez', en: 'Play again' },
+          body: 'Las abejas y las flores te dan las gracias. ¡Vuelve cuando quieras!',
+          againLabel: 'Otra vez',
+          againVoice: 'Play again',
           againFocusKey: 'play-again',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
@@ -101,29 +97,19 @@ export const gardenPage: Page = (ctx) => {
 
       const pots = puzzle.slots.map((value, i) => {
         if (value === null && !solved) {
-          const emptyPot = h('button', {
-            type: 'button',
-            class: 'flower-pot flower-pot--empty',
-            'aria-label': 'Maceta vacía (escuchar en inglés)',
-            onclick: (e: MouseEvent) => {
-              playSfx('pop');
-              speakEnglish('missing', { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-            },
-          }, h('span', { 'aria-hidden': 'true' }, '🕳️'), h('strong', {}, '❔'));
-          return addHoverVoice(emptyPot, 'missing');
+          return SpeakButton([h('span', { 'aria-hidden': 'true' }, '🕳️'), h('strong', {}, '❔')], {
+            english: 'missing',
+            className: 'flower-pot flower-pot--empty',
+            ariaLabel: 'Maceta vacía (escuchar en inglés)',
+          });
         }
         const shown = value === null ? puzzle.answer : value;
         const icon = solved ? FLOWERS[index % FLOWERS.length] : STAGES[Math.min(i, STAGES.length - 1)];
-        const pot = h('button', {
-          type: 'button',
-          class: `flower-pot ${value === null && solved ? 'flower-pot--bloomed' : ''}`.trim(),
-          'aria-label': `Maceta ${shown} (escuchar en inglés)`,
-          onclick: (e: MouseEvent) => {
-            playSfx('pop');
-            speakEnglish(String(shown), { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-          },
-        }, h('span', { 'aria-hidden': 'true' }, icon), h('strong', {}, String(shown)));
-        return addHoverVoice(pot, String(shown));
+        return SpeakButton([h('span', { 'aria-hidden': 'true' }, icon), h('strong', {}, String(shown))], {
+          english: String(shown),
+          className: `flower-pot ${value === null && solved ? 'flower-pot--bloomed' : ''}`.trim(),
+          ariaLabel: `Maceta ${shown} (escuchar en inglés)`,
+        });
       });
 
       append(wrap, [

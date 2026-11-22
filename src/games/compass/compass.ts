@@ -1,11 +1,10 @@
-import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
 import { addHoverVoice, speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel } from '../../ui/components';
+import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { EndCard, GameHeader, ListenButton, StatusBanner } from '../../ui/gameShell';
@@ -31,30 +30,29 @@ export const compassPage: Page = (ctx) => {
   let trail: Pos[] = [level.start];
   let dug: Pos[] = [];
   let prevDigDist: number | null = null;
-  let message: Bi | null = null;
+  let message: string | null = null;
   let found = false;
   let closed = false;
-  let endCelebrated = false;
   const loot: string[] = [];
 
   const host = h('div', { class: 'world world--compass' });
   ctx.root.append(host);
 
   const left = () => Math.max(0, level.budget + bonusWind - used);
-  const say = (m: Bi | null, focusTarget?: string) => { message = m; draw(focusTarget); };
+  const say = (m: string | null, focusTarget?: string) => { message = m; draw(focusTarget); };
 
   function move(dir: Dir, anchor?: HTMLElement) {
     if (found || closed) return;
     if (left() <= 0) {
       playSfx('oops');
       speakEnglish('No wind left!', { anchor, mode: 'click' });
-      return say({ es: '¡Se acabó el viento! 🌬️ Cava aquí o vuelve a empezar.', en: 'The wind has died! 🌬️ Dig here or start over.' });
+      return say('¡Se acabó el viento! 🌬️ Cava aquí o vuelve a empezar.');
     }
     const r = step(level, pos, dir);
     if (r.blocked) {
       playSfx('bonk');
       speakEnglish('Rock! Watch out!', { anchor, mode: 'click' });
-      return say({ es: '¡Roca o borde del mapa! 🪨 Busca otro camino.', en: 'A rock or the map edge! 🪨 Find another way.' });
+      return say('¡Roca o borde del mapa! 🪨 Busca otro camino.');
     }
     pos = r.pos;
     used++;
@@ -64,7 +62,7 @@ export const compassPage: Page = (ctx) => {
       bonusWind += 2;
       playSfx('surprise');
       speakEnglish('Tailwind! Two extra gusts!', { anchor, mode: 'click' });
-      return say({ es: '¡Ráfaga a favor! 💨 Ganas 2 soplos de viento extra.', en: 'Tailwind! 💨 You gained 2 extra gusts of wind.' });
+      return say('¡Ráfaga a favor! 💨 Ganas 2 soplos de viento extra.');
     }
     playSfx('step');
     if (anchor) speakEnglish(DIR_NAMES[dir].en, { anchor, mode: 'click' });
@@ -83,12 +81,12 @@ export const compassPage: Page = (ctx) => {
       found = true;
       playSfx('surprise');
       speakEnglish('Treasure! You found it!', { anchor, mode: 'click' });
-      return say({ es: `¡Tesoro! ${prize} ¡Lo encontraste!`, en: `Treasure! ${prize} You found it!` }, 'next-treasure');
+      return say(`¡Tesoro! ${prize} ¡Lo encontraste!`, 'next-treasure');
     }
     if (dug.some((d) => samePos(d, pos))) {
       playSfx('remove');
       speakEnglish('You already dug here!', { anchor, mode: 'click' });
-      return say({ es: 'Aquí ya cavaste. 🕳️', en: 'You already dug here. 🕳️' });
+      return say('Aquí ya cavaste. 🕳️');
     }
     dug = [...dug, pos];
     const junk = pick(rng, JUNK);
@@ -98,10 +96,7 @@ export const compassPage: Page = (ctx) => {
     prevDigDist = dist;
     playSfx('bonk');
     speakEnglish(`${temp.en}${trend ? ` ${trend.en}` : ''}`, { anchor, mode: 'click' });
-    say({
-      es: `¡Has desenterrado ${junk.es}! ${junk.emoji} Pista: ${temp.es}${trend ? ` (${trend.es})` : ''}`,
-      en: `You dug up ${junk.en}! ${junk.emoji} Hint: ${temp.en}${trend ? ` (${trend.en})` : ''}`,
-    });
+    say(`¡Has desenterrado ${junk.es}! ${junk.emoji} Pista: ${temp.es}${trend ? ` (${trend.es})` : ''}`);
   }
 
   function restart(anchor?: HTMLElement) {
@@ -120,10 +115,7 @@ export const compassPage: Page = (ctx) => {
     if (index >= VOYAGE_LENGTH) {
       closed = true;
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('End of the voyage! Great sailing!');
     } else {
       level = generateLevel(rng, index);
@@ -137,7 +129,7 @@ export const compassPage: Page = (ctx) => {
   }
 
   const onKey = (e: KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || found || closed) return;
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     const dir = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
@@ -160,16 +152,11 @@ export const compassPage: Page = (ctx) => {
       svg('polygon', { points: '36,56 42,36 36,40 30,36', fill: '#0e7490', stroke: '#1f1b3d', 'stroke-width': 1.5 }),
       ...labels.map(([txt, x, y]) =>
         svg('text', { x, y, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 900, fill: '#1f1b3d' }, txt)));
-    const btn = h('button', {
-      type: 'button',
-      class: 'compass-rose-btn',
-      'aria-label': 'Rosa de los vientos: escuchar puntos cardinales en inglés',
-      onclick: (e: MouseEvent) => {
-        playSfx('pop');
-        speakEnglish('North, South, East, West', { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-      },
-    }, roseSvg);
-    return addHoverVoice(btn, 'North, South, East, West');
+    return SpeakButton(roseSvg, {
+      english: 'North, South, East, West',
+      className: 'compass-rose-btn',
+      ariaLabel: 'Rosa de los vientos: escuchar puntos cardinales en inglés',
+    });
   }
 
   function adjacentDir(p: Pos): Dir | null {
@@ -248,17 +235,18 @@ export const compassPage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🧭 Compass Island',
-        noun: { es: 'Tesoro', en: 'Treasure' },
+        noun: 'Tesoro',
         index, total: VOYAGE_LENGTH,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'sun',
-          title: { es: '¡Fin del viaje! 🏝️', en: 'End of the voyage! 🏝️' },
+          title: '¡Fin del viaje! 🏝️',
           art: h('p', { class: 'big-emoji', 'aria-label': 'tesoros' }, loot.join(' ')),
-          body: { es: 'El barco descansa en el puerto. ¡Vuelve cuando quieras!', en: 'The ship rests in the harbour. Come back whenever you like!' },
-          againLabel: { es: 'Otro viaje', en: 'Another voyage' },
+          body: 'El barco descansa en el puerto. ¡Vuelve cuando quieras!',
+          againLabel: 'Otro viaje',
+          againVoice: 'Another voyage',
           againFocusKey: 'another-voyage',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
@@ -268,16 +256,13 @@ export const compassPage: Page = (ctx) => {
 
       const spanishClue = clueText(level.clue, 'es');
       const englishClue = clueText(level.clue, 'en');
-      const clueEl = h('button', {
-        type: 'button',
-        class: 'clue clue-btn',
+      const clueEl = SpeakButton(spanishClue, {
+        english: englishClue,
+        className: 'clue clue-btn',
         lang: 'es',
-        'aria-label': `${spanishClue} (toca para escuchar en inglés)`,
-        onclick: (e: MouseEvent) => {
-          playSfx('pop');
-          speakEnglish(englishClue, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-        },
-      }, spanishClue);
+        ariaLabel: `${spanishClue} (toca para escuchar en inglés)`,
+        hover: false,
+      });
 
       const totalWind = level.budget + bonusWind;
       const windLeft = left();

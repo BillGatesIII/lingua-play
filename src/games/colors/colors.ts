@@ -1,11 +1,10 @@
-import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
-import { addHoverVoice, speakEnglish } from '../../shared/voice';
+import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel } from '../../ui/components';
+import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
@@ -21,7 +20,6 @@ export const colorsPage: Page = (ctx) => {
   let bowl: PotId[] = [];
   let solved = false;
   let closed = false;
-  let endCelebrated = false;
 
   const host = h('div', { class: 'world world--colors' });
   ctx.root.append(host);
@@ -56,10 +54,7 @@ export const colorsPage: Page = (ctx) => {
     if (index >= ROUND_LENGTH) {
       closed = true;
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('What a colourful gallery!');
     } else {
       playSfx('step');
@@ -68,27 +63,20 @@ export const colorsPage: Page = (ctx) => {
     draw(closed ? 'play-again' : `pot-${POTS[0]}`);
   }
 
-  function status(): Bi {
+  function status(): string {
     const m = mixed();
-    if (solved && m) return { es: `¡Sí! ¡Qué ${COLORS[m].name.es}! 🎉`, en: `Yes! Look at that ${COLORS[m].name.en}! 🎉` };
-    if (!m) return { es: 'Toca los botes de pintura para mezclar.', en: 'Tap the paint pots to mix.' };
-    return mixFeedback(m, rng);
+    if (solved && m) return `¡Sí! ¡Qué ${COLORS[m].name.es}! 🎉`;
+    if (!m) return 'Toca los botes de pintura para mezclar.';
+    return mixFeedback(m, rng).es;
   }
 
-  const chameleon = (color: ColorId | null, label: string, happy = false): HTMLElement => {
-    const enLabel = color ? COLORS[color].name.en : 'unpainted';
-    const el = h('button', {
-      type: 'button',
-      class: `chameleon chameleon--btn ${happy ? 'chameleon--happy' : ''}`.trim(),
-      'aria-label': `${label} (escuchar en inglés)`,
+  const chameleon = (color: ColorId | null, label: string, happy = false): HTMLElement =>
+    SpeakButton(h('span', { 'aria-hidden': 'true' }, '🦎'), {
+      english: color ? COLORS[color].name.en : 'unpainted',
+      className: `chameleon chameleon--btn ${happy ? 'chameleon--happy' : ''}`.trim(),
+      ariaLabel: `${label} (escuchar en inglés)`,
       style: `--paint:${color ? COLORS[color].hex : '#fffaf0'}`,
-      onclick: (e: MouseEvent) => {
-        playSfx('pop');
-        speakEnglish(enLabel, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-      },
-    }, h('span', { 'aria-hidden': 'true' }, '🦎'));
-    return addHoverVoice(el, enLabel);
-  };
+    });
 
   function pots(): HTMLElement {
     return h('div', { class: 'pots' }, ...POTS.map((pot) => {
@@ -114,20 +102,21 @@ export const colorsPage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🎨 Color Chameleon',
-        noun: { es: 'Camaleón', en: 'Chameleon' },
+        noun: 'Camaleón',
         index, total: ROUND_LENGTH,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'leaf',
-          title: { es: '¡Qué galería tan colorida! 🖼️', en: 'What a colourful gallery! 🖼️' },
+          title: '¡Qué galería tan colorida! 🖼️',
           art: h('div', { class: 'gallery' }, ...round.map((c) =>
             h('figure', { class: 'gallery__item' },
               chameleon(c, COLORS[c].name.es, true),
               h('figcaption', {}, COLORS[c].name.es)))),
-          body: { es: 'Los camaleones se van a descansar. ¡Vuelve cuando quieras!', en: 'The chameleons are off for a rest. Come back whenever you like!' },
-          againLabel: { es: 'Otra vez', en: 'Play again' },
+          body: 'Los camaleones se van a descansar. ¡Vuelve cuando quieras!',
+          againLabel: 'Otra vez',
+          againVoice: 'Play again',
           againFocusKey: 'play-again',
           onAgain: () => {
             ctx.refresh();

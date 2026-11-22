@@ -1,4 +1,5 @@
-import { addHoverVoice } from '../shared/voice';
+import { playSfx, type SfxKind } from '../shared/sfx';
+import { addHoverVoice, speakEnglish } from '../shared/voice';
 import { h, type Child } from './dom';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
@@ -48,4 +49,35 @@ export function Card(children: Child[], tone: Tone = 'plain', className = ''): H
 
 export function Panel(title: Child, children: Child[], className = ''): HTMLElement {
   return h('section', { class: `panel ${className}`.trim() }, h('h2', { class: 'panel__title' }, title), ...children);
+}
+
+export interface SpeakButtonOptions {
+  english: string;
+  className?: string;
+  ariaLabel?: string;
+  lang?: string;
+  style?: string;
+  sfx?: SfxKind;
+  hover?: boolean;
+}
+
+/** Interactive button that speaks an English phrase on click (and hover by default) with a subtle SFX. */
+export function SpeakButton(content: Child | Child[], o: SpeakButtonOptions): HTMLButtonElement {
+  const kids = Array.isArray(content) ? content : [content];
+  const btn = h(
+    'button',
+    {
+      type: 'button',
+      class: o.className,
+      lang: o.lang,
+      style: o.style,
+      'aria-label': o.ariaLabel,
+      onclick: (e: MouseEvent) => {
+        playSfx(o.sfx ?? 'pop');
+        speakEnglish(o.english, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+      },
+    },
+    ...kids,
+  );
+  return o.hover === false ? btn : addHoverVoice(btn, o.english);
 }

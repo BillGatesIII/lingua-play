@@ -1,4 +1,3 @@
-import type { Bi } from '../shared/i18n';
 import {
   ROUNDS_BEFORE_BREAK, dismissPlayBreak, finishPlayBreak, loadBreakState, pickBreakIdea, startPlayBreak,
 } from '../shared/playBreak';
@@ -20,14 +19,14 @@ export function StepDots(current: number, total: number, label: string): HTMLEle
 
 export interface GameHeaderOptions {
   title: string;
-  noun: Bi;
+  noun: string;
   index: number;
   total: number;
 }
 
 export function GameHeader(o: GameHeaderOptions): HTMLElement {
   const shown = Math.min(o.index + 1, o.total);
-  const label = `${o.noun.es} ${shown} / ${o.total}`;
+  const label = `${o.noun} ${shown} / ${o.total}`;
   return h('header', { class: 'game__head' },
     h('div', { class: 'game__identity' },
       h('h1', { class: 'game__title' }, o.title),
@@ -113,7 +112,7 @@ export function CharacterBubble(o: CharacterBubbleOptions): HTMLElement {
     o.englishText ? ListenButton(o.englishText, () => bubble ?? face) : null);
 }
 
-export function StatusBanner(message: Bi | null, alwaysOn = false): HTMLElement {
+export function StatusBanner(message: string | null, alwaysOn = false): HTMLElement {
   const showBox = Boolean(message) || alwaysOn;
   return h(
     'div',
@@ -123,16 +122,17 @@ export function StatusBanner(message: Bi | null, alwaysOn = false): HTMLElement 
       'aria-live': 'polite',
       'data-live': 'message',
     },
-    message ? h('span', { lang: 'es' }, message.es) : null,
+    message ? h('span', { lang: 'es' }, message) : null,
   );
 }
 
 export interface EndCardOptions {
   tone?: Tone;
-  title: Bi;
+  title: string;
   art: Child;
-  body: Bi;
-  againLabel: Bi;
+  body: string;
+  againLabel: string;
+  againVoice: string;
   againFocusKey: string;
   onAgain: () => void;
   onBreakChange?: () => void;
@@ -187,12 +187,12 @@ export function EndCard(o: EndCardOptions): HTMLElement {
     : null;
 
   return Card([
-    h('h2', {}, o.title.es),
+    h('h2', {}, o.title),
     o.art,
-    h('p', {}, o.body.es),
+    h('p', {}, o.body),
     breakInvite,
     h('div', { class: 'row' },
-      Button(o.againLabel.es, {
+      Button(o.againLabel, {
         onClick: () => {
           playSfx('pop');
           dismissPlayBreak();
@@ -200,7 +200,7 @@ export function EndCard(o: EndCardOptions): HTMLElement {
         },
         large: true,
         focusKey: o.againFocusKey,
-        voiceHover: o.againLabel.en,
+        voiceHover: o.againVoice,
       }),
       Button('Inicio', {
         variant: 'secondary',

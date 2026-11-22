@@ -1,11 +1,10 @@
-import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
 import { addHoverVoice, speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel } from '../../ui/components';
+import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
@@ -21,14 +20,13 @@ export const detectivePage: Page = (ctx) => {
   let cleared = new Set<string>();
   let solved = false;
   let closed = false;
-  let endCelebrated = false;
-  let message: Bi | null = null;
+  let message: string | null = null;
   const badges: string[] = [];
 
   const host = h('div', { class: 'world world--detective' });
   ctx.root.append(host);
 
-  const say = (m: Bi | null, focusTarget?: string) => {
+  const say = (m: string | null, focusTarget?: string) => {
     message = m;
     draw(focusTarget);
   };
@@ -56,10 +54,7 @@ export const detectivePage: Page = (ctx) => {
       });
       playSfx('surprise');
       speakEnglish(`Case solved! It was ${s.name}!`, { anchor, mode: 'click' });
-      say({
-        es: `🔎 ¡Caso resuelto! ¡Fue ${s.name} (${s.animal.name.es})! Ganas la insignia ${prize}`,
-        en: `🔎 Case solved! It was ${s.name} (the ${s.animal.name.en})! You earned ${prize}`,
-      }, 'next-case');
+      say(`🔎 ¡Caso resuelto! ¡Fue ${s.name} (${s.animal.name.es})! Ganas la insignia ${prize}`, 'next-case');
     } else {
       const next = new Set(cleared);
       next.add(s.id);
@@ -67,7 +62,7 @@ export const detectivePage: Page = (ctx) => {
       const alibi = wrongAccusationAlibi(s, rng);
       playSfx('oops');
       speakEnglish(alibi.en, { anchor, mode: 'click' });
-      say(alibi);
+      say(alibi.es);
     }
   }
 
@@ -76,10 +71,7 @@ export const detectivePage: Page = (ctx) => {
     if (index >= CASES_PER_ROUND) {
       closed = true;
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('All mysteries solved! Great detective work!');
     } else {
       current = generateCase(rng, index);
@@ -121,18 +113,11 @@ export const detectivePage: Page = (ctx) => {
       avatar),
     h('h3', { class: 'suspect-card__name' }, s.name, isCleared ? ' 😴' : ''),
     h('ul', { class: 'suspect-card__traits' }, ...traits.map((t) =>
-      h('li', {}, addHoverVoice(
-        h('button', {
-          type: 'button',
-          class: 'suspect-card__trait-btn',
-          'aria-label': `${t.es} (${t.en})`,
-          onclick: (e: MouseEvent) => {
-            playSfx('pop');
-            speakEnglish(t.en, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-          },
-        }, t.es),
-        t.en,
-      )))),
+      h('li', {}, SpeakButton(t.es, {
+        english: t.en,
+        className: 'suspect-card__trait-btn',
+        ariaLabel: `${t.es} (${t.en})`,
+      })))),
     h('div', { class: 'suspect-card__actions' },
       Button(
         isCleared ? 'Volver' : 'Descartar',
@@ -163,17 +148,18 @@ export const detectivePage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🔎 Mystery Detective',
-        noun: { es: 'Caso', en: 'Case' },
+        noun: 'Caso',
         index, total: CASES_PER_ROUND,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'lemon',
-          title: { es: '¡Todos los misterios resueltos! 🕵️', en: 'All mysteries solved! 🕵️' },
+          title: '¡Todos los misterios resueltos! 🕵️',
           art: h('p', { class: 'big-emoji', 'aria-label': 'insignias' }, badges.join(' ')),
-          body: { es: '¡Ningún enigma se le escapa a la agencia Lupa!', en: 'No mystery escapes the Detective Agency!' },
-          againLabel: { es: 'Más misterios', en: 'More mysteries' },
+          body: '¡Ningún enigma se le escapa a la agencia Lupa!',
+          againLabel: 'Más misterios',
+          againVoice: 'More mysteries',
           againFocusKey: 'another-casebook',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
@@ -184,20 +170,12 @@ export const detectivePage: Page = (ctx) => {
       const clueList = h('ul', { class: 'clue-list' }, ...current.clues.map((c) => {
         const es = predicateText(c, 'es');
         const en = predicateText(c, 'en');
-        const btn = addHoverVoice(
-          h('button', {
-            type: 'button',
-            class: 'clue-btn',
-            lang: 'es',
-            'aria-label': `${es} (escuchar en inglés)`,
-            onclick: (e: MouseEvent) => {
-              playSfx('pop');
-              speakEnglish(en, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-            },
-          }, `🔎 ${es}`),
-          en,
-        );
-        return h('li', {}, btn);
+        return h('li', {}, SpeakButton(`🔎 ${es}`, {
+          english: en,
+          className: 'clue-btn',
+          lang: 'es',
+          ariaLabel: `${es} (escuchar en inglés)`,
+        }));
       }));
 
       append(wrap, [

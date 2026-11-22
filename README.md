@@ -1,6 +1,6 @@
 # 🦜 Lingua Play
 
-Ad-free, tracker-free Spanish/English games for kids aged 8–12, where the language and maths are *part of the game rules* – not quizzes stuck on top.
+Ad-free, tracker-free Spanish-interface games with spoken English and maths for kids aged 8–12, where language and maths are *part of the game rules* – not quizzes stuck on top.
 
 ## Vision
 
@@ -32,7 +32,7 @@ npm run deploy:t630 # test, build and deploy to the local t630 nginx server
 | **Word Workshop** 🔤 | Berta the Owl shares a picture and clue. Snap letter tiles into slots (or type on your keyboard) to spell the matching Spanish or English word. | **Language:** vocabulary from definitions and spelling across 4–8 letter words; silly made-up word reactions on mistakes. |
 | **Bloom Garden** 🌷 | Maya the Bee shows a growing flowerbed with a missing pot (at the end or in the middle!). Pick the right seed packet to make the garden bloom. | **Language:** comparison and pattern instructions (*más que*, *menos que*, *el doble*, *alternan*). **Maths:** arithmetic growth, countdowns, missing middle numbers, multiplication sequences, and alternating jumps. |
 
-Every game shows the clue in the chosen primary language; a 🦜 *Translate* button reveals the other language at no penalty. Instead of a manual age selector or countdown timer, each 5-step round gently ramps up for ages 8–12, and after two finished rounds a friendly screen-free break card invites kids outside to play.
+Every game presents its clues and controls in Spanish, while hovering or tapping interactive elements speaks natural English via the browser's `speechSynthesis` with a floating 🦜 speech bubble and subtle Web Audio sound effects. A header button (`🔊 Sonido` / `🔇 Silencio`) toggles audio at any time (speech bubbles remain visible when muted). Instead of a manual age selector or countdown timer, each 5-step round gently ramps up for ages 8–12, and after two finished rounds a friendly screen-free break card invites kids outside to play.
 
 ## Design principles
 
@@ -52,17 +52,17 @@ Tokens live in [`src/styles/tokens.css`](src/styles/tokens.css):
 - **Spacing / radius / shadow:** `--space-1…7`, `--radius-sm…pill`, `--shadow-sm/md/lg` (flat "sticker" shadows).
 - **Motion:** `--ease-pop`, `--dur`; small bobs and pops only.
 
-Reusable components live in [`src/ui/components.ts`](src/ui/components.ts) (`Button`, `Card`, `Panel`, `biText`) and [`src/ui/gameShell.ts`](src/ui/gameShell.ts) (`GameHeader`, `StepDots`, `CharacterBubble`, `StatusBanner`, `EndCard`).
+Reusable components live in [`src/ui/components.ts`](src/ui/components.ts) (`Button`, `SpeakButton`, `Card`, `Panel`) and [`src/ui/gameShell.ts`](src/ui/gameShell.ts) (`GameHeader`, `StepDots`, `CharacterBubble`, `ListenButton`, `StatusBanner`, `EndCard`).
 
 ## Code layout
 
 ```
 src/
-  main.ts            hash router + header (language)
+  main.ts            hash router + header (sound toggle)
   pages/             landing page + page types
   games/<game>/      logic.ts (pure, tested) + <game>.ts (UI)
-  shared/            i18n, seeded RNG, localStorage progress
-  ui/                DOM helper, design-system components
+  shared/            i18n, seeded RNG, localStorage progress, voice, SFX, rewards, play breaks
+  ui/                DOM helper, design-system components, focus helper
   styles/            tokens, base, components, game worlds
 docs/ROADMAP.md
 ```
@@ -72,7 +72,7 @@ To add a game: create `src/games/<name>/`, export a `Page`, and register it in `
 ## Privacy & safety
 
 - No analytics, ads, cookies, accounts, or third-party scripts, fonts or images; a strict Content-Security-Policy in `index.html` blocks all network connections other than loading the site itself.
-- Progress (language, age band, stickers, treasures) is stored **only** in your browser's `localStorage` under the key `linguaplay.v1`. It never leaves the device. The landing page has an *Erase my progress* button.
+- Progress (sound setting, stickers, treasures, break counter) is stored **only** in your browser's `localStorage` under `linguaplay.v1` and `linguaplay.break.v1`. It never leaves the device. The landing page has a *Borrar mi progreso* button that clears both.
 - No personal data is collected, no free-text input and no chat, so there is nothing to moderate.
 - The UI is built with `textContent` / DOM APIs only (no `innerHTML`).
 
