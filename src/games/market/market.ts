@@ -111,7 +111,7 @@ export const marketPage: Page = (ctx) => {
         ? 'Take away a coin and check the total again.'
         : 'Add a bit more change after counting the price.');
       speakEnglish(director.encourage(hint, firstLine), { anchor, mode: 'event' });
-      return say(changeFeedback(result).es, 'give-change');
+      return say(changeFeedback(result, rng).es, 'give-change');
     }
     const sticker = pick(rng, PRODUCTS).emoji;
     stickers.push(sticker);
@@ -291,8 +291,8 @@ export const marketPage: Page = (ctx) => {
         return wrap;
       }
 
-      const spanishText = stage.v === 'basket' ? orderSpeech(order, 'es', customer) : paySpeech(order, 'es');
-      const englishText = stage.v === 'basket' ? orderSpeech(order, 'en', customer) : paySpeech(order, 'en');
+      const spanishText = stage.v === 'basket' ? orderSpeech(order, 'es', customer) : paySpeech(order, 'es', index);
+      const englishText = stage.v === 'basket' ? orderSpeech(order, 'en', customer) : paySpeech(order, 'en', index);
       const moneyExtra = stage.v === 'change'
         ? h('div', { class: 'row' },
             addHoverVoice(

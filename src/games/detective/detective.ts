@@ -1,6 +1,6 @@
 import { diagnoseDetectiveMistake } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
-import { mulberry32 } from '../../shared/rng';
+import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
@@ -11,15 +11,16 @@ import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
-  CASES_PER_ROUND, HATS, SNACKS, caseBriefing, generateCase, predicateText,
+  CASES_PER_ROUND, HATS, MYSTERIES, SNACKS, caseBriefing, generateCase, predicateText,
   wrongAccusationAlibi, type CaseFile, type Suspect,
 } from './logic';
 
 export const detectivePage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x3c6ef372) >>> 0);
   const director = createGameDirector(rng);
+  const caseMysteries = shuffle(rng, MYSTERIES).slice(0, CASES_PER_ROUND);
   let index = 0;
-  let current: CaseFile = generateCase(rng, index);
+  let current: CaseFile = generateCase(rng, index, caseMysteries[index]);
   let cleared = new Set<string>();
   let solved = false;
   let closed = false;
@@ -90,7 +91,7 @@ export const detectivePage: Page = (ctx) => {
         'Casebook complete! Jolly good work!',
       ]), { mode: 'event' });
     } else {
-      current = generateCase(rng, index);
+      current = generateCase(rng, index, caseMysteries[index]);
       cleared = new Set();
       solved = false;
       playSfx('step');

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
-import { PRODUCTS, basketMatches, billFor, checkChange, generateOrder, orderSpeech, orderTotal } from './logic';
+import {
+  CUSTOMERS, PRODUCTS, basketMatches, basketMistake, billFor, changeFeedback, checkChange, generateOrder,
+  orderSpeech, orderTotal, paySpeech,
+} from './logic';
 
 describe('market logic', () => {
   it('always needs change and the numbers add up', () => {
@@ -53,9 +56,55 @@ describe('market logic', () => {
     expect(checkChange(o, [o.change - 1])).toBe('too-little');
   });
 
-  it('speaks in both languages', () => {
+  it('speaks in both languages and applies every customer personality frame cleanly', () => {
     const o = generateOrder(mulberry32(7), 0);
     expect(orderSpeech(o, 'es')).toContain('Quiero');
     expect(orderSpeech(o, 'en')).toContain('would like');
+    for (const c of CUSTOMERS) {
+      const es = orderSpeech(o, 'es', c);
+      const en = orderSpeech(o, 'en', c);
+      expect(es).not.toContain('{list}');
+      expect(en).not.toContain('{list}');
+      expect(es).toContain(c.greeting.es);
+      expect(en).toContain(c.greeting.en);
+    }
+    const singularOrder = {
+      ...o,
+      lines: [{ product: PRODUCTS[0], qty: 1, phrase: 'count' as const }],
+    };
+    for (const c of CUSTOMERS) {
+      expect(orderSpeech(singularOrder, 'es', c)).not.toContain('apetecen un ');
+    }
+    expect(paySpeech(o, 'en', 1)).not.toBe(paySpeech(o, 'en', 0));
+    expect(paySpeech(o, 'es', -1)).toContain(String(o.paid));
+    const discounted = { ...o, discount: 2 };
+    expect(paySpeech(discounted, 'en', 2)).toContain('2-coin coupon');
+    expect(paySpeech(discounted, 'es', -1)).toContain('cupón de 2 monedas');
+  });
+
+  it('formats grammatical basketMistake and changeFeedback across variants', () => {
+    const apple = PRODUCTS.find((p) => p.id === 'apple')!;
+    const banana = PRODUCTS.find((p) => p.id === 'banana')!;
+    const order = {
+      lines: [{ product: banana, qty: 2, phrase: 'count' as const }],
+      total: 2,
+      discount: 0,
+      paid: 5,
+      change: 3,
+    };
+    const quoteSeeds: string[] = [];
+    for (let seed = 0; seed < 20; seed++) {
+      const m = basketMistake(order, { [apple.id]: 1 }, mulberry32(seed));
+      if (m.en.includes('What a funny surprise')) quoteSeeds.push(m.en);
+      if (m.es.includes('Qué broma')) expect(m.es).toContain('«¿Manzanas?');
+    }
+    expect(quoteSeeds.length).toBeGreaterThan(0);
+    for (const line of quoteSeeds) expect(line).toContain('"Apples? What a funny surprise!"');
+
+    expect(changeFeedback('too-much').es).toContain('monedas');
+    for (let seed = 0; seed < 10; seed++) {
+      expect(changeFeedback('too-much', mulberry32(seed)).en).toMatch(/coins|change/);
+      expect(changeFeedback('too-little', mulberry32(seed)).en).toMatch(/coins|change/);
+    }
   });
 });

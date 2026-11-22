@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
-  applyLegs, type Clue, clueText, distance, generateLevel, shortestPath, step, temperature, temperatureTrend,
+  JUNK, LANDMARKS, TREASURES, TREASURE_NAMES, applyLegs, type Clue, clueText, distance, generateLevel,
+  shortestPath, step, temperature, temperatureTrend,
 } from './logic';
 
 describe('compass logic', () => {
@@ -49,5 +50,21 @@ describe('compass logic', () => {
     expect(temperatureTrend(null, 3)).toBeNull();
     expect(temperatureTrend(4, 2)?.en).toContain('Warmer');
     expect(temperatureTrend(2, 5)?.es).toContain('Más frío');
+  });
+
+  it('uses matching Spanish articles for every landmark and keeps treasures/junk consistent', () => {
+    expect(TREASURES.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(TREASURES).size).toBe(TREASURES.length);
+    for (const t of TREASURES) expect(TREASURE_NAMES[t]).toBeTruthy();
+    for (const j of JUNK) {
+      expect(j.es).toMatch(/^una?\s/);
+      expect(j.en).toMatch(/^an?\s/);
+    }
+    for (const landmark of LANDMARKS) {
+      const clue: Clue = { kind: 'landmark', legs: [{ dir: 'N', n: 1 }], landmark };
+      const prefix = landmark.gender === 'f' ? `Desde la ${landmark.es}` : `Desde el ${landmark.es}`;
+      expect(clueText(clue, 'es')).toContain(prefix);
+      expect(clueText(clue, 'en')).toContain(`From the ${landmark.en}`);
+    }
   });
 });

@@ -1,6 +1,6 @@
 import { diagnoseColorMistake, scaffoldVocab } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
-import { mulberry32 } from '../../shared/rng';
+import { mulberry32, randInt, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
@@ -18,10 +18,14 @@ import {
 export const colorsPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x27d4eb2f) >>> 0);
   const director = createGameDirector(rng);
+  const pals = shuffle(rng, CHAMELEONS);
   let round = generateRound(rng);
   let index = 0;
+  let clueVariant = randInt(rng, 0, 11);
+  let forceSimile = false;
   let bowl: PotId[] = [];
   let poursOnCurrent = 0;
+  let mixNote: string | null = null;
   let solved = false;
   let closed = false;
 
@@ -46,9 +50,11 @@ export const colorsPage: Page = (ctx) => {
         if (!p.colors.colours.includes(emoji)) p.colors.colours.push(emoji);
       });
       playSfx('surprise');
+      mixNote = null;
       speakEnglish(director.celebrate(COLORS[m].name.en), { anchor, mode: 'event' });
     } else if (m === 'mud') {
       playSfx('splash');
+      mixNote = mixFeedback(m, rng).es;
       const advice = diagnoseColorMistake(target(), bowl);
       const line = director.encourage(
         advice.hint,
@@ -61,6 +67,7 @@ export const colorsPage: Page = (ctx) => {
       speakEnglish(line, { anchor, mode: 'event' });
     } else {
       playSfx('splash');
+      mixNote = m ? mixFeedback(m, rng).es : null;
       if (!removing && m && poursOnCurrent >= 4 && poursOnCurrent % 2 === 0) {
         const advice = diagnoseColorMistake(target(), bowl);
         speakEnglish(advice.hint, { anchor, mode: 'event' });
@@ -83,7 +90,10 @@ export const colorsPage: Page = (ctx) => {
     index++;
     bowl = [];
     poursOnCurrent = 0;
+    mixNote = null;
     solved = false;
+    clueVariant = randInt(rng, 0, 11);
+    forceSimile = director.streak >= 2;
     director.nextPuzzle();
     if (index >= ROUND_LENGTH) {
       closed = true;
@@ -97,7 +107,7 @@ export const colorsPage: Page = (ctx) => {
       ]), { mode: 'event' });
     } else {
       playSfx('step');
-      const pal = CHAMELEONS[index % CHAMELEONS.length].name.en;
+      const pal = pals[index % pals.length].name.en;
       const intro = director.transition('next-pal', [
         pal,
         `Say hello to ${pal}!`,
@@ -112,7 +122,7 @@ export const colorsPage: Page = (ctx) => {
     const m = mixed();
     if (solved && m) return `¡Sí! ¡Qué ${COLORS[m].name.es}! 🎉`;
     if (!m) return 'Toca los botes de pintura para mezclar.';
-    return mixFeedback(m, rng).es;
+    return mixNote ?? mixFeedback(m, rng).es;
   }
 
   const chameleon = (color: ColorId | null, label: string, happy = false): HTMLElement =>
@@ -173,7 +183,7 @@ export const colorsPage: Page = (ctx) => {
         return wrap;
       }
 
-      const pal = CHAMELEONS[index % CHAMELEONS.length];
+      const pal = pals[index % pals.length];
       const shown = mixed();
 
       append(wrap, [
@@ -182,8 +192,8 @@ export const colorsPage: Page = (ctx) => {
           mood: solved ? '✨' : undefined,
           name: pal.name.es,
           englishName: pal.name.en,
-          text: playfulClue(target(), index, 'es'),
-          englishText: playfulClue(target(), index, 'en'),
+          text: playfulClue(target(), index, 'es', clueVariant, forceSimile),
+          englishText: playfulClue(target(), index, 'en', clueVariant, forceSimile),
         }),
         h('div', { class: 'cols cols--map' },
           h('div', { class: 'stage' },
@@ -206,6 +216,7 @@ export const colorsPage: Page = (ctx) => {
               onClick: () => {
                 playSfx('remove');
                 bowl = [];
+                mixNote = null;
                 poursOnCurrent = Math.min(poursOnCurrent, 2);
                 draw(`pot-${POTS[0]}`);
               },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
-import { generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount } from './logic';
+import { WORDS, generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount, wordMistake } from './logic';
 
 describe('word puzzle logic', () => {
   it('creates usable letter tiles across all steps and languages', () => {
@@ -24,5 +24,28 @@ describe('word puzzle logic', () => {
     expect(selectedWord(puzzle, correctIds)).toBe(answer);
     expect(isWordSolved(puzzle, correctIds, 'es')).toBe(true);
     expect(isWordSolved(puzzle, correctIds.slice(1), 'es')).toBe(false);
+  });
+
+  it('has a rich pack of keyboard-typeable Spanish words with unique emojis', () => {
+    expect(WORDS.length).toBeGreaterThanOrEqual(45);
+    expect(new Set(WORDS.map((w) => w.emoji)).size).toBe(WORDS.length);
+    for (const w of WORDS) {
+      expect(w.answer.es).toMatch(/^[a-z]+$/);
+      expect(w.answer.en.length).toBeGreaterThan(1);
+      expect(w.clue.es.length).toBeGreaterThan(5);
+      expect(w.clue.en.length).toBeGreaterThan(5);
+    }
+  });
+
+  it('respects excluded emojis and formats playful word mistakes', () => {
+    const rng = mulberry32(31);
+    const excluded = WORDS.slice(0, 10).map((w) => w.emoji);
+    for (let i = 0; i < 5; i++) {
+      const p = generateWordPuzzle(rng, i, 'es', excluded);
+      expect(excluded).not.toContain(p.emoji);
+    }
+    const mistake = wordMistake('gato', rng);
+    expect(mistake.es).toContain('GATO');
+    expect(mistake.en).toContain('GATO');
   });
 });

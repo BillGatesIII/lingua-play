@@ -17,14 +17,26 @@ export const DESTINATIONS: readonly Destination[] = [
   { emoji: '🏛️', name: { es: 'el museo', en: 'the museum' } },
   { emoji: '🌲', name: { es: 'el bosque', en: 'the forest' } },
   { emoji: '🎢', name: { es: 'la feria', en: 'the funfair' } },
+  { emoji: '🏰', name: { es: 'el castillo', en: 'the castle' } },
+  { emoji: '🦁', name: { es: 'el zoo', en: 'the zoo' } },
+  { emoji: '📚', name: { es: 'la biblioteca', en: 'the library' } },
+  { emoji: '🔭', name: { es: 'el observatorio', en: 'the observatory' } },
+  { emoji: '🏝️', name: { es: 'la isla', en: 'the island' } },
+  { emoji: '🌋', name: { es: 'el volcán', en: 'the volcano' } },
+  { emoji: '🐠', name: { es: 'el acuario', en: 'the aquarium' } },
 ];
 
 export const TRAVELLERS = [
   { emoji: '🦆', name: { es: 'el pato Pepe', en: 'Pepe the duck' } },
-  { emoji: '🦉', name: { es: 'la búho Clara', en: 'Clara the owl' } },
+  { emoji: '🦉', name: { es: 'Clara el búho', en: 'Clara the owl' } },
   { emoji: '🐢', name: { es: 'la tortuga Tita', en: 'Tita the turtle' } },
   { emoji: '🦔', name: { es: 'el erizo Hugo', en: 'Hugo the hedgehog' } },
   { emoji: '🐧', name: { es: 'el pingüino Leo', en: 'Leo the penguin' } },
+  { emoji: '🦊', name: { es: 'la zorrita Alba', en: 'Alba the fox' } },
+  { emoji: '🐻', name: { es: 'el oso Mateo', en: 'Mateo the bear' } },
+  { emoji: '🐰', name: { es: 'el conejo Nico', en: 'Nico the rabbit' } },
+  { emoji: '🐨', name: { es: 'Vera el koala', en: 'Vera the koala' } },
+  { emoji: '🐸', name: { es: 'la rana Bruno', en: 'Bruno the frog' } },
 ] as const;
 
 export const TRAINS_PER_ROUND = 5;
@@ -83,8 +95,8 @@ export function timeText(t: ClockTime, lang: Lang): string {
   return `${MIN_WORDS_EN[rem]} to ${EN_HOURS[nextHour]}`;
 }
 
-export function generateTrain(rng: Rng, index: number): TrainChallenge {
-  const destination = DESTINATIONS[index % DESTINATIONS.length];
+export function generateTrain(rng: Rng, index: number, destinationOverride?: Destination): TrainChallenge {
+  const destination = destinationOverride ?? DESTINATIONS[index % DESTINATIONS.length];
   const hour = randInt(rng, 1, 12);
   const minutePool = index === 0
     ? [0, 30]
@@ -103,41 +115,107 @@ export function generateTrain(rng: Rng, index: number): TrainChallenge {
   return { destination, base, deltaMinutes, target, kind };
 }
 
-export function trainSpeech(c: TrainChallenge, lang: Lang): string {
-  const dest = c.destination.name[lang];
-  const baseStr = timeText(c.base, lang);
-  if (c.kind === 'direct') {
-    return lang === 'es'
-      ? `¡Hola! Mi tren hacia ${dest} sale a ${baseStr}. ¡Pon el reloj en hora!`
-      : `Hello! My train to ${dest} leaves at ${baseStr}. Set the station clock!`;
-  }
-  if (c.kind === 'delay') {
-    return lang === 'es'
-      ? `El tren hacia ${dest} de ${baseStr} lleva ${c.deltaMinutes} minutos de retraso. ¿A qué hora sale ahora?`
-      : `The ${baseStr} train to ${dest} is ${c.deltaMinutes} minutes late. What time does it leave now?`;
-  }
-  if (c.kind === 'duration') {
-    return lang === 'es'
-      ? `El tren hacia ${dest} sale a ${baseStr} y el viaje dura ${c.deltaMinutes} minutos. ¿A qué hora llega?`
-      : `The train to ${dest} leaves at ${baseStr} and takes ${c.deltaMinutes} minutes. What time does it arrive?`;
-  }
-  const mins = Math.abs(c.deltaMinutes);
-  return lang === 'es'
-    ? `El tren hacia ${dest} sale a ${baseStr}, pero hay que llegar ${mins} minutos antes. ¿Qué hora marcamos?`
-    : `The train to ${dest} leaves at ${baseStr}, and we must arrive ${mins} minutes early. What time should we set?`;
+/** Contracts Spanish `a + el` -> `al` when building phrases towards a destination. */
+export function toDestinationEs(destEs: string): string {
+  return destEs.startsWith('el ') ? `al ${destEs.slice(3)}` : `a ${destEs}`;
 }
 
-export function checkClock(target: ClockTime, chosen: ClockTime): Bi | null {
+const pickVariant = <T,>(items: readonly T[], variant: number): T =>
+  items[((Math.trunc(variant) % items.length) + items.length) % items.length];
+
+export function trainSpeech(c: TrainChallenge, lang: Lang, variant = 0): string {
+  const dest = c.destination.name[lang];
+  const toDest = toDestinationEs(dest);
+  const baseStr = timeText(c.base, lang);
+  if (c.kind === 'direct') {
+    const lines: readonly Bi[] = [
+      {
+        es: `¡Hola! Mi tren hacia ${dest} sale a ${baseStr}. ¡Pon el reloj en hora!`,
+        en: `Hello! My train to ${dest} leaves at ${baseStr}. Set the station clock!`,
+      },
+      {
+        es: `¡Qué emoción, voy ${toDest}! El tren parte a ${baseStr}.`,
+        en: `How exciting, I am off to ${dest}! The train departs at ${baseStr}.`,
+      },
+      {
+        es: `¡Billete listo para ${dest}! Salimos a ${baseStr}.`,
+        en: `Ticket ready for ${dest}! We leave at ${baseStr}.`,
+      },
+    ];
+    return pickVariant(lines, variant)[lang];
+  }
+  if (c.kind === 'delay') {
+    const lines: readonly Bi[] = [
+      {
+        es: `El tren de ${baseStr} hacia ${dest} lleva ${c.deltaMinutes} minutos de retraso. ¿A qué hora sale ahora?`,
+        en: `The ${baseStr} train to ${dest} is ${c.deltaMinutes} minutes late. What time does it leave now?`,
+      },
+      {
+        es: `¡Aviso en el andén! El tren de ${baseStr} ${toDest} se retrasa ${c.deltaMinutes} minutos. ¿Cuándo sale?`,
+        en: `Platform announcement! The ${baseStr} train to ${dest} is delayed by ${c.deltaMinutes} minutes. When does it leave?`,
+      },
+    ];
+    return pickVariant(lines, variant)[lang];
+  }
+  if (c.kind === 'duration') {
+    const lines: readonly Bi[] = [
+      {
+        es: `El tren hacia ${dest} sale a ${baseStr} y el viaje dura ${c.deltaMinutes} minutos. ¿A qué hora llega?`,
+        en: `The train to ${dest} leaves at ${baseStr} and takes ${c.deltaMinutes} minutes. What time does it arrive?`,
+      },
+      {
+        es: `Salimos hacia ${dest} a ${baseStr} y tardamos ${c.deltaMinutes} minutos. ¿A qué hora llegamos?`,
+        en: `We depart for ${dest} at ${baseStr} and the journey lasts ${c.deltaMinutes} minutes. When do we arrive?`,
+      },
+    ];
+    return pickVariant(lines, variant)[lang];
+  }
+  const mins = Math.abs(c.deltaMinutes);
+  const lines: readonly Bi[] = [
+    {
+      es: `El tren hacia ${dest} sale a ${baseStr}, pero hay que llegar ${mins} minutos antes. ¿Qué hora marcamos?`,
+      en: `The train to ${dest} leaves at ${baseStr}, and we must arrive ${mins} minutes early. What time should we set?`,
+    },
+    {
+      es: `¡Sin prisas! El tren ${toDest} sale a ${baseStr}; queremos estar ${mins} minutos antes en el andén.`,
+      en: `No rushing! The train to ${dest} leaves at ${baseStr}; we want to be on the platform ${mins} minutes early.`,
+    },
+  ];
+  return pickVariant(lines, variant)[lang];
+}
+
+export function checkClock(target: ClockTime, chosen: ClockTime, rng?: Rng): Bi | null {
   if (sameTime(target, chosen)) return null;
+  const choose = <T,>(items: readonly T[]): T => (rng ? pick(rng, items) : items[0]);
   const diff = ((toMinutes(chosen) - toMinutes(target)) + 720) % 720;
   if (diff > 360) {
-    return {
-      es: '🦆 ¡Demasiado pronto! Los patos del andén todavía están desayunando.',
-      en: '🦆 Too early! The platform ducks are still having breakfast.',
-    };
+    return choose([
+      {
+        es: '🦆 ¡Demasiado pronto! Los patos del andén todavía están desayunando.',
+        en: '🦆 Too early! The platform ducks are still having breakfast.',
+      },
+      {
+        es: '☕ ¡Muy pronto! El maquinista todavía se está tomando el té.',
+        en: '☕ Too early! The train driver is still having a cup of tea.',
+      },
+      {
+        es: '😴 ¡Aún es pronto! La locomotora todavía está bostezando.',
+        en: '😴 Too early! The engine is still yawning.',
+      },
+    ]);
   }
-  return {
-    es: '🚂 ¡Chú-chú! Ese reloj va tarde y las maletas ya están bailando en el vagón.',
-    en: '🚂 Choo-choo! That clock is too late and the suitcases are already dancing aboard.',
-  };
+  return choose([
+    {
+      es: '🚂 ¡Chú-chú! Ese reloj va tarde y las maletas ya están bailando en el vagón.',
+      en: '🚂 Choo-choo! That clock is too late and the suitcases are already dancing aboard.',
+    },
+    {
+      es: '🎒 ¡Uy, va tarde! Los pasajeros ya corren por el andén.',
+      en: '🎒 Whoops, too late! The passengers are already dashing down the platform.',
+    },
+    {
+      es: '⏰ ¡Un poco tarde! Gira las agujas hacia atrás para alcanzar el tren.',
+      en: '⏰ A bit too late! Wind the clock hands back to catch the train.',
+    },
+  ]);
 }

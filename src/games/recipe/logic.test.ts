@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
-  VERBS, checkRecipe, generateRecipe, quartersBadge, quartersText, recipeSpeech,
+  CHEFS, DISHES, INGREDIENTS, VERBS, checkRecipe, dishComplimentEs, generateRecipe, quartersBadge,
+  quartersText, recipeSpeech,
 } from './logic';
 
 describe('recipe logic', () => {
@@ -18,7 +19,7 @@ describe('recipe logic', () => {
     }
   });
 
-  it('formats fractions and bilingual recipe speeches', () => {
+  it('formats fractions and bilingual recipe speeches across all dishes and chefs', () => {
     expect(quartersBadge(0)).toBe('0');
     expect(quartersBadge(1)).toBe('¼');
     expect(quartersBadge(2)).toBe('½');
@@ -28,9 +29,33 @@ describe('recipe logic', () => {
     expect(quartersText(2, 'es')).toBe('media taza');
     expect(quartersText(3, 'en')).toBe('three quarters of a cup');
 
-    const r = generateRecipe(mulberry32(12), 3);
-    expect(recipeSpeech(r, 'es').length).toBeGreaterThan(10);
-    expect(recipeSpeech(r, 'en').length).toBeGreaterThan(10);
+    expect(CHEFS.length).toBeGreaterThanOrEqual(10);
+    expect(DISHES.length).toBeGreaterThanOrEqual(12);
+    expect(dishComplimentEs(DISHES.find((d) => d.name.es === 'sopa arcoíris')!)).toBe('deliciosa');
+    expect(dishComplimentEs(DISHES.find((d) => d.name.es === 'curry volcán')!)).toBe('delicioso');
+    expect(dishComplimentEs(DISHES.find((d) => d.name.es === 'tortitas cósmicas')!)).toBe('deliciosas');
+    expect(dishComplimentEs(DISHES.find((d) => d.name.es === 'fideos dragón')!)).toBe('deliciosos');
+
+    for (const dish of DISHES) {
+      for (const scale of [1, 2] as const) {
+        const r = {
+          dish,
+          ingredients: [INGREDIENTS[0]],
+          baseQuarters: 2,
+          scale,
+          targetQuarters: 2 * scale,
+          maxQuarters: 8,
+          verb: VERBS[0],
+        };
+        for (const variant of [-1, 0, 1, 2]) {
+          const es = recipeSpeech(r, 'es', variant);
+          const en = recipeSpeech(r, 'en', variant);
+          expect(es).toContain(dish.name.es);
+          expect(en).toContain(dish.name.en);
+          if (dish.plural) expect(es).not.toContain('Me apetece ');
+        }
+      }
+    }
   });
 
   it('validates ingredients, fraction amount, and final action verb', () => {
@@ -43,5 +68,20 @@ describe('recipe logic', () => {
     expect(checkRecipe(r, ids, r.targetQuarters + 1, r.verb.id).ok).toBe(false);
     expect(checkRecipe(r, ids, r.targetQuarters, wrongVerb).ok).toBe(false);
     expect(checkRecipe(r, ids, r.targetQuarters, r.verb.id)).toEqual({ ok: true });
+
+    // Plural vs singular grammar for extra ingredients across rng variants
+    const lemonOnly = { ...r, ingredients: [INGREDIENTS[1]] };
+    const seenStrawberry = new Set<string>();
+    for (let seed = 0; seed < 15; seed++) {
+      const res = checkRecipe(lemonOnly, ['strawberry'], lemonOnly.targetQuarters, lemonOnly.verb.id, mulberry32(seed));
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.reason.es).not.toContain('fresas no aparece ');
+        expect(res.reason.en).not.toContain('strawberries is not');
+        seenStrawberry.add(res.reason.en);
+      }
+    }
+    expect(seenStrawberry.size).toBe(2);
+    expect([...seenStrawberry].some((line) => line.includes('Strawberries are not'))).toBe(true);
   });
 });

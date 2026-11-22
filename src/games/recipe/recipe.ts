@@ -11,16 +11,17 @@ import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
-  CHEFS, INGREDIENTS, RECIPES_PER_ROUND, SCOOPS, VERBS, checkRecipe, generateRecipe,
-  quartersBadge, quartersText, recipeSpeech, type Recipe, type VerbId,
+  CHEFS, DISHES, INGREDIENTS, RECIPES_PER_ROUND, SCOOPS, VERBS, checkRecipe, dishComplimentEs,
+  generateRecipe, quartersBadge, quartersText, recipeSpeech, type Recipe, type VerbId,
 } from './logic';
 
 export const recipePage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x517cc1b7) >>> 0);
   const director = createGameDirector(rng);
   const chefs = shuffle(rng, CHEFS);
+  const roundDishes = shuffle(rng, DISHES).slice(0, RECIPES_PER_ROUND);
   let index = 0;
-  let recipe: Recipe = generateRecipe(rng, index);
+  let recipe: Recipe = generateRecipe(rng, index, roundDishes[index]);
   let chosen: string[] = [];
   let quarters = 0;
   let solved = false;
@@ -71,7 +72,7 @@ export const recipePage: Page = (ctx) => {
 
   function tryVerb(verbId: VerbId, anchor?: HTMLElement) {
     if (solved || closed) return;
-    const res = checkRecipe(recipe, chosen, quarters, verbId);
+    const res = checkRecipe(recipe, chosen, quarters, verbId, rng);
     if (!res.ok) {
       playSfx('oops');
       const advice = diagnoseRecipeMistake(recipe, chosen, quarters, verbId);
@@ -87,7 +88,7 @@ export const recipePage: Page = (ctx) => {
     });
     playSfx('surprise');
     speakEnglish(director.celebrate(`Yum, ${recipe.dish.name.en}!`), { anchor, mode: 'event' });
-    say(`¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan deliciosa!`, 'next-dish');
+    say(`¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan ${dishComplimentEs(recipe.dish)}!`, 'next-dish');
   }
 
   function nextDish() {
@@ -104,7 +105,7 @@ export const recipePage: Page = (ctx) => {
         'Marvellous feast! Well done, chef!',
       ]), { mode: 'event' });
     } else {
-      recipe = generateRecipe(rng, index);
+      recipe = generateRecipe(rng, index, roundDishes[index]);
       chosen = [];
       quarters = 0;
       solved = false;
@@ -214,8 +215,8 @@ export const recipePage: Page = (ctx) => {
           mood: solved ? recipe.dish.emoji : undefined,
           name: chef.name.es,
           englishName: chef.name.en,
-          text: recipeSpeech(recipe, 'es'),
-          englishText: recipeSpeech(recipe, 'en'),
+          text: recipeSpeech(recipe, 'es', index),
+          englishText: recipeSpeech(recipe, 'en', index),
         }),
         h('div', { class: 'cols cols--map' },
           h('div', { class: 'jug-stage' },
