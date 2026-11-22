@@ -33,6 +33,7 @@ describe('reward emoji English labels', () => {
       ['garden', FLOWERS],
     ];
     for (const [shelf, emojis] of cases) {
+      expect(new Set(emojis).size, `${shelf} duplicate reward emoji`).toBe(emojis.length);
       for (const emoji of emojis) {
         const label = rewardEmojiEnglish(shelf, emoji);
         expect(label, `${shelf}:${emoji}`).toBeTruthy();

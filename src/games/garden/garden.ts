@@ -1,6 +1,6 @@
 import { diagnosePatternMistake } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
-import { mulberry32 } from '../../shared/rng';
+import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
@@ -19,6 +19,7 @@ const STAGES = ['🌱', '🌿', '🌷', '🌻'] as const;
 export const gardenPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x369dea0f) >>> 0);
   const director = createGameDirector(rng);
+  const roundFlowers = shuffle(rng, FLOWERS).slice(0, GARDEN_LENGTH);
   let index = 0;
   let puzzle: PatternPuzzle = generatePattern(rng, index);
   let triedWrong = new Map<number, string>();
@@ -33,7 +34,7 @@ export const gardenPage: Page = (ctx) => {
     if (solved || closed || triedWrong.has(value)) return;
     if (isPatternSolved(puzzle, value)) {
       solved = true;
-      const bloom = FLOWERS[index % FLOWERS.length];
+      const bloom = roundFlowers[index % roundFlowers.length];
       flowers.push(bloom);
       updateProgress((p) => {
         p.garden.planted += 1;
@@ -123,7 +124,7 @@ export const gardenPage: Page = (ctx) => {
           });
         }
         const shown = value === null ? puzzle.answer : value;
-        const icon = solved ? FLOWERS[index % FLOWERS.length] : STAGES[Math.min(i, STAGES.length - 1)];
+        const icon = solved ? roundFlowers[index % roundFlowers.length] : STAGES[Math.min(i, STAGES.length - 1)];
         return SpeakButton([h('span', { 'aria-hidden': 'true' }, icon), h('strong', {}, String(shown))], {
           english: String(shown),
           className: `flower-pot ${value === null && solved ? 'flower-pot--bloomed' : ''}`.trim(),
@@ -134,7 +135,7 @@ export const gardenPage: Page = (ctx) => {
       append(wrap, [
         CharacterBubble({
           emoji: '🐝',
-          mood: solved ? FLOWERS[index % FLOWERS.length] : undefined,
+          mood: solved ? roundFlowers[index % roundFlowers.length] : undefined,
           name: 'Abeja Maya',
           englishName: 'Maya the bee',
           text: puzzle.instruction.es,

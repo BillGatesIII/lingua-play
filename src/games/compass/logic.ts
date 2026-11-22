@@ -33,6 +33,11 @@ export const LANDMARKS: readonly Landmark[] = [
   { emoji: '🌴', es: 'palmera', en: 'palm tree', gender: 'f' },
   { emoji: '🗼', es: 'faro', en: 'lighthouse', gender: 'm' },
   { emoji: '⛺', es: 'campamento', en: 'camp', gender: 'm' },
+  { emoji: '🌋', es: 'volcán', en: 'volcano', gender: 'm' },
+  { emoji: '🏰', es: 'fortaleza', en: 'old fort', gender: 'f' },
+  { emoji: '🗿', es: 'estatua', en: 'stone statue', gender: 'f' },
+  { emoji: '🛖', es: 'cabaña', en: 'wooden hut', gender: 'f' },
+  { emoji: '🏔️', es: 'montaña', en: 'mountain peak', gender: 'f' },
 ];
 
 export interface Leg {
@@ -56,19 +61,34 @@ export interface Level {
   budget: number;
 }
 
-export const TREASURES = ['💎', '👑', '🏺', '🗝️', '💰'] as const;
+export const TREASURES = ['💎', '👑', '🏺', '🗝️', '💰', '🔮', '🏆', '💍', '📜', '📿'] as const;
 export const TREASURE_NAMES: Record<(typeof TREASURES)[number], string> = {
   '💎': 'diamond',
   '👑': 'crown',
   '🏺': 'treasure vase',
   '🗝️': 'golden key',
   '💰': 'bag of gold',
+  '🔮': 'crystal ball',
+  '🏆': 'golden goblet',
+  '💍': 'ruby ring',
+  '📜': 'ancient scroll',
+  '📿': 'pearl necklace',
 };
 export const JUNK: readonly { emoji: string; es: string; en: string }[] = [
   { emoji: '🥾', es: 'una bota vieja', en: 'an old boot' },
   { emoji: '🦀', es: 'un cangrejo gruñón', en: 'a grumpy crab' },
   { emoji: '🦆', es: 'un patito de goma', en: 'a rubber duck' },
   { emoji: '🧦', es: 'un calcetín mojado', en: 'a soggy sock' },
+  { emoji: '🪣', es: 'un cubo con agujeros', en: 'a leaky bucket' },
+  { emoji: '🐚', es: 'una caracola gigante', en: 'a giant seashell' },
+  { emoji: '🥥', es: 'un coco con gafas', en: 'a coconut in glasses' },
+  { emoji: '🍾', es: 'una botella vacía', en: 'an empty bottle' },
+  { emoji: '🥄', es: 'una cuchara de madera', en: 'a wooden spoon' },
+  { emoji: '⭐', es: 'una estrella de mar dormilona', en: 'a sleepy starfish' },
+  { emoji: '🥫', es: 'una lata oxidada', en: 'a rusty tin can' },
+  { emoji: '👒', es: 'un sombrero de paja', en: 'a straw sunhat' },
+  { emoji: '🫖', es: 'una tetera pirata', en: 'a pirate teapot' },
+  { emoji: '🎸', es: 'un ukelele mojado', en: 'a soggy ukulele' },
 ];
 export const VOYAGE_LENGTH = 5;
 

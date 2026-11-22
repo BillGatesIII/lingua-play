@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
-import { generateCase, matchesPredicate, predicateText, wrongAccusationAlibi } from './logic';
+import {
+  ANIMALS, MYSTERIES, generateCase, matchesPredicate, predicateText, wrongAccusationAlibi,
+} from './logic';
 
 describe('detective logic', () => {
   it('always generates cases with a single unique culprit matching all clues', () => {
@@ -25,5 +27,7 @@ describe('detective logic', () => {
     const alibi = wrongAccusationAlibi(c.suspects[0], mulberry32(3));
     expect(alibi.es).toContain(c.suspects[0].name);
     expect(alibi.en).toContain(c.suspects[0].name);
+    expect(MYSTERIES.length).toBeGreaterThanOrEqual(15);
+    expect(ANIMALS.length).toBeGreaterThanOrEqual(14);
   });
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
-import { PRODUCTS, basketMatches, billFor, checkChange, generateOrder, orderSpeech, orderTotal } from './logic';
+import {
+  CUSTOMERS, PRODUCTS, basketMatches, billFor, checkChange, generateOrder, orderSpeech, orderTotal, paySpeech,
+} from './logic';
 
 describe('market logic', () => {
   it('always needs change and the numbers add up', () => {
@@ -53,9 +55,18 @@ describe('market logic', () => {
     expect(checkChange(o, [o.change - 1])).toBe('too-little');
   });
 
-  it('speaks in both languages', () => {
+  it('speaks in both languages and applies every customer personality frame cleanly', () => {
     const o = generateOrder(mulberry32(7), 0);
     expect(orderSpeech(o, 'es')).toContain('Quiero');
     expect(orderSpeech(o, 'en')).toContain('would like');
+    for (const c of CUSTOMERS) {
+      const es = orderSpeech(o, 'es', c);
+      const en = orderSpeech(o, 'en', c);
+      expect(es).not.toContain('{list}');
+      expect(en).not.toContain('{list}');
+      expect(es).toContain(c.greeting.es);
+      expect(en).toContain(c.greeting.en);
+    }
+    expect(paySpeech(o, 'en', 1)).not.toBe(paySpeech(o, 'en', 0));
   });
 });

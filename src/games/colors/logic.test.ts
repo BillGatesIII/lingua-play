@@ -59,6 +59,8 @@ describe('colors logic', () => {
     expect(clueText('green', 'es')).toBe('Pinta el camaleón de verde.');
     expect(clueText('lightblue', 'en')).toBe('Paint the chameleon light blue.');
     expect(playfulClue('green', 1, 'en')).toContain('frog');
+    expect(playfulClue('green', 1, 'en', 1)).not.toBe(playfulClue('green', 1, 'en', 0));
+    expect(playfulClue('green', 0, 'en', 0, true)).toContain('frog');
     expect(COLORS.orange.name).toEqual({ es: 'naranja', en: 'orange' });
     expect(recipePotCount('red')).toBe(1);
     expect(recipePotCount('purple')).toBe(2);

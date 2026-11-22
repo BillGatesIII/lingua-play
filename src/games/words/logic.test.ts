@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
-import { generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount } from './logic';
+import { WORDS, generateWordPuzzle, isWordSolved, selectedWord, wordLetterCount } from './logic';
 
 describe('word puzzle logic', () => {
   it('creates usable letter tiles across all steps and languages', () => {
@@ -24,5 +24,16 @@ describe('word puzzle logic', () => {
     expect(selectedWord(puzzle, correctIds)).toBe(answer);
     expect(isWordSolved(puzzle, correctIds, 'es')).toBe(true);
     expect(isWordSolved(puzzle, correctIds.slice(1), 'es')).toBe(false);
+  });
+
+  it('has a rich pack of keyboard-typeable Spanish words with unique emojis', () => {
+    expect(WORDS.length).toBeGreaterThanOrEqual(45);
+    expect(new Set(WORDS.map((w) => w.emoji)).size).toBe(WORDS.length);
+    for (const w of WORDS) {
+      expect(w.answer.es).toMatch(/^[a-z]+$/);
+      expect(w.answer.en.length).toBeGreaterThan(1);
+      expect(w.clue.es.length).toBeGreaterThan(5);
+      expect(w.clue.en.length).toBeGreaterThan(5);
+    }
   });
 });

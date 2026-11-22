@@ -11,16 +11,17 @@ import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
-  TRAINS_PER_ROUND, TRAVELLERS, checkClock, generateTrain, sameTime, stepClock, timeText,
-  trainSpeech, type ClockTime, type TrainChallenge,
+  DESTINATIONS, TRAINS_PER_ROUND, TRAVELLERS, checkClock, generateTrain, sameTime, stepClock,
+  timeText, trainSpeech, type ClockTime, type TrainChallenge,
 } from './logic';
 
 export const stationPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x94d049bb) >>> 0);
   const director = createGameDirector(rng);
   const travellers = shuffle(rng, TRAVELLERS);
+  const shiftDestinations = shuffle(rng, DESTINATIONS).slice(0, TRAINS_PER_ROUND);
   let index = 0;
-  let challenge: TrainChallenge = generateTrain(rng, index);
+  let challenge: TrainChallenge = generateTrain(rng, index, shiftDestinations[index]);
   let clock: ClockTime = pickStartClock(challenge);
   let solved = false;
   let closed = false;
@@ -56,7 +57,7 @@ export const stationPage: Page = (ctx) => {
 
   function dispatch(anchor?: HTMLElement) {
     if (solved || closed) return;
-    const err = checkClock(challenge.target, clock);
+    const err = checkClock(challenge.target, clock, rng);
     if (err) {
       playSfx('oops');
       const early = err.en.includes('early');
@@ -100,7 +101,7 @@ export const stationPage: Page = (ctx) => {
         'Marvellous timing! See you next shift!',
       ]), { mode: 'event' });
     } else {
-      challenge = generateTrain(rng, index);
+      challenge = generateTrain(rng, index, shiftDestinations[index]);
       clock = pickStartClock(challenge);
       solved = false;
       playSfx('step');
@@ -218,8 +219,8 @@ export const stationPage: Page = (ctx) => {
           mood: solved ? '🎫' : undefined,
           name: traveller.name.es,
           englishName: traveller.name.en,
-          text: trainSpeech(challenge, 'es'),
-          englishText: trainSpeech(challenge, 'en'),
+          text: trainSpeech(challenge, 'es', index),
+          englishText: trainSpeech(challenge, 'en', index),
           extra: ticket,
         }),
         h('div', { class: 'cols cols--map' },

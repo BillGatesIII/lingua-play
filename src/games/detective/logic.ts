@@ -15,14 +15,23 @@ export const ANIMALS: readonly AnimalInfo[] = [
   { emoji: '🐸', name: { es: 'rana', en: 'frog' }, habitat: 'water' },
   { emoji: '🐙', name: { es: 'pulpo', en: 'octopus' }, habitat: 'water' },
   { emoji: '🐧', name: { es: 'pingüino', en: 'penguin' }, habitat: 'water' },
+  { emoji: '🐬', name: { es: 'delfín', en: 'dolphin' }, habitat: 'water' },
+  { emoji: '🐳', name: { es: 'ballena', en: 'whale' }, habitat: 'water' },
+  { emoji: '🐢', name: { es: 'tortuga', en: 'turtle' }, habitat: 'water' },
   { emoji: '🦊', name: { es: 'zorro', en: 'fox' }, habitat: 'land' },
   { emoji: '🦉', name: { es: 'búho', en: 'owl' }, habitat: 'land' },
   { emoji: '🐻', name: { es: 'oso', en: 'bear' }, habitat: 'land' },
   { emoji: '🦁', name: { es: 'león', en: 'lion' }, habitat: 'land' },
   { emoji: '🐰', name: { es: 'conejo', en: 'rabbit' }, habitat: 'land' },
+  { emoji: '🐼', name: { es: 'panda', en: 'panda' }, habitat: 'land' },
+  { emoji: '🐨', name: { es: 'koala', en: 'koala' }, habitat: 'land' },
+  { emoji: '🐘', name: { es: 'elefante', en: 'elephant' }, habitat: 'land' },
 ];
 
-export const SUSPECT_NAMES = ['Coco', 'Milo', 'Nora', 'Toby', 'Lula', 'Paco', 'Kiko', 'Vera'] as const;
+export const SUSPECT_NAMES = [
+  'Coco', 'Milo', 'Nora', 'Toby', 'Lula', 'Paco', 'Kiko', 'Vera',
+  'Bruno', 'Maya', 'Leo', 'Alma', 'Félix', 'Sofía', 'Gala', 'Hugo',
+] as const;
 
 export const HATS: Record<HatKind, { emoji: string; name: Bi }> = {
   cap: { emoji: '🧢', name: { es: 'gorra', en: 'a cap' } },
@@ -42,6 +51,16 @@ export const MYSTERIES: readonly { emoji: string; name: string; prompt: Bi }[] =
   { emoji: '🔑', name: 'secret key', prompt: { es: '¿Quién tiene la llave secreta?', en: 'Who has the secret key?' } },
   { emoji: '🎸', name: 'guitar', prompt: { es: '¿Quién tocó la guitarra de noche?', en: 'Who played the guitar at night?' } },
   { emoji: '👑', name: 'royal crown', prompt: { es: '¿Quién probó la corona real?', en: 'Who tried on the royal crown?' } },
+  { emoji: '🎂', name: 'birthday cake', prompt: { es: '¿Quién dio un mordisco a la tarta?', en: 'Who took a bite of the birthday cake?' } },
+  { emoji: '🗺️', name: 'treasure map', prompt: { es: '¿Quién tomó prestado el mapa secreto?', en: 'Who borrowed the secret map?' } },
+  { emoji: '🎩', name: 'magic hat', prompt: { es: '¿Quién sacó un conejo del sombrero mágico?', en: 'Who pulled a rabbit from the magic hat?' } },
+  { emoji: '💎', name: 'sparkling diamond', prompt: { es: '¿Quién cambió el diamante por un caramelo?', en: 'Who swapped the diamond for a sweet?' } },
+  { emoji: '🎺', name: 'golden trumpet', prompt: { es: '¿Quién despertó al barrio con la trompeta?', en: 'Who woke the street with the trumpet?' } },
+  { emoji: '🎨', name: 'paint palette', prompt: { es: '¿Quién pintó lunares en el buzón?', en: 'Who painted polka dots on the postbox?' } },
+  { emoji: '🛸', name: 'toy spaceship', prompt: { es: '¿Quién voló la nave espacial de juguete?', en: 'Who flew the toy spaceship?' } },
+  { emoji: '📚', name: 'mystery book', prompt: { es: '¿Quién escondió el último capítulo del libro?', en: 'Who hid the final chapter of the book?' } },
+  { emoji: '🧸', name: 'teddy bear', prompt: { es: '¿Quién llevó al osito de paseo en patinete?', en: 'Who took the teddy bear for a scooter ride?' } },
+  { emoji: '🔔', name: 'station bell', prompt: { es: '¿Quién tocó la campana de la estación?', en: 'Who rang the station bell?' } },
 ];
 
 export const CASES_PER_ROUND = 5;
@@ -132,9 +151,13 @@ function findUniqueClues(suspects: Suspect[], culprit: Suspect, rng: Rng, index:
 }
 
 /** Generates a case with 4 suspects (rounds 0-1) or 6 suspects (rounds 2-4) and a unique culprit. */
-export function generateCase(rng: Rng, index: number): CaseFile {
+export function generateCase(
+  rng: Rng,
+  index: number,
+  mysteryOverride?: (typeof MYSTERIES)[number],
+): CaseFile {
   const count = index < 2 ? 4 : 6;
-  const mystery = MYSTERIES[index % MYSTERIES.length];
+  const mystery = mysteryOverride ?? MYSTERIES[index % MYSTERIES.length];
 
   for (let attempt = 0; attempt < 200; attempt++) {
     const animals = shuffle(rng, ANIMALS).slice(0, count);
@@ -206,8 +229,43 @@ export function caseBriefing(c: CaseFile, lang: Lang): string {
   return `${c.mystery.prompt[lang]} ${lang === 'es' ? 'Pistas:' : 'Clues:'} ${clues}.`;
 }
 
+const ANIMAL_ALIBIS: Record<string, (name: string) => Bi> = {
+  octopus: (name) => ({
+    es: `🧦 ${name} dice: «¡Imposible! Estaba doblando ocho calcetines a la vez».`,
+    en: `🧦 ${name} says: "Impossible! I was folding eight socks at once."`,
+  }),
+  owl: (name) => ({
+    es: `📚 ${name} dice: «¡Yo no fui! Estaba leyendo un libro en mi rama».`,
+    en: `📚 ${name} says: "It was not me! I was reading a book on my branch."`,
+  }),
+  frog: (name) => ({
+    es: `🪷 ${name} dice: «¡Inocente! Estaba practicando saltos en el estanque».`,
+    en: `🪷 ${name} says: "Innocent! I was practising leaps at the pond."`,
+  }),
+  penguin: (name) => ({
+    es: `🧊 ${name} dice: «¡Qué va! Estaba patinando sobre un cubo de hielo».`,
+    en: `🧊 ${name} says: "No way! I was skating on an ice cube."`,
+  }),
+  bear: (name) => ({
+    es: `🍯 ${name} dice: «¡Yo dormía la siesta en mi hamaca!».`,
+    en: `🍯 ${name} says: "I was having a snooze in my hammock!"`,
+  }),
+  turtle: (name) => ({
+    es: `🏁 ${name} dice: «¡Imposible! Estaba en una carrera con un caracol».`,
+    en: `🏁 ${name} says: "Impossible! I was racing a snail."`,
+  }),
+  dolphin: (name) => ({
+    es: `🫧 ${name} dice: «¡Yo no fui! Estaba haciendo aros de burbujas en el mar».`,
+    en: `🫧 ${name} says: "Not me! I was blowing bubble rings in the sea."`,
+  }),
+  elephant: (name) => ({
+    es: `🚿 ${name} dice: «¡Inocente! Estaba regando las flores con mi trompa».`,
+    en: `🚿 ${name} says: "Innocent! I was watering the flowers with my trunk."`,
+  }),
+};
+
 export function wrongAccusationAlibi(suspect: Suspect, rng: Rng): Bi {
-  return pick(rng, [
+  const generic: Bi[] = [
     {
       es: `🙈 ${suspect.name} dice: «¡Yo no fui! Estaba regando mi cactus 🌵».`,
       en: `🙈 ${suspect.name} says: "It wasn't me! I was watering my cactus 🌵."`,
@@ -220,5 +278,30 @@ export function wrongAccusationAlibi(suspect: Suspect, rng: Rng): Bi {
       es: `🎶 ${suspect.name} dice: «¡Imposible! Estaba cantando en la ducha».`,
       en: `🎶 ${suspect.name} says: "Impossible! I was singing in the shower."`,
     },
-  ]);
+    {
+      es: `🧩 ${suspect.name} dice: «¡De verdad que no! Estaba haciendo un puzle de mil piezas».`,
+      en: `🧩 ${suspect.name} says: "Honestly, not me! I was doing a thousand-piece jigsaw."`,
+    },
+    {
+      es: `🫖 ${suspect.name} dice: «¡Inocente! Estaba tomando una taza de té».`,
+      en: `🫖 ${suspect.name} says: "Innocent! I was having a nice cup of tea."`,
+    },
+    {
+      es: `🪁 ${suspect.name} dice: «¡No pude ser yo! Estaba volando una cometa en el parque».`,
+      en: `🪁 ${suspect.name} says: "Couldn't be me! I was flying a kite in the park."`,
+    },
+    {
+      es: `🚲 ${suspect.name} dice: «¡Falsa alarma! Estaba hinchando las ruedas de mi bici».`,
+      en: `🚲 ${suspect.name} says: "False alarm! I was pumping up my bicycle tyres."`,
+    },
+    {
+      es: `🍿 ${suspect.name} dice: «¡Qué risa! Yo estaba haciendo palomitas».`,
+      en: `🍿 ${suspect.name} says: "How funny! I was making popcorn."`,
+    },
+  ];
+  const animalSpecial = ANIMAL_ALIBIS[suspect.animal.name.en];
+  if (animalSpecial && rng() < 0.45) {
+    return animalSpecial(suspect.name);
+  }
+  return pick(rng, generic);
 }

@@ -43,15 +43,83 @@ export interface Customer {
   emoji: string;
   name: Bi;
   greeting: Bi;
+  /** Optional personality-flavoured order template (`{list}` is replaced by the requested goods). */
+  orderFrame?: Bi;
 }
 
 export const CUSTOMERS: readonly Customer[] = [
-  { emoji: '👵', name: { es: 'la abuela Rosa', en: 'Grandma Rosa' }, greeting: { es: '¡Hola, cielo!', en: 'Hello, dear!' } },
-  { emoji: '🧑‍🍳', name: { es: 'el chef Paco', en: 'Chef Paco' }, greeting: { es: '¡A cocinar!', en: "Let's cook!" } },
-  { emoji: '🧒', name: { es: 'Lucía', en: 'Lucía' }, greeting: { es: '¡Buenas!', en: 'Hi there!' } },
-  { emoji: '🧙', name: { es: 'el mago Merlín', en: 'Merlin the wizard' }, greeting: { es: '¡Abracadabra!', en: 'Abracadabra!' } },
-  { emoji: '🐲', name: { es: 'el dragón Dino', en: 'Dino the dragon' }, greeting: { es: '¡Grrr-hola!', en: 'Grrr-hello!' } },
-  { emoji: '🧑‍🚀', name: { es: 'la astronauta Ana', en: 'Ana the astronaut' }, greeting: { es: '¡Saludos desde la Luna!', en: 'Greetings from the Moon!' } },
+  {
+    emoji: '👵',
+    name: { es: 'la abuela Rosa', en: 'Grandma Rosa' },
+    greeting: { es: '¡Hola, cielo!', en: 'Hello, dear!' },
+    orderFrame: { es: '¿Me pones {list}, por favor?', en: 'Could I have {list}, please?' },
+  },
+  {
+    emoji: '🧑‍🍳',
+    name: { es: 'el chef Paco', en: 'Chef Paco' },
+    greeting: { es: '¡A cocinar!', en: "Let's cook!" },
+    orderFrame: { es: 'Para mi receta necesito {list}, por favor.', en: 'For my recipe I need {list}, please.' },
+  },
+  {
+    emoji: '🧒',
+    name: { es: 'Lucía', en: 'Lucía' },
+    greeting: { es: '¡Buenas!', en: 'Hi there!' },
+    orderFrame: { es: 'Quiero llevarme {list}, por favor.', en: 'I would like to take {list}, please.' },
+  },
+  {
+    emoji: '🧙',
+    name: { es: 'el mago Merlín', en: 'Merlin the wizard' },
+    greeting: { es: '¡Abracadabra!', en: 'Abracadabra!' },
+    orderFrame: { es: 'Para mi poción necesito {list}, por favor.', en: 'For my potion I need {list}, please.' },
+  },
+  {
+    emoji: '🐲',
+    name: { es: 'el dragón Dino', en: 'Dino the dragon' },
+    greeting: { es: '¡Grrr-hola!', en: 'Grrr-hello!' },
+    orderFrame: { es: '¡Tengo hambre de dragón! Quiero {list}.', en: 'I have a dragon appetite! I would like {list}.' },
+  },
+  {
+    emoji: '🧑‍🚀',
+    name: { es: 'la astronauta Ana', en: 'Ana the astronaut' },
+    greeting: { es: '¡Saludos desde la Luna!', en: 'Greetings from the Moon!' },
+    orderFrame: { es: 'Para mi cohete necesito {list}, por favor.', en: 'For my rocket I need {list}, please.' },
+  },
+  {
+    emoji: '🏴‍☠️',
+    name: { es: 'el capitán Barba', en: 'Captain Barba' },
+    greeting: { es: '¡Ahoy, grumete!', en: 'Ahoy, matey!' },
+    orderFrame: { es: 'Para el barco pirata quiero {list}, por favor.', en: 'For the pirate ship I need {list}, please.' },
+  },
+  {
+    emoji: '🤖',
+    name: { es: 'el robot BEEP', en: 'BEEP the robot' },
+    greeting: { es: '¡Bip-bop, hola!', en: 'Beep-boop, hello!' },
+    orderFrame: { es: 'Calculando compra: necesito {list}.', en: 'Calculating shopping: I need {list}.' },
+  },
+  {
+    emoji: '🎸',
+    name: { es: 'la música Vera', en: 'Vera the musician' },
+    greeting: { es: '¡Do, re, mi, hola!', en: 'Do, re, mi, hello!' },
+    orderFrame: { es: 'Antes del concierto quiero {list}, por favor.', en: 'Before the concert I would like {list}, please.' },
+  },
+  {
+    emoji: '🧑‍🌾',
+    name: { es: 'el jardinero Mateo', en: 'Mateo the gardener' },
+    greeting: { es: '¡Buenos días!', en: 'Good morning!' },
+    orderFrame: { es: 'Para el pícnic me llevo {list}, por favor.', en: 'For the picnic I will take {list}, please.' },
+  },
+  {
+    emoji: '🦸',
+    name: { es: 'Súper Clara', en: 'Super Clara' },
+    greeting: { es: '¡Al rescate del almuerzo!', en: 'To the lunch rescue!' },
+    orderFrame: { es: '¡Rápido! Necesito {list}, por favor.', en: 'Quick! I need {list}, please.' },
+  },
+  {
+    emoji: '🐱',
+    name: { es: 'la gata Mishi', en: 'Mishi the cat' },
+    greeting: { es: '¡Miau, hola!', en: 'Meow, hello!' },
+    orderFrame: { es: 'Me apetecen {list}, por favor.', en: 'I fancy {list}, please.' },
+  },
 ];
 
 export const CUSTOMERS_PER_DAY = 5;
@@ -109,18 +177,36 @@ export function lineText(line: OrderLine, lang: Lang): string {
 export function orderSpeech(order: Order, lang: Lang, customer?: Customer): string {
   const list = joinList(order.lines.map((l) => lineText(l, lang)), lang);
   const greet = customer ? `${customer.greeting[lang]} ` : lang === 'es' ? '¡Hola! ' : 'Hello! ';
+  if (customer?.orderFrame) {
+    return `${greet}${customer.orderFrame[lang].replace('{list}', list)}`;
+  }
   return lang === 'es' ? `${greet}Quiero ${list}, por favor.` : `${greet}I would like ${list}, please.`;
 }
 
-export function paySpeech(order: Order, lang: Lang): string {
+export function paySpeech(order: Order, lang: Lang, variant = 0): string {
   if (order.discount > 0) {
-    return lang === 'es'
-      ? `Tengo un cupón de ${order.discount} monedas. Aquí tienes ${order.paid} monedas.`
-      : `I have a ${order.discount}-coin coupon. Here you go, ${order.paid} coins.`;
+    const withCoupon: readonly Bi[] = [
+      {
+        es: `Tengo un cupón de ${order.discount} monedas. Aquí tienes ${order.paid} monedas.`,
+        en: `I have a ${order.discount}-coin coupon. Here you go, ${order.paid} coins.`,
+      },
+      {
+        es: `¡Mira, un cupón de ${order.discount} monedas! Te pago con ${order.paid} monedas.`,
+        en: `Look, a ${order.discount}-coin coupon! I will pay with ${order.paid} coins.`,
+      },
+      {
+        es: `Uso mi cupón de ${order.discount} monedas y te doy ${order.paid} monedas.`,
+        en: `I am using my ${order.discount}-coin coupon and here are ${order.paid} coins.`,
+      },
+    ];
+    return withCoupon[variant % withCoupon.length][lang];
   }
-  return lang === 'es'
-    ? `Aquí tienes ${order.paid} monedas.`
-    : `Here you go, ${order.paid} coins.`;
+  const plain: readonly Bi[] = [
+    { es: `Aquí tienes ${order.paid} monedas.`, en: `Here you go, ${order.paid} coins.` },
+    { es: `Te pago con ${order.paid} monedas.`, en: `Here are ${order.paid} coins for you.` },
+    { es: `Toma ${order.paid} monedas, por favor.`, en: `Take ${order.paid} coins, please.` },
+  ];
+  return plain[variant % plain.length][lang];
 }
 
 export type Basket = Record<string, number>;
@@ -138,25 +224,46 @@ export function basketMistake(order: Order, basket: Basket, rng: Rng): Bi {
   const extra = Object.keys(basket).find((id) => basket[id] > 0 && !wanted.has(id));
   if (extra) {
     const p = byId.get(extra)!;
-    return {
-      es: `¡Ups! ${p.emoji} Nadie pidió ${p.es.many}. ¡Ahora el cliente se ríe a carcajadas!`,
-      en: `Oops! ${p.emoji} Nobody asked for ${p.en.many}. Now the customer is laughing out loud!`,
-    };
+    return pick(rng, [
+      {
+        es: `¡Ups! ${p.emoji} Nadie pidió ${p.es.many}. ¡Ahora el cliente se ríe a carcajadas!`,
+        en: `Oops! ${p.emoji} Nobody asked for ${p.en.many}. Now the customer is laughing out loud!`,
+      },
+      {
+        es: `${p.emoji} ¡Sorpresa! Se colaron ${p.es.many} en la bolsa sin permiso.`,
+        en: `${p.emoji} Surprise! Some ${p.en.many} sneaked into the bag!`,
+      },
+      {
+        es: `😄 ${p.emoji} «¿${p.es.many}? ¡Qué broma!», dice el cliente.`,
+        en: `😄 ${p.emoji} "${p.en.many}? What a funny surprise!" laughs the customer.`,
+      },
+    ]);
   }
   for (const [id, qty] of wanted) {
     const have = basket[id] ?? 0;
     const p = byId.get(id)!;
     if (have > qty) {
       return pick(rng, [
-        { es: `¡Cuántos ${p.es.many}! ${p.emoji.repeat(Math.min(have, 8))} ¡Se los pone de sombrero!`, en: `So many ${p.en.many}! ${p.emoji.repeat(Math.min(have, 8))} They're wearing them as a hat!` },
-        { es: `${p.emoji} ¡Qué montón de ${p.es.many}! No caben en la bolsa.`, en: `${p.emoji} What a pile of ${p.en.many}! They don't fit in the bag.` },
+        { es: `¡Cuántos ${p.es.many}! ${p.emoji.repeat(Math.min(have, 8))} ¡Se los pone de sombrero!`, en: `So many ${p.en.many}! ${p.emoji.repeat(Math.min(have, 8))} They are wearing them as a hat!` },
+        { es: `${p.emoji} ¡Qué montón de ${p.es.many}! No caben en la bolsa.`, en: `${p.emoji} What a pile of ${p.en.many}! They do not fit in the bag.` },
+        { es: `${p.emoji} ¡La bolsa va a explotar con tantos ${p.es.many}!`, en: `${p.emoji} The bag is bursting with so many ${p.en.many}!` },
       ]);
     }
     if (have < qty) {
-      return {
-        es: `${p.emoji} Mmm… el cliente cuenta y cuenta… ¡Falta algo en la bolsa!`,
-        en: `${p.emoji} Hmm… the customer counts and counts… something is missing from the bag!`,
-      };
+      return pick(rng, [
+        {
+          es: `${p.emoji} Mmm… el cliente cuenta y cuenta… ¡Falta algo en la bolsa!`,
+          en: `${p.emoji} Hmm… the customer counts and counts… something is missing from the bag!`,
+        },
+        {
+          es: `${p.emoji} ¡Uy! La bolsa pesa muy poco todavía. ¡Revisa el pedido!`,
+          en: `${p.emoji} Whoops! The bag feels a bit too light. Check the order!`,
+        },
+        {
+          es: `${p.emoji} El cliente asoma la cabeza en la bolsa… ¡faltan cosas!`,
+          en: `${p.emoji} The customer peeks inside the bag… something is still missing!`,
+        },
+      ]);
     }
   }
   return { es: '¡Casi!', en: 'Almost!' };
@@ -170,8 +277,17 @@ export const checkChange = (order: Order, coins: readonly number[]): ChangeResul
   return given === order.change ? 'exact' : given > order.change ? 'too-much' : 'too-little';
 };
 
-export function changeFeedback(result: Exclude<ChangeResult, 'exact'>): Bi {
-  return result === 'too-much'
-    ? { es: '¡Qué generoso! 🤑 Pero la tienda se queda sin monedas. Devuelve alguna.', en: "How generous! 🤑 But the shop is running out of coins. Take some back." }
-    : { es: '💰 El cliente sacude la bolsa… ¡suenan pocas monedas! Faltan algunas.', en: '💰 The customer shakes the pouch… it barely jingles! Some coins are missing.' };
+export function changeFeedback(result: Exclude<ChangeResult, 'exact'>, rng?: Rng): Bi {
+  const tooMuch: readonly Bi[] = [
+    { es: '¡Qué generoso! 🤑 Pero la tienda se queda sin monedas. Devuelve alguna.', en: 'How generous! 🤑 But the shop is running out of coins. Take some back.' },
+    { es: '💰 ¡Tantas monedas! El cliente casi necesita una carretilla. Quita alguna.', en: '💰 So many coins! The customer nearly needs a wheelbarrow. Take some back.' },
+    { es: '😄 ¡Demasiado cambio! A este paso regalaremos el puesto entero.', en: '😄 Too much change! At this rate we will give away the whole stall.' },
+  ];
+  const tooLittle: readonly Bi[] = [
+    { es: '💰 El cliente sacude la bolsa… ¡suenan pocas monedas! Faltan algunas.', en: '💰 The customer shakes the pouch… it barely jingles! Some coins are missing.' },
+    { es: '🪙 ¡Casi! El cliente espera unas moneditas más de cambio.', en: '🪙 Almost! The customer is waiting for a few more coins.' },
+    { es: '🧐 El cliente cuenta con los dedos… ¡todavía falta un poco de cambio!', en: '🧐 The customer counts on their fingers… a bit more change is needed!' },
+  ];
+  const pool = result === 'too-much' ? tooMuch : tooLittle;
+  return rng ? pick(rng, pool) : pool[0];
 }
