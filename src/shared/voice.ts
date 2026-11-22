@@ -24,7 +24,7 @@ let lastPriorityAt = 0;
 let currentUtteranceId = 0;
 let activePriorityUtteranceId: number | null = null;
 let cachedVoices: SpeechSynthesisVoice[] = [];
-let voicesHooked = false;
+let hookedSynth: SpeechSynthesis | null = null;
 
 /** Removes emojis and extra whitespace so TTS reads natural English words cleanly. */
 export function cleanSpeechText(text: string): string {
@@ -36,18 +36,20 @@ export function cleanSpeechText(text: string): string {
 
 function loadVoices(): SpeechSynthesisVoice[] {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
-  if (!voicesHooked) {
-    voicesHooked = true;
+  const synth = window.speechSynthesis;
+  if (hookedSynth !== synth) {
+    hookedSynth = synth;
+    cachedVoices = [];
     try {
-      window.speechSynthesis.addEventListener?.('voiceschanged', () => {
-        cachedVoices = window.speechSynthesis.getVoices();
+      synth.addEventListener?.('voiceschanged', () => {
+        cachedVoices = synth.getVoices();
       });
     } catch {
       /* ignore */
     }
   }
   try {
-    const list = window.speechSynthesis.getVoices();
+    const list = synth.getVoices();
     if (list.length) cachedVoices = list;
   } catch {
     /* ignore */
@@ -55,14 +57,32 @@ function loadVoices(): SpeechSynthesisVoice[] {
   return cachedVoices;
 }
 
+/** Triggers asynchronous browser voice loading early so British voices are ready on first tap. */
+export function preloadVoices(): void {
+  loadVoices();
+}
+
+const isBritish = (v: SpeechSynthesisVoice): boolean => /^en[-_]GB\b/i.test(v.lang);
+const isAmerican = (v: SpeechSynthesisVoice): boolean => /^en[-_]US\b/i.test(v.lang);
+
 export function pickEnglishVoice(voices: readonly SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const english = voices.filter((v) => /^en([-_]|$)/i.test(v.lang));
   if (!english.length) return null;
+
+  const british = english.filter(isBritish);
+  if (british.length) {
+    return (
+      british.find((v) => /natural|neural|enhanced|premium/i.test(v.name))
+      ?? british.find((v) => /google uk|libby|sonia|maisie|ryan|daniel|serena|kate|martha|arthur|oliver|stephanie/i.test(v.name))
+      ?? british.find((v) => v.localService)
+      ?? british[0]
+    );
+  }
+
   return (
-    english.find((v) => /natural|neural|google us|samantha|daniel|aria|jenny|libby|karen/i.test(v.name))
-    ?? english.find((v) => v.lang === 'en-US' && v.localService)
-    ?? english.find((v) => v.lang.startsWith('en-US'))
-    ?? english.find((v) => v.lang.startsWith('en-GB'))
+    english.find((v) => /natural|neural|enhanced|premium|google us|samantha|aria|jenny|karen/i.test(v.name))
+    ?? english.find((v) => isAmerican(v) && v.localService)
+    ?? english.find(isAmerican)
     ?? english[0]
   );
 }
@@ -228,7 +248,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
       utterance.voice = voice;
       utterance.lang = voice.lang;
     } else {
-      utterance.lang = 'en-US';
+      utterance.lang = 'en-GB';
     }
     utterance.rate = 0.92;
     utterance.pitch = 1.05;

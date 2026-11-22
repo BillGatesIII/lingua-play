@@ -23,17 +23,38 @@ describe('voice & speech bubble', () => {
     expect(cleanSpeechText('Treasure! 💎 You found it!')).toBe('Treasure! You found it!');
   });
 
-  it('picks a preferred English voice when available', () => {
+  it('prefers British English voices over American English voices', () => {
     const voices = [
       { lang: 'es-ES', name: 'Monica', localService: true },
-      { lang: 'en-GB', name: 'Generic UK', localService: false },
+      { lang: 'en-US', name: 'Microsoft Aria Online (Natural) - English (United States)', localService: false },
+      { lang: 'en-US', name: 'Google US English', localService: false },
+      { lang: 'en-GB', name: 'Microsoft Hazel - English (United Kingdom)', localService: true },
+      { lang: 'en-GB', name: 'Google UK English Female', localService: false },
+    ] as SpeechSynthesisVoice[];
+    expect(pickEnglishVoice(voices)?.name).toBe('Google UK English Female');
+
+    const withNaturalUk = [
+      ...voices,
+      { lang: 'en-GB', name: 'Microsoft Libby Online (Natural) - English (United Kingdom)', localService: false },
+    ] as SpeechSynthesisVoice[];
+    expect(pickEnglishVoice(withNaturalUk)?.name).toBe('Microsoft Libby Online (Natural) - English (United Kingdom)');
+
+    const androidUk = [
+      { lang: 'en_US', name: 'English United States', localService: true },
+      { lang: 'en_GB', name: 'English United Kingdom', localService: true },
+    ] as SpeechSynthesisVoice[];
+    expect(pickEnglishVoice(androidUk)?.lang).toBe('en_GB');
+
+    const usFallback = [
+      { lang: 'es-ES', name: 'Monica', localService: true },
       { lang: 'en-US', name: 'Google US English', localService: false },
     ] as SpeechSynthesisVoice[];
-    expect(pickEnglishVoice(voices)?.name).toBe('Google US English');
+    expect(pickEnglishVoice(usFallback)?.name).toBe('Google US English');
+
     expect(pickEnglishVoice([{ lang: 'es-ES', name: 'Monica' }] as SpeechSynthesisVoice[])).toBeNull();
   });
 
-  it('displays an English speech bubble and speaks via speechSynthesis when sound is enabled', () => {
+  it('displays an English speech bubble and speaks via speechSynthesis in en-GB when sound is enabled', () => {
     const speak = vi.fn();
     const cancel = vi.fn();
     Object.defineProperty(window, 'speechSynthesis', {
@@ -64,6 +85,7 @@ describe('voice & speech bubble', () => {
     expect(bubble?.getAttribute('lang')).toBe('en');
     expect(bubble?.textContent).toContain('Two apples!');
     expect(speak).toHaveBeenCalledTimes(1);
+    expect((speak.mock.calls[0][0] as MockUtterance).lang).toBe('en-GB');
 
     vi.advanceTimersByTime(5000);
     expect(bubble?.hidden).toBe(true);
