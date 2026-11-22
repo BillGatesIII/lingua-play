@@ -1,6 +1,7 @@
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -16,6 +17,7 @@ const STAGES = ['🌱', '🌿', '🌷', '🌻'] as const;
 
 export const gardenPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x369dea0f) >>> 0);
+  const director = createGameDirector(rng);
   let index = 0;
   let puzzle: PatternPuzzle = generatePattern(rng, index);
   let triedWrong = new Map<number, string>();
@@ -37,13 +39,20 @@ export const gardenPage: Page = (ctx) => {
         if (!p.garden.flowers.includes(bloom)) p.garden.flowers.push(bloom);
       });
       playSfx('surprise');
-      speakEnglish(`${value}! The garden bloomed!`, { anchor, mode: 'click' });
+      speakEnglish(director.celebrate(director.pickLine('bloom', [
+        `${value}! The garden bloomed!`,
+        `${value}! Look at those flowers!`,
+        `${value}! What a lovely bloom!`,
+      ])), { anchor, mode: 'event' });
       message = `¡Floreció el jardín! ${bloom} ¡La secuencia está completa!`;
     } else {
       const oops = gardenMistake(rng);
       triedWrong = new Map(triedWrong).set(value, oops.badge);
       playSfx('oops');
-      speakEnglish('Oops! Try another!', { anchor, mode: 'click' });
+      speakEnglish(
+        director.encourage('Look at how the numbers jump from pot to pot!'),
+        { anchor, mode: 'event' },
+      );
       message = oops.text.es;
     }
     draw(solved ? 'next-pattern' : undefined);
@@ -51,17 +60,28 @@ export const gardenPage: Page = (ctx) => {
 
   function next() {
     index++;
+    director.nextPuzzle();
     if (index >= GARDEN_LENGTH) {
       closed = true;
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('What a lovely garden!');
+      speakEnglish(director.pickLine('garden-end', [
+        'What a lovely garden!',
+        'Splendid gardening! The bees are thrilled!',
+        'Marvellous flowers! Every bed is blooming!',
+        'Brilliant! A garden full of colour!',
+      ]), { mode: 'event' });
     } else {
       puzzle = generatePattern(rng, index);
       triedWrong = new Map();
       solved = false;
       playSfx('step');
-      speakEnglish('Next flower bed!');
+      const intro = director.transition('next-bed', [
+        'Next flower bed!',
+        'Let us plant another row!',
+        'Ready for more seeds!',
+      ], 2);
+      if (intro) speakEnglish(intro, { mode: 'event' });
     }
     message = null;
     draw(closed ? 'play-again' : `choice-${puzzle.choices[0]}`);
@@ -132,6 +152,7 @@ export const gardenPage: Page = (ctx) => {
               focusKey: `choice-${value}`,
               ariaLabel: `Plantar ${value}`,
               voiceHover: String(value),
+              voiceRole: 'vocab',
               onClick: (e) => choose(value, e.currentTarget as HTMLElement),
             });
           })),

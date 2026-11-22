@@ -1,6 +1,7 @@
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { addHoverVoice, speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -15,6 +16,7 @@ import {
 
 export const detectivePage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x3c6ef372) >>> 0);
+  const director = createGameDirector(rng);
   let index = 0;
   let current: CaseFile = generateCase(rng, index);
   let cleared = new Set<string>();
@@ -53,7 +55,12 @@ export const detectivePage: Page = (ctx) => {
         if (!p.detective.badges.includes(prize)) p.detective.badges.push(prize);
       });
       playSfx('surprise');
-      speakEnglish(`Case solved! It was ${s.name}!`, { anchor, mode: 'click' });
+      speakEnglish(director.celebrate(director.pickLine('solved-case', [
+        `Case cracked! It was ${s.name}!`,
+        `Elementary! It was ${s.name}!`,
+        `Gotcha! It was ${s.name}!`,
+        `Mystery solved! ${s.name} did it!`,
+      ])), { anchor, mode: 'event' });
       say(`🔎 ¡Caso resuelto! ¡Fue ${s.name} (${s.animal.name.es})! Ganas la insignia ${prize}`, 'next-case');
     } else {
       const next = new Set(cleared);
@@ -61,24 +68,35 @@ export const detectivePage: Page = (ctx) => {
       cleared = next;
       const alibi = wrongAccusationAlibi(s, rng);
       playSfx('oops');
-      speakEnglish(alibi.en, { anchor, mode: 'click' });
+      const line = director.encourage('Check every clue and rule out who does not match!', alibi.en);
+      speakEnglish(line, { anchor, mode: 'event' });
       say(alibi.es);
     }
   }
 
   function nextCase() {
     index++;
+    director.nextPuzzle();
     if (index >= CASES_PER_ROUND) {
       closed = true;
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('All mysteries solved! Great detective work!');
+      speakEnglish(director.pickLine('detective-end', [
+        'All mysteries solved! Great detective work!',
+        'Splendid sleuthing! Every case is closed!',
+        'Brilliant detective! Not a single clue missed!',
+        'Casebook complete! Jolly good work!',
+      ]), { mode: 'event' });
     } else {
       current = generateCase(rng, index);
       cleared = new Set();
       solved = false;
       playSfx('step');
-      speakEnglish(current.mystery.prompt.en);
+      const intro = director.transition('next-case', [
+        current.mystery.prompt.en,
+        `New mystery! ${current.mystery.prompt.en}`,
+      ], 2);
+      if (intro) speakEnglish(intro, { mode: 'event' });
     }
     message = null;
     draw(closed ? 'another-casebook' : `clear-${current.suspects[0].id}`);

@@ -1,6 +1,7 @@
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -10,11 +11,12 @@ import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
   CHAMELEONS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, generateRound, mix, mixFeedback,
-  playfulClue, togglePot, type ColorId, type PotId,
+  playfulClue, recipePotCount, togglePot, type ColorId, type PotId,
 } from './logic';
 
 export const colorsPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x27d4eb2f) >>> 0);
+  const director = createGameDirector(rng);
   let round = generateRound(rng);
   let index = 0;
   let bowl: PotId[] = [];
@@ -39,10 +41,33 @@ export const colorsPage: Page = (ctx) => {
         if (!p.colors.colours.includes(emoji)) p.colors.colours.push(emoji);
       });
       playSfx('surprise');
-      speakEnglish(`Yes! ${COLORS[m].name.en}!`, { anchor, mode: 'click' });
+      speakEnglish(director.celebrate(COLORS[m].name.en), { anchor, mode: 'event' });
+    } else if (m === 'mud') {
+      playSfx('splash');
+      const neededPots = recipePotCount(target());
+      const mudHint = neededPots === 1
+        ? 'Empty the bowl and pick just one paint!'
+        : neededPots === 3
+          ? 'Empty the bowl and try mixing three different paints!'
+          : 'Empty the bowl and try mixing just two paints!';
+      const line = director.encourage(
+        mudHint,
+        director.pickLine('mud', [
+          'Muddy brown! Looks like a puddle!',
+          'Splodge! That turned muddy brown!',
+          'Oops, muddy brown! Too many paints!',
+        ]),
+      );
+      speakEnglish(line, { anchor, mode: 'event' });
     } else {
       playSfx('splash');
-      speakEnglish(m ? COLORS[m].name.en : 'empty', { anchor, mode: 'click' });
+      speakEnglish(m ? COLORS[m].name.en : 'empty', {
+        anchor,
+        mode: 'click',
+        role: 'step',
+        topic: m ? `color-${m}` : 'color-empty',
+        coalesceKey: 'colors-bowl',
+      });
     }
     draw(solved ? 'next-chameleon' : undefined);
   }
@@ -51,14 +76,26 @@ export const colorsPage: Page = (ctx) => {
     index++;
     bowl = [];
     solved = false;
+    director.nextPuzzle();
     if (index >= ROUND_LENGTH) {
       closed = true;
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('What a colourful gallery!');
+      speakEnglish(director.pickLine('gallery', [
+        'What a colourful gallery!',
+        'Splendid painting! Look at all those chameleons!',
+        'Marvellous colours! True artist!',
+        'Brilliant gallery! Every chameleon looks smashing!',
+      ]), { mode: 'event' });
     } else {
       playSfx('step');
-      speakEnglish(CHAMELEONS[index % CHAMELEONS.length].name.en);
+      const pal = CHAMELEONS[index % CHAMELEONS.length].name.en;
+      const intro = director.transition('next-pal', [
+        pal,
+        `Say hello to ${pal}!`,
+        `Next up: ${pal}!`,
+      ], 2);
+      if (intro) speakEnglish(intro, { mode: 'event' });
     }
     draw(closed ? 'play-again' : `pot-${POTS[0]}`);
   }
@@ -92,6 +129,7 @@ export const colorsPage: Page = (ctx) => {
         focusKey: `pot-${pot}`,
         ariaLabel: c.name.es,
         voiceHover: c.name.en,
+        voiceRole: 'vocab',
         onClick: (e) => pour(pot, e.currentTarget as HTMLElement),
       });
     }));

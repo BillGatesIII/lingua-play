@@ -1,6 +1,7 @@
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -15,6 +16,7 @@ import {
 
 export const recipePage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x517cc1b7) >>> 0);
+  const director = createGameDirector(rng);
   const chefs = shuffle(rng, CHEFS);
   let index = 0;
   let recipe: Recipe = generateRecipe(rng, index);
@@ -40,7 +42,13 @@ export const recipePage: Page = (ctx) => {
     playSfx(removing ? 'remove' : 'pop');
     if (!removing) {
       const ing = INGREDIENTS.find((x) => x.id === id)!;
-      speakEnglish(ing.name.en, { anchor, mode: 'click' });
+      speakEnglish(ing.name.en, {
+        anchor,
+        mode: 'click',
+        role: 'step',
+        topic: `recipe-ing-${ing.id}`,
+        coalesceKey: 'recipe-ing',
+      });
     }
     say(null);
   }
@@ -49,7 +57,13 @@ export const recipePage: Page = (ctx) => {
     if (solved || closed) return;
     quarters = Math.min(recipe.maxQuarters, quarters + q);
     playSfx('splash');
-    speakEnglish(quartersText(quarters, 'en'), { anchor, mode: 'click' });
+    speakEnglish(quartersText(quarters, 'en'), {
+      anchor,
+      mode: 'click',
+      role: 'step',
+      topic: `recipe-q-${quarters}`,
+      coalesceKey: 'recipe-jug',
+    });
     say(null);
   }
 
@@ -58,7 +72,8 @@ export const recipePage: Page = (ctx) => {
     const res = checkRecipe(recipe, chosen, quarters, verbId);
     if (!res.ok) {
       playSfx('oops');
-      speakEnglish(res.reason.en, { anchor, mode: 'click' });
+      const line = director.encourage('Check the ingredients, the jug, and the cooking step!', res.reason.en);
+      speakEnglish(line, { anchor, mode: 'event' });
       return say(res.reason.es, `verb-${verbId}`);
     }
     solved = true;
@@ -68,24 +83,36 @@ export const recipePage: Page = (ctx) => {
       if (!p.recipe.dishes.includes(recipe.dish.emoji)) p.recipe.dishes.push(recipe.dish.emoji);
     });
     playSfx('surprise');
-    speakEnglish(`Yum! ${recipe.dish.name.en}!`, { anchor, mode: 'click' });
+    speakEnglish(director.celebrate(`Yum, ${recipe.dish.name.en}!`), { anchor, mode: 'event' });
     say(`¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan deliciosa!`, 'next-dish');
   }
 
   function nextDish() {
     index++;
+    director.nextPuzzle();
     if (index >= RECIPES_PER_ROUND) {
       closed = true;
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('Kitchen closed for today! Great cooking!');
+      speakEnglish(director.pickLine('kitchen-end', [
+        'Kitchen closed for today! Great cooking!',
+        'Splendid chef! Every dish was delicious!',
+        'Lovely cooking! Time to hang up the apron!',
+        'Marvellous feast! Well done, chef!',
+      ]), { mode: 'event' });
     } else {
       recipe = generateRecipe(rng, index);
       chosen = [];
       quarters = 0;
       solved = false;
       playSfx('step');
-      speakEnglish(chefs[index % chefs.length].name.en);
+      const chefName = chefs[index % chefs.length].name.en;
+      const intro = director.transition('next-chef', [
+        chefName,
+        `Next order from ${chefName}!`,
+        `${chefName} is hungry!`,
+      ], 2);
+      if (intro) speakEnglish(intro, { mode: 'event' });
     }
     message = null;
     draw(closed ? 'another-kitchen' : `ing-${INGREDIENTS[0].id}`);
@@ -165,6 +192,7 @@ export const recipePage: Page = (ctx) => {
               focusKey: `scoop-${s}`,
               ariaLabel: `Añadir ${quartersBadge(s)}`,
               voiceHover: quartersText(s, 'en'),
+              voiceRole: 'vocab',
               onClick: (e) => addScoop(s, e.currentTarget as HTMLElement),
             })),
           Button('Vaciar', {
@@ -209,6 +237,7 @@ export const recipePage: Page = (ctx) => {
                   focusKey: `ing-${ing.id}`,
                   ariaLabel: ing.name.es,
                   voiceHover: ing.name.en,
+                  voiceRole: 'vocab',
                   onClick: (e) => toggleIngredient(ing.id, e.currentTarget as HTMLElement),
                 }))),
             ]),
@@ -223,6 +252,7 @@ export const recipePage: Page = (ctx) => {
                   focusKey: `verb-${v.id}`,
                   ariaLabel: v.label.es,
                   voiceHover: v.label.en,
+                  voiceRole: 'vocab',
                   onClick: (e) => tryVerb(v.id, e.currentTarget as HTMLElement),
                 }))),
             ]))),

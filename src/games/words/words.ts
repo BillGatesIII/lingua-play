@@ -1,6 +1,7 @@
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -15,6 +16,7 @@ import {
 
 export const wordsPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x94d049bb) >>> 0);
+  const director = createGameDirector(rng);
   let index = 0;
   let usedEmojis: string[] = [];
   let puzzle: WordPuzzle = generateWordPuzzle(rng, index, 'es', usedEmojis);
@@ -57,11 +59,14 @@ export const wordsPage: Page = (ctx) => {
         if (!p.words.badges.includes(puzzle.emoji)) p.words.badges.push(puzzle.emoji);
       });
       playSfx('surprise');
-      speakEnglish(`${puzzle.answer.en}! Great job!`, { anchor, mode: 'click' });
+      speakEnglish(director.celebrate(puzzle.answer.en), { anchor, mode: 'event' });
       message = '¡Palabra encontrada! 🎉';
     } else {
       playSfx('oops');
-      speakEnglish('Almost! Try again!', { anchor, mode: 'click' });
+      speakEnglish(
+        director.encourage('Tap the picture or Berta the owl to hear the clue!'),
+        { anchor, mode: 'event' },
+      );
       message = wordMistake(selectedWord(puzzle, selected), rng).es;
     }
     draw(solved ? 'next-word' : undefined);
@@ -69,17 +74,27 @@ export const wordsPage: Page = (ctx) => {
 
   function next() {
     index++;
+    director.nextPuzzle();
     if (index >= WORD_ROUND_LENGTH) {
       closed = true;
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('Word workshop complete! Great work!');
+      speakEnglish(director.pickLine('words-end', [
+        'Word workshop complete! Great work!',
+        'Splendid spelling! Every word cracked!',
+        'Brilliant job with all those letters!',
+        'Marvellous! Berta the owl is impressed!',
+      ]), { mode: 'event' });
     } else {
       puzzle = generateWordPuzzle(rng, index, 'es', usedEmojis);
       selected = [];
       solved = false;
       playSfx('step');
-      speakEnglish(puzzle.answer.en);
+      speakEnglish(director.pickLine('next-word', [
+        puzzle.answer.en,
+        `New word: ${puzzle.answer.en}!`,
+        `Next up: ${puzzle.answer.en}!`,
+      ]), { mode: 'event' });
     }
     message = null;
     draw(closed ? 'play-again' : `tile-${puzzle.tiles[0].id}`);

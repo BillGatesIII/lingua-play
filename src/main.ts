@@ -14,7 +14,7 @@ import { landingPage } from './pages/landing';
 import type { Page, PageCleanup } from './pages/types';
 import { bindAudioUnlock, playSfx } from './shared/sfx';
 import { loadProgress, updateProgress } from './shared/storage';
-import { stopSpeech } from './shared/voice';
+import { preloadVoices, stopSpeech } from './shared/voice';
 import { Button } from './ui/components';
 import { h } from './ui/dom';
 
@@ -36,6 +36,7 @@ const main = h('main', { id: 'main', class: 'main', tabindex: '-1' });
 app.append(header, main);
 
 bindAudioUnlock();
+preloadVoices();
 
 let cleanup: void | PageCleanup;
 

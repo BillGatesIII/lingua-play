@@ -1,16 +1,36 @@
 import { h } from '../ui/dom';
+import { decideSpeech, recordSpoken, type VoiceRole } from './speechDirector';
 import { loadProgress } from './storage';
 
+export type { VoiceRole };
 export type SpeakMode = 'hover' | 'click' | 'event';
 
 export interface SpeakOptions {
   anchor?: HTMLElement | null;
   mode?: SpeakMode;
+  /** Semantic role controlling whether and how often audio plays. */
+  role?: VoiceRole;
   /** Optional custom visual text in the bubble (defaults to `text`). */
   displayText?: string;
+  /** Optional topic key for familiarity tracking (defaults to cleaned text). */
+  topic?: string;
+  /** Show the speech bubble visually without playing TTS audio. */
+  silent?: boolean;
+  /** Debounce rapid step actions so TTS speaks the latest settled result once. */
+  coalesceKey?: string;
+  /** Custom coalesce settle delay in ms (defaults to 420ms). */
+  coalesceMs?: number;
 }
 
-const HOVER_DELAY_MS = 140;
+export interface HoverVoiceOptions {
+  delayMs?: number;
+  role?: VoiceRole;
+  topic?: string;
+}
+
+const HOVER_DELAY_MS = 260;
+const CHROME_HOVER_DELAY_MS = 320;
+const STEP_COALESCE_MS = 420;
 const SAME_TEXT_COOLDOWN_MS = 900;
 const PRIORITY_GRACE_MS = 350;
 
@@ -18,13 +38,14 @@ let bubbleEl: HTMLElement | null = null;
 let bubbleTextEl: HTMLElement | null = null;
 let hideTimer: number | null = null;
 let pendingHoverTimer: number | null = null;
+let pendingCoalesceTimer: number | null = null;
 let lastSpokenText = '';
 let lastSpokenAt = 0;
 let lastPriorityAt = 0;
 let currentUtteranceId = 0;
 let activePriorityUtteranceId: number | null = null;
 let cachedVoices: SpeechSynthesisVoice[] = [];
-let voicesHooked = false;
+let hookedSynth: SpeechSynthesis | null = null;
 
 /** Removes emojis and extra whitespace so TTS reads natural English words cleanly. */
 export function cleanSpeechText(text: string): string {
@@ -36,18 +57,20 @@ export function cleanSpeechText(text: string): string {
 
 function loadVoices(): SpeechSynthesisVoice[] {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
-  if (!voicesHooked) {
-    voicesHooked = true;
+  const synth = window.speechSynthesis;
+  if (hookedSynth !== synth) {
+    hookedSynth = synth;
+    cachedVoices = [];
     try {
-      window.speechSynthesis.addEventListener?.('voiceschanged', () => {
-        cachedVoices = window.speechSynthesis.getVoices();
+      synth.addEventListener?.('voiceschanged', () => {
+        cachedVoices = synth.getVoices();
       });
     } catch {
       /* ignore */
     }
   }
   try {
-    const list = window.speechSynthesis.getVoices();
+    const list = synth.getVoices();
     if (list.length) cachedVoices = list;
   } catch {
     /* ignore */
@@ -55,14 +78,32 @@ function loadVoices(): SpeechSynthesisVoice[] {
   return cachedVoices;
 }
 
+/** Triggers asynchronous browser voice loading early so British voices are ready on first tap. */
+export function preloadVoices(): void {
+  loadVoices();
+}
+
+const isBritish = (v: SpeechSynthesisVoice): boolean => /^en[-_]GB\b/i.test(v.lang);
+const isAmerican = (v: SpeechSynthesisVoice): boolean => /^en[-_]US\b/i.test(v.lang);
+
 export function pickEnglishVoice(voices: readonly SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const english = voices.filter((v) => /^en([-_]|$)/i.test(v.lang));
   if (!english.length) return null;
+
+  const british = english.filter(isBritish);
+  if (british.length) {
+    return (
+      british.find((v) => /natural|neural|enhanced|premium/i.test(v.name))
+      ?? british.find((v) => /google uk|libby|sonia|maisie|ryan|daniel|serena|kate|martha|arthur|oliver|stephanie/i.test(v.name))
+      ?? british.find((v) => v.localService)
+      ?? british[0]
+    );
+  }
+
   return (
-    english.find((v) => /natural|neural|google us|samantha|daniel|aria|jenny|libby|karen/i.test(v.name))
-    ?? english.find((v) => v.lang === 'en-US' && v.localService)
-    ?? english.find((v) => v.lang.startsWith('en-US'))
-    ?? english.find((v) => v.lang.startsWith('en-GB'))
+    english.find((v) => /natural|neural|enhanced|premium|google us|samantha|aria|jenny|karen/i.test(v.name))
+    ?? english.find((v) => isAmerican(v) && v.localService)
+    ?? english.find(isAmerican)
     ?? english[0]
   );
 }
@@ -143,6 +184,7 @@ function isSynthBusy(): boolean {
 }
 
 function isPrioritySpeechActive(): boolean {
+  if (pendingCoalesceTimer !== null) return true;
   if (activePriorityUtteranceId === null) return false;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     const synth = window.speechSynthesis;
@@ -168,10 +210,8 @@ export function hideBubble(): void {
 }
 
 export function stopSpeech(): void {
-  if (pendingHoverTimer !== null) {
-    window.clearTimeout(pendingHoverTimer);
-    pendingHoverTimer = null;
-  }
+  cancelPendingHover();
+  cancelPendingCoalesce();
   lastSpokenText = '';
   lastSpokenAt = 0;
   lastPriorityAt = 0;
@@ -187,37 +227,13 @@ export function stopSpeech(): void {
   hideBubble();
 }
 
-export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
-  const mode = opts.mode ?? 'click';
-  const spoken = cleanSpeechText(text);
-  const display = cleanSpeechText(opts.displayText ?? text) || text.trim();
-  if (!spoken && !display) return;
-
-  const now = Date.now();
-  if (mode === 'hover') {
-    if (spoken === lastSpokenText && now - lastSpokenAt < SAME_TEXT_COOLDOWN_MS) return;
-    if (now - lastPriorityAt < PRIORITY_GRACE_MS || isPrioritySpeechActive()) return;
-  } else {
-    cancelPendingHover();
-    lastPriorityAt = now;
-  }
-
-  lastSpokenText = spoken;
-  lastSpokenAt = now;
-
-  let anchorRect: DOMRect | null = null;
-  if (opts.anchor && opts.anchor.isConnected) {
-    anchorRect = opts.anchor.getBoundingClientRect();
-  }
-
-  const fallbackMs = Math.min(7000, Math.max(2000, display.length * 85));
-  showBubble(display, anchorRect, fallbackMs);
-
+function speakUtterance(spoken: string, mode: SpeakMode, topic: string): void {
   const soundOn = loadProgress().settings.sound;
   if (!soundOn || !spoken || typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
     return;
   }
 
+  recordSpoken(topic, mode, Date.now());
   const id = ++currentUtteranceId;
   activePriorityUtteranceId = mode === 'hover' ? null : id;
   try {
@@ -228,7 +244,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
       utterance.voice = voice;
       utterance.lang = voice.lang;
     } else {
-      utterance.lang = 'en-US';
+      utterance.lang = 'en-GB';
     }
     utterance.rate = 0.92;
     utterance.pitch = 1.05;
@@ -251,6 +267,64 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
   }
 }
 
+export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
+  const mode = opts.mode ?? 'click';
+  const role: VoiceRole = opts.role ?? (mode === 'hover' ? 'vocab' : mode === 'event' ? 'event' : 'explicit');
+  const spoken = cleanSpeechText(text);
+  const display = cleanSpeechText(opts.displayText ?? text) || text.trim();
+  if (!spoken && !display) return;
+  const topic = opts.topic ?? spoken;
+
+  const now = Date.now();
+  if (mode === 'hover') {
+    if (spoken === lastSpokenText && now - lastSpokenAt < SAME_TEXT_COOLDOWN_MS) return;
+    if (now - lastPriorityAt < PRIORITY_GRACE_MS || isPrioritySpeechActive()) return;
+  } else {
+    cancelPendingHover();
+    lastPriorityAt = now;
+    if (!opts.coalesceKey) cancelPendingCoalesce();
+  }
+
+  let anchorRect: DOMRect | null = null;
+  if (opts.anchor && opts.anchor.isConnected) {
+    anchorRect = opts.anchor.getBoundingClientRect();
+  }
+
+  const fallbackMs = Math.min(7000, Math.max(2000, display.length * 85));
+
+  if (opts.coalesceKey && mode !== 'hover') {
+    lastSpokenText = spoken;
+    lastSpokenAt = now;
+    showBubble(display, anchorRect, fallbackMs);
+    cancelPendingCoalesce();
+    if (opts.silent) return;
+    pendingCoalesceTimer = window.setTimeout(() => {
+      pendingCoalesceTimer = null;
+      const settledAt = Date.now();
+      const decision = decideSpeech({ role, mode, topic, now: settledAt });
+      if (decision.speakAudio) {
+        lastPriorityAt = settledAt;
+        showBubble(display, anchorRect, fallbackMs);
+        speakUtterance(spoken, mode, topic);
+      }
+    }, opts.coalesceMs ?? STEP_COALESCE_MS);
+    return;
+  }
+
+  const decision = opts.silent
+    ? { showBubble: true, speakAudio: false }
+    : decideSpeech({ role, mode, topic, now });
+
+  if (!decision.showBubble) return;
+
+  lastSpokenText = spoken;
+  lastSpokenAt = now;
+  showBubble(display, anchorRect, fallbackMs);
+
+  if (!decision.speakAudio) return;
+  speakUtterance(spoken, mode, topic);
+}
+
 export function cancelPendingHover(): void {
   if (pendingHoverTimer !== null) {
     window.clearTimeout(pendingHoverTimer);
@@ -258,12 +332,25 @@ export function cancelPendingHover(): void {
   }
 }
 
+export function cancelPendingCoalesce(): void {
+  if (pendingCoalesceTimer !== null) {
+    window.clearTimeout(pendingCoalesceTimer);
+    pendingCoalesceTimer = null;
+  }
+}
+
 /** Attaches mouseover (pointerenter) English voice + speech bubble to an element. */
 export function addHoverVoice<T extends HTMLElement>(
   el: T,
   textOrFn: string | (() => string),
-  delayMs = HOVER_DELAY_MS,
+  delayOrOpts: number | HoverVoiceOptions = HOVER_DELAY_MS,
 ): T {
+  const opts: HoverVoiceOptions = typeof delayOrOpts === 'number'
+    ? { delayMs: delayOrOpts }
+    : delayOrOpts;
+  const role: VoiceRole = opts.role ?? 'vocab';
+  const delayMs = opts.delayMs ?? (role === 'chrome' ? CHROME_HOVER_DELAY_MS : HOVER_DELAY_MS);
+
   const onEnter = (e: Event) => {
     const pe = e as PointerEvent;
     if (pe.pointerType === 'touch') return;
@@ -271,7 +358,7 @@ export function addHoverVoice<T extends HTMLElement>(
     pendingHoverTimer = window.setTimeout(() => {
       pendingHoverTimer = null;
       const text = typeof textOrFn === 'function' ? textOrFn() : textOrFn;
-      if (text) speakEnglish(text, { anchor: el, mode: 'hover' });
+      if (text) speakEnglish(text, { anchor: el, mode: 'hover', role, topic: opts.topic });
     }, delayMs);
   };
   el.addEventListener('pointerenter', onEnter);

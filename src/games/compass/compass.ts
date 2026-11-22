@@ -1,6 +1,7 @@
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { addHoverVoice, speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -21,6 +22,7 @@ const samePos = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 
 export const compassPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x85ebca6b) >>> 0);
+  const director = createGameDirector(rng);
   let index = 0;
   let level: Level = generateLevel(rng, index);
   let pos: Pos = level.start;
@@ -45,13 +47,22 @@ export const compassPage: Page = (ctx) => {
     if (found || closed) return;
     if (left() <= 0) {
       playSfx('oops');
-      speakEnglish('No wind left!', { anchor, mode: 'click' });
+      speakEnglish(director.pickLine('no-wind', [
+        'No wind left! Dig here or sail back.',
+        'Out of breeze! Try digging or head back to harbour.',
+        'Flat sails! Dig now or start from the harbour.',
+      ]), { anchor, mode: 'event' });
       return say('¡Se acabó el viento! 🌬️ Cava aquí o vuelve a empezar.');
     }
     const r = step(level, pos, dir);
     if (r.blocked) {
       playSfx('bonk');
-      speakEnglish('Rock! Watch out!', { anchor, mode: 'click' });
+      speakEnglish(director.pickLine('rock', [
+        'Rock ahead! Watch out!',
+        'Bonk! Try steering round that rock.',
+        'Careful — rocky waters!',
+        'Blocked! Pick another direction.',
+      ]), { anchor, mode: 'event' });
       return say('¡Roca o borde del mapa! 🪨 Busca otro camino.');
     }
     pos = r.pos;
@@ -61,11 +72,23 @@ export const compassPage: Page = (ctx) => {
       pickupTaken = true;
       bonusWind += 2;
       playSfx('surprise');
-      speakEnglish('Tailwind! Two extra gusts!', { anchor, mode: 'click' });
+      speakEnglish(director.pickLine('tailwind', [
+        'Tailwind! Two extra gusts!',
+        'Whoosh! A lucky breeze — two more moves!',
+        'Lovely tailwind! Two extra puffs!',
+      ]), { anchor, mode: 'event' });
       return say('¡Ráfaga a favor! 💨 Ganas 2 soplos de viento extra.');
     }
     playSfx('step');
-    if (anchor) speakEnglish(DIR_NAMES[dir].en, { anchor, mode: 'click' });
+    if (anchor) {
+      speakEnglish(DIR_NAMES[dir].en, {
+        anchor,
+        mode: 'click',
+        role: 'step',
+        topic: `compass-${dir}`,
+        coalesceKey: 'compass-step',
+      });
+    }
     say(null);
   }
 
@@ -80,12 +103,20 @@ export const compassPage: Page = (ctx) => {
       });
       found = true;
       playSfx('surprise');
-      speakEnglish('Treasure! You found it!', { anchor, mode: 'click' });
+      speakEnglish(director.celebrate(director.pickLine('treasure', [
+        'Treasure! You found it!',
+        'Ahoy! Treasure!',
+        'X marks the spot!',
+        'What a find!',
+      ])), { anchor, mode: 'event' });
       return say(`¡Tesoro! ${prize} ¡Lo encontraste!`, 'next-treasure');
     }
     if (dug.some((d) => samePos(d, pos))) {
       playSfx('remove');
-      speakEnglish('You already dug here!', { anchor, mode: 'click' });
+      speakEnglish(director.pickLine('already-dug', [
+        'You already dug here!',
+        'Just an old hole — try somewhere else!',
+      ]), { anchor, mode: 'event' });
       return say('Aquí ya cavaste. 🕳️');
     }
     dug = [...dug, pos];
@@ -95,7 +126,9 @@ export const compassPage: Page = (ctx) => {
     const trend = temperatureTrend(prevDigDist, dist);
     prevDigDist = dist;
     playSfx('bonk');
-    speakEnglish(`${temp.en}${trend ? ` ${trend.en}` : ''}`, { anchor, mode: 'click' });
+    const tempLine = `${temp.en}${trend ? ` ${trend.en}` : ''}`;
+    const line = director.encourage(`${tempLine} Check the clue on the map!`, tempLine);
+    speakEnglish(line, { anchor, mode: 'event' });
     say(`¡Has desenterrado ${junk.es}! ${junk.emoji} Pista: ${temp.es}${trend ? ` (${trend.es})` : ''}`);
   }
 
@@ -106,23 +139,38 @@ export const compassPage: Page = (ctx) => {
     pickupTaken = false;
     trail = [level.start];
     playSfx('remove');
-    speakEnglish('Back to harbour!', { anchor, mode: 'click' });
+    speakEnglish(director.pickLine('harbour', [
+      'Back to harbour!',
+      'Fresh start from the harbour!',
+      'Returning to port!',
+    ]), { anchor, mode: 'event' });
     say(null);
   }
 
   function next() {
     index++;
+    director.nextPuzzle();
     if (index >= VOYAGE_LENGTH) {
       closed = true;
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('End of the voyage! Great sailing!');
+      speakEnglish(director.pickLine('voyage-end', [
+        'End of the voyage! Great sailing!',
+        'All treasures found! Smashing voyage, captain!',
+        'Splendid sailing! Back to port!',
+        'What an adventure! Brilliant navigating!',
+      ]), { mode: 'event' });
     } else {
       level = generateLevel(rng, index);
       pos = level.start; used = 0; bonusWind = 0; pickupTaken = false;
       trail = [level.start]; dug = []; prevDigDist = null; found = false;
       playSfx('step');
-      speakEnglish('Next treasure!');
+      const intro = director.transition('next-treasure', [
+        'Next treasure!',
+        'A new map clue awaits!',
+        'Set sail for the next treasure!',
+      ], 2);
+      if (intro) speakEnglish(intro, { mode: 'event' });
     }
     message = null;
     draw(closed ? 'another-voyage' : 'dig');
@@ -197,7 +245,9 @@ export const compassPage: Page = (ctx) => {
             'aria-label': `${DIR_NAMES[stepDir].es} (x=${x}, y=${y})`,
             onclick: (e: MouseEvent) => move(stepDir, e.currentTarget as HTMLElement),
           }, glyph);
-          cells.push(addHoverVoice(cellBtn, isWind ? 'tailwind' : DIR_NAMES[stepDir].en));
+          cells.push(addHoverVoice(cellBtn, isWind ? 'tailwind' : DIR_NAMES[stepDir].en, {
+            role: isWind ? 'vocab' : 'chrome',
+          }));
         } else {
           cells.push(h('span', { class: cls, 'aria-hidden': 'true' }, glyph));
         }
@@ -224,6 +274,7 @@ export const compassPage: Page = (ctx) => {
         focusKey: `dir-${d}`,
         ariaLabel: DIR_NAMES[d].es,
         voiceHover: DIR_NAMES[d].en,
+        voiceRole: 'vocab',
         onClick: (e) => move(d, e.currentTarget as HTMLElement),
       },
     );
