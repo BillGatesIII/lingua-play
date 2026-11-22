@@ -1,3 +1,4 @@
+import { diagnosePatternMistake } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -49,10 +50,8 @@ export const gardenPage: Page = (ctx) => {
       const oops = gardenMistake(rng);
       triedWrong = new Map(triedWrong).set(value, oops.badge);
       playSfx('oops');
-      speakEnglish(
-        director.encourage('Look at how the numbers jump from pot to pot!'),
-        { anchor, mode: 'event' },
-      );
+      const advice = diagnosePatternMistake(puzzle, value);
+      speakEnglish(director.encourage(advice.hint, advice.first), { anchor, mode: 'event' });
       message = oops.text.es;
     }
     draw(solved ? 'next-pattern' : undefined);

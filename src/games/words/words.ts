@@ -1,3 +1,4 @@
+import { diagnoseWordMistake } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -63,11 +64,11 @@ export const wordsPage: Page = (ctx) => {
       message = '¡Palabra encontrada! 🎉';
     } else {
       playSfx('oops');
-      speakEnglish(
-        director.encourage('Tap the picture or Berta the owl to hear the clue!'),
-        { anchor, mode: 'event' },
-      );
-      message = wordMistake(selectedWord(puzzle, selected), rng).es;
+      const attempt = selectedWord(puzzle, selected);
+      const mistake = wordMistake(attempt, rng);
+      const advice = diagnoseWordMistake(puzzle, attempt, 'es');
+      speakEnglish(director.encourage(advice.hint, mistake.en), { anchor, mode: 'event' });
+      message = mistake.es;
     }
     draw(solved ? 'next-word' : undefined);
   }

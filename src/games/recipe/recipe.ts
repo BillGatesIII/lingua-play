@@ -1,3 +1,4 @@
+import { diagnoseRecipeMistake, scaffoldVocab } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -42,11 +43,11 @@ export const recipePage: Page = (ctx) => {
     playSfx(removing ? 'remove' : 'pop');
     if (!removing) {
       const ing = INGREDIENTS.find((x) => x.id === id)!;
-      speakEnglish(ing.name.en, {
+      speakEnglish(scaffoldVocab(ing.name.en, 'ingredient', rng, ing.name.en), {
         anchor,
         mode: 'click',
         role: 'step',
-        topic: `recipe-ing-${ing.id}`,
+        topic: ing.name.en,
         coalesceKey: 'recipe-ing',
       });
     }
@@ -72,7 +73,8 @@ export const recipePage: Page = (ctx) => {
     const res = checkRecipe(recipe, chosen, quarters, verbId);
     if (!res.ok) {
       playSfx('oops');
-      const line = director.encourage('Check the ingredients, the jug, and the cooking step!', res.reason.en);
+      const advice = diagnoseRecipeMistake(recipe, chosen, quarters, verbId);
+      const line = director.encourage(advice.hint, advice.first ?? res.reason.en);
       speakEnglish(line, { anchor, mode: 'event' });
       return say(res.reason.es, `verb-${verbId}`);
     }

@@ -1,3 +1,4 @@
+import { diagnoseDigMistake, scaffoldVocab } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -81,11 +82,12 @@ export const compassPage: Page = (ctx) => {
     }
     playSfx('step');
     if (anchor) {
-      speakEnglish(DIR_NAMES[dir].en, {
+      const dirWord = DIR_NAMES[dir].en;
+      speakEnglish(scaffoldVocab(dirWord, 'direction', rng, dirWord), {
         anchor,
         mode: 'click',
         role: 'step',
-        topic: `compass-${dir}`,
+        topic: dirWord,
         coalesceKey: 'compass-step',
       });
     }
@@ -126,8 +128,8 @@ export const compassPage: Page = (ctx) => {
     const trend = temperatureTrend(prevDigDist, dist);
     prevDigDist = dist;
     playSfx('bonk');
-    const tempLine = `${temp.en}${trend ? ` ${trend.en}` : ''}`;
-    const line = director.encourage(`${tempLine} Check the clue on the map!`, tempLine);
+    const advice = diagnoseDigMistake(pos, level.target, junk.en, temp.en, trend ? trend.en : null);
+    const line = director.encourage(advice.hint, advice.first);
     speakEnglish(line, { anchor, mode: 'event' });
     say(`¡Has desenterrado ${junk.es}! ${junk.emoji} Pista: ${temp.es}${trend ? ` (${trend.es})` : ''}`);
   }

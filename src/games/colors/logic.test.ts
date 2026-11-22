@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
   ALL_TARGETS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, clueText, generateRound, mix, playfulClue,
-  recipePotCount, togglePot,
+  recipePotCount, recipePots, togglePot,
 } from './logic';
 
 describe('colors logic', () => {
@@ -63,5 +63,7 @@ describe('colors logic', () => {
     expect(recipePotCount('red')).toBe(1);
     expect(recipePotCount('purple')).toBe(2);
     expect(recipePotCount('lavender')).toBe(3);
+    expect(recipePots('lavender')).toEqual(['blue', 'red', 'white']);
+    expect(recipePots('mud')).toEqual([]);
   });
 });

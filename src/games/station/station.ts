@@ -1,3 +1,4 @@
+import { diagnoseClockMistake, scaffoldVocab } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -59,12 +60,13 @@ export const stationPage: Page = (ctx) => {
     if (err) {
       playSfx('oops');
       const early = err.en.includes('early');
-      const firstLine = early
+      const advice = diagnoseClockMistake(challenge, clock);
+      const firstLine = advice?.first ?? (early
         ? director.pickLine('too-early', ['Too early!', 'A bit too early — push the clock forward!', 'Not quite time yet!'])
-        : director.pickLine('too-late', ['Too late!', 'A little too late — turn the clock back!', 'Oops, the train would have left!']);
-      const hint = early
+        : director.pickLine('too-late', ['Too late!', 'A little too late — turn the clock back!', 'Oops, the train would have left!']));
+      const hint = advice?.hint ?? (early
         ? 'Move the hands forward. Red is the hour, black is the minutes!'
-        : 'Move the hands back. Red is the hour, black is the minutes!';
+        : 'Move the hands back. Red is the hour, black is the minutes!');
       speakEnglish(director.encourage(hint, firstLine), { anchor, mode: 'event' });
       return say(err.es, 'dispatch');
     }
@@ -194,8 +196,11 @@ export const stationPage: Page = (ctx) => {
         ['+ 5 min', 5, 'ctrl-p5', 'plus five minutes'],
       ];
 
+      const destEn = challenge.destination.name.en;
       const ticket = SpeakButton(`${challenge.destination.emoji} ${challenge.destination.name.es}`, {
-        english: challenge.destination.name.en,
+        english: () => scaffoldVocab(destEn, 'destination', rng, destEn),
+        hoverText: destEn,
+        topic: destEn,
         className: 'ticket-card ticket-card--btn',
         ariaLabel: `Destino: ${challenge.destination.name.es} (escuchar en inglés)`,
       });

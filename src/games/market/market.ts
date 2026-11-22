@@ -1,3 +1,4 @@
+import { diagnoseBasketMistake, diagnoseChangeMistake, scaffoldVocab } from '../../shared/coach';
 import { numberWord } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick, shuffle } from '../../shared/rng';
@@ -91,7 +92,8 @@ export const marketPage: Page = (ctx) => {
     } else {
       playSfx('oops');
       const m = basketMistake(order, basket, rng);
-      const line = director.encourage('Listen to the customer again and check the bag!', m.en);
+      const advice = diagnoseBasketMistake(order, basket);
+      const line = director.encourage(advice.hint, advice.first ?? m.en);
       speakEnglish(line, { anchor, mode: 'event' });
       say(m.es);
     }
@@ -101,12 +103,13 @@ export const marketPage: Page = (ctx) => {
     const result = checkChange(order, coins);
     if (result !== 'exact') {
       playSfx('oops');
-      const firstLine = result === 'too-much'
+      const advice = diagnoseChangeMistake(order, coins);
+      const firstLine = advice?.first ?? (result === 'too-much'
         ? director.pickLine('too-much', ['Too much change!', 'Whoa, too many coins!', 'A bit too much change!'])
-        : director.pickLine('too-little', ['Not enough coins!', 'A few coins short!', 'That needs a bit more change!']);
-      const hint = result === 'too-much'
+        : director.pickLine('too-little', ['Not enough coins!', 'A few coins short!', 'That needs a bit more change!']));
+      const hint = advice?.hint ?? (result === 'too-much'
         ? 'Take away a coin and check the total again.'
-        : 'Add a bit more change after counting the price.';
+        : 'Add a bit more change after counting the price.');
       speakEnglish(director.encourage(hint, firstLine), { anchor, mode: 'event' });
       return say(changeFeedback(result).es, 'give-change');
     }
@@ -137,11 +140,14 @@ export const marketPage: Page = (ctx) => {
           onclick: (e: MouseEvent) => {
             const nextQty = (basket[p.id] ?? 0) + 1;
             playSfx('pop');
-            speakEnglish(`${numberWord(nextQty, 'en')} ${nextQty === 1 ? p.en.one : p.en.many}`, {
+            const label = nextQty === 1
+              ? scaffoldVocab(p.en.one, 'product', rng, p.en.one)
+              : `${numberWord(nextQty, 'en')} ${p.en.many}`;
+            speakEnglish(label, {
               anchor: e.currentTarget as HTMLElement,
               mode: 'click',
               role: 'step',
-              topic: `market-${p.id}-${nextQty}`,
+              topic: nextQty === 1 ? p.en.one : `market-${p.id}-${nextQty}`,
               coalesceKey: 'market-bag',
             });
             basket = { ...basket, [p.id]: nextQty };
