@@ -14,6 +14,13 @@ export interface PatternPuzzle {
 
 export const GARDEN_LENGTH = 5;
 export const FLOWERS = ['🌷', '🌻', '🌼', '🌺', '🌸'] as const;
+export const FLOWER_NAMES: Record<(typeof FLOWERS)[number], string> = {
+  '🌷': 'tulip',
+  '🌻': 'sunflower',
+  '🌼': 'daisy',
+  '🌺': 'hibiscus',
+  '🌸': 'cherry blossom',
+};
 
 function options(rng: Rng, answer: number, spread: number): number[] {
   const distractors = new Set<number>();

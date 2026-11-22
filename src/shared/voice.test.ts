@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearProgress, updateProgress } from './storage';
 import { playSfx } from './sfx';
-import { addHoverVoice, cleanSpeechText, pickEnglishVoice, rewardEmojiEnglish, speakEnglish, stopSpeech } from './voice';
+import { addHoverVoice, cleanSpeechText, pickEnglishVoice, speakEnglish, stopSpeech } from './voice';
 
 describe('voice & speech bubble', () => {
   beforeEach(() => {
@@ -181,14 +181,5 @@ describe('voice & speech bubble', () => {
     speakEnglish('Home', { mode: 'hover' });
     expect(synth.speak).toHaveBeenCalledTimes(3);
     expect(document.querySelector('.voice-bubble')?.textContent).toContain('Home');
-  });
-
-  it('resolves shared reward emojis using their shelf context', () => {
-    expect(rewardEmojiEnglish('colors', '🌲')).toBe('dark green');
-    expect(rewardEmojiEnglish('station', '🌲')).toBe('the forest');
-    expect(rewardEmojiEnglish('colors', '🌸')).toBe('pink');
-    expect(rewardEmojiEnglish('garden', '🌸')).toBe('cherry blossom');
-    expect(rewardEmojiEnglish('station', '🏖️')).toBe('the beach');
-    expect(rewardEmojiEnglish('words', '🏖️')).toBe('beach');
   });
 });

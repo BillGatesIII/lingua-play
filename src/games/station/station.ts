@@ -1,11 +1,10 @@
-import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
-import { addHoverVoice, speakEnglish } from '../../shared/voice';
+import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel } from '../../ui/components';
+import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
@@ -22,8 +21,7 @@ export const stationPage: Page = (ctx) => {
   let clock: ClockTime = pickStartClock(challenge);
   let solved = false;
   let closed = false;
-  let endCelebrated = false;
-  let message: Bi | null = null;
+  let message: string | null = null;
   const stamps: string[] = [];
 
   const host = h('div', { class: 'world world--station' });
@@ -34,7 +32,7 @@ export const stationPage: Page = (ctx) => {
     return sameTime(start, c.target) ? { hour: 6, minute: 0 } : start;
   }
 
-  const say = (m: Bi | null, focusTarget?: string) => {
+  const say = (m: string | null, focusTarget?: string) => {
     message = m;
     draw(focusTarget);
   };
@@ -53,7 +51,7 @@ export const stationPage: Page = (ctx) => {
     if (err) {
       playSfx('oops');
       speakEnglish(err.en.includes('early') ? 'Too early!' : 'Too late!', { anchor, mode: 'click' });
-      return say(err, 'dispatch');
+      return say(err.es, 'dispatch');
     }
     solved = true;
     const stamp = challenge.destination.emoji;
@@ -64,10 +62,7 @@ export const stationPage: Page = (ctx) => {
     });
     playSfx('surprise');
     speakEnglish(`Right on time! Off to ${challenge.destination.name.en}!`, { anchor, mode: 'click' });
-    say({
-      es: `¡En punto! 🎫 El tren parte rumbo a ${challenge.destination.name.es} ${stamp}`,
-      en: `Right on time! 🎫 The train departs for ${challenge.destination.name.en} ${stamp}`,
-    }, 'next-train');
+    say(`¡En punto! 🎫 El tren parte rumbo a ${challenge.destination.name.es} ${stamp}`, 'next-train');
   }
 
   function nextTrain() {
@@ -75,10 +70,7 @@ export const stationPage: Page = (ctx) => {
     if (index >= TRAINS_PER_ROUND) {
       closed = true;
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('All trains departed! Great job!');
     } else {
       challenge = generateTrain(rng, index);
@@ -139,17 +131,18 @@ export const stationPage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🚂 Train Station',
-        noun: { es: 'Tren', en: 'Train' },
+        noun: 'Tren',
         index, total: TRAINS_PER_ROUND,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'berry',
-          title: { es: '¡Todos los trenes en marcha! 🚂', en: 'All trains departed! 🚂' },
+          title: '¡Todos los trenes en marcha! 🚂',
           art: h('p', { class: 'big-emoji', 'aria-label': 'sellos' }, stamps.join(' ')),
-          body: { es: 'Buen trabajo en la estación central. ¡Vuelve cuando quieras!', en: 'Great job at Central Station. Come back whenever you like!' },
-          againLabel: { es: 'Otro turno', en: 'Another shift' },
+          body: 'Buen trabajo en la estación central. ¡Vuelve cuando quieras!',
+          againLabel: 'Otro turno',
+          againVoice: 'Another shift',
           againFocusKey: 'another-shift',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
@@ -170,31 +163,18 @@ export const stationPage: Page = (ctx) => {
         ['+ 5 min', 5, 'ctrl-p5', 'plus five minutes'],
       ];
 
-      const ticket = addHoverVoice(
-        h('button', {
-          type: 'button',
-          class: 'ticket-card ticket-card--btn',
-          'aria-label': `Destino: ${challenge.destination.name.es} (escuchar en inglés)`,
-          onclick: (e: MouseEvent) => {
-            playSfx('pop');
-            speakEnglish(challenge.destination.name.en, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-          },
-        }, `${challenge.destination.emoji} ${challenge.destination.name.es}`),
-        challenge.destination.name.en,
-      );
+      const ticket = SpeakButton(`${challenge.destination.emoji} ${challenge.destination.name.es}`, {
+        english: challenge.destination.name.en,
+        className: 'ticket-card ticket-card--btn',
+        ariaLabel: `Destino: ${challenge.destination.name.es} (escuchar en inglés)`,
+      });
 
-      const clockBtn = addHoverVoice(
-        h('button', {
-          type: 'button',
-          class: 'clock-btn',
-          'aria-label': `${clockLabel} (escuchar la hora en inglés)`,
-          onclick: (e: MouseEvent) => {
-            playSfx('tick');
-            speakEnglish(clockEnglish, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-          },
-        }, analogClock()),
-        clockEnglish,
-      );
+      const clockBtn = SpeakButton(analogClock(), {
+        english: clockEnglish,
+        className: 'clock-btn',
+        ariaLabel: `${clockLabel} (escuchar la hora en inglés)`,
+        sfx: 'tick',
+      });
 
       append(wrap, [
         CharacterBubble({

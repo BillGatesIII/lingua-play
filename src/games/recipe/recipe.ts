@@ -1,11 +1,10 @@
-import type { Bi } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
 import { updateProgress } from '../../shared/storage';
-import { addHoverVoice, speakEnglish } from '../../shared/voice';
+import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
-import { Button, Panel } from '../../ui/components';
+import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
@@ -23,14 +22,13 @@ export const recipePage: Page = (ctx) => {
   let quarters = 0;
   let solved = false;
   let closed = false;
-  let endCelebrated = false;
-  let message: Bi | null = null;
+  let message: string | null = null;
   const cooked: string[] = [];
 
   const host = h('div', { class: 'world world--recipe' });
   ctx.root.append(host);
 
-  const say = (m: Bi | null, focusTarget?: string) => {
+  const say = (m: string | null, focusTarget?: string) => {
     message = m;
     draw(focusTarget);
   };
@@ -61,7 +59,7 @@ export const recipePage: Page = (ctx) => {
     if (!res.ok) {
       playSfx('oops');
       speakEnglish(res.reason.en, { anchor, mode: 'click' });
-      return say(res.reason, `verb-${verbId}`);
+      return say(res.reason.es, `verb-${verbId}`);
     }
     solved = true;
     cooked.push(recipe.dish.emoji);
@@ -71,10 +69,7 @@ export const recipePage: Page = (ctx) => {
     });
     playSfx('surprise');
     speakEnglish(`Yum! ${recipe.dish.name.en}!`, { anchor, mode: 'click' });
-    say({
-      es: `¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan deliciosa!`,
-      en: `Yum! ${recipe.dish.emoji} What a delicious ${recipe.dish.name.en}!`,
-    }, 'next-dish');
+    say(`¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan deliciosa!`, 'next-dish');
   }
 
   function nextDish() {
@@ -82,10 +77,7 @@ export const recipePage: Page = (ctx) => {
     if (index >= RECIPES_PER_ROUND) {
       closed = true;
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('Kitchen closed for today! Great cooking!');
     } else {
       recipe = generateRecipe(rng, index);
@@ -134,17 +126,18 @@ export const recipePage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🍳 Recipe Lab',
-        noun: { es: 'Receta', en: 'Recipe' },
+        noun: 'Receta',
         index, total: RECIPES_PER_ROUND,
       }));
 
       if (closed) {
         wrap.append(EndCard({
           tone: 'peach',
-          title: { es: '¡Cocina cerrada por hoy! 👨‍🍳', en: 'Kitchen closed for today! 👨‍🍳' },
+          title: '¡Cocina cerrada por hoy! 👨‍🍳',
           art: h('p', { class: 'big-emoji', 'aria-label': 'platos' }, cooked.join(' ')),
-          body: { es: 'Todos los amigos terminaron felices y con la barriga llena.', en: 'All your friends left happy with full tummies!' },
-          againLabel: { es: 'Cocinar otra vez', en: 'Cook again' },
+          body: 'Todos los amigos terminaron felices y con la barriga llena.',
+          againLabel: 'Cocinar otra vez',
+          againVoice: 'Cook again',
           againFocusKey: 'another-kitchen',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),
@@ -156,18 +149,11 @@ export const recipePage: Page = (ctx) => {
       const maxLabel = quartersBadge(recipe.maxQuarters);
       const jugLabel = `Jarra medidora: ${quartersBadge(quarters)} / ${maxLabel} tazas`;
       const jugEnglish = quarters > 0 ? quartersText(quarters, 'en') : 'empty';
-      const jugReadout = addHoverVoice(
-        h('button', {
-          type: 'button',
-          class: 'jug-readout clock-btn',
-          'aria-label': `${jugLabel} (escuchar en inglés)`,
-          onclick: (e: MouseEvent) => {
-            playSfx('pop');
-            speakEnglish(jugEnglish, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-          },
-        }, `${recipe.dish.emoji} ${quartersBadge(quarters)} taza(s)`),
-        jugEnglish,
-      );
+      const jugReadout = SpeakButton(`${recipe.dish.emoji} ${quartersBadge(quarters)} taza(s)`, {
+        english: jugEnglish,
+        className: 'jug-readout jug-readout--btn',
+        ariaLabel: `${jugLabel} (escuchar en inglés)`,
+      });
 
       const measureControls = h('div', { class: 'jug-controls' },
         h('p', { class: 'jug-controls__title' }, '🥛 Medir'),

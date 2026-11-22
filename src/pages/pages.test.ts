@@ -7,8 +7,9 @@ import { marketPage } from '../games/market/market';
 import { recipePage } from '../games/recipe/recipe';
 import { stationPage } from '../games/station/station';
 import { wordsPage } from '../games/words/words';
-import { clearProgress, updateProgress } from '../shared/storage';
-import { Button } from '../ui/components';
+import { completeGameRound, loadBreakState, resetBreakState, startPlayBreak } from '../shared/playBreak';
+import { clearProgress, loadProgress, updateProgress } from '../shared/storage';
+import { Button, SpeakButton } from '../ui/components';
 import { landingPage } from './landing';
 import type { Page } from './types';
 
@@ -106,5 +107,34 @@ describe('pages smoke & Spanish UI rendering', () => {
     expect(messageText().length).toBeGreaterThan(0);
 
     if (typeof cleanup === 'function') cleanup();
+  });
+
+  it('erases both saved progress and play-break state on the landing page', () => {
+    resetBreakState();
+    updateProgress((p) => { p.market.served = 3; p.market.stickers = ['🍎']; });
+    completeGameRound();
+    completeGameRound();
+    startPlayBreak();
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    const refresh = vi.fn();
+    landingPage({ root, refresh });
+
+    root.querySelector<HTMLButtonElement>('[data-focus="erase-btn"]')?.click();
+    root.querySelector<HTMLButtonElement>('[data-focus="confirm-erase"]')?.click();
+
+    expect(loadProgress().market.served).toBe(0);
+    expect(loadBreakState()).toEqual({ roundsSinceBreak: 0, totalBreaks: 0, resting: false });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a speech bubble when clicking a SpeakButton', () => {
+    const btn = SpeakButton('🍎', { english: 'apple', ariaLabel: 'apple' });
+    document.body.append(btn);
+    btn.click();
+    const bubble = document.querySelector<HTMLElement>('.voice-bubble');
+    expect(bubble?.hidden).toBe(false);
+    expect(bubble?.textContent).toContain('apple');
   });
 });

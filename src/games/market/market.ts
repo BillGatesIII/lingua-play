@@ -1,4 +1,4 @@
-import { numberWord, type Bi } from '../../shared/i18n';
+import { numberWord } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -31,15 +31,14 @@ export const marketPage: Page = (ctx) => {
   let customer = queue[index];
   let basket: Basket = {};
   let coins: number[] = [];
-  let message: Bi | null = null;
-  let endCelebrated = false;
+  let message: string | null = null;
   const stickers: string[] = [];
 
   const root = ctx.root;
   const host = h('div', { class: 'world world--market' });
   root.append(host);
 
-  const say = (m: Bi | null, focusTarget?: string) => {
+  const say = (m: string | null, focusTarget?: string) => {
     message = m;
     draw(focusTarget);
   };
@@ -49,10 +48,7 @@ export const marketPage: Page = (ctx) => {
     if (index >= CUSTOMERS_PER_DAY) {
       stage.v = 'closed';
       completeGameRound();
-      if (!endCelebrated) {
-        endCelebrated = true;
-        playSfx('levelUp');
-      }
+      playSfx('levelUp');
       speakEnglish('Well done! The market is closed for today!');
     } else {
       order = generateOrder(rng, index);
@@ -72,12 +68,12 @@ export const marketPage: Page = (ctx) => {
       stage.v = 'change';
       playSfx('surprise');
       speakEnglish('Perfect!', { anchor, mode: 'click' });
-      say({ es: '¡Perfecto! 😄 Ahora el cliente te da el dinero. ¿Cuánto cambio le devuelves?', en: 'Perfect! 😄 Now the customer hands you money. How much change do you give back?' }, 'coin-1');
+      say('¡Perfecto! 😄 Ahora el cliente te da el dinero. ¿Cuánto cambio le devuelves?', 'coin-1');
     } else {
       playSfx('oops');
       const m = basketMistake(order, basket, rng);
       speakEnglish(m.en, { anchor, mode: 'click' });
-      say(m);
+      say(m.es);
     }
   }
 
@@ -86,7 +82,7 @@ export const marketPage: Page = (ctx) => {
     if (result !== 'exact') {
       playSfx('oops');
       speakEnglish(result === 'too-much' ? 'Too much change!' : 'Not enough coins!', { anchor, mode: 'click' });
-      return say(changeFeedback(result), 'give-change');
+      return say(changeFeedback(result).es, 'give-change');
     }
     const sticker = pick(rng, PRODUCTS).emoji;
     stickers.push(sticker);
@@ -97,7 +93,7 @@ export const marketPage: Page = (ctx) => {
     stage.v = 'served';
     playSfx('surprise');
     speakEnglish('Happy customer! Thank you!', { anchor, mode: 'click' });
-    say({ es: `¡Cliente feliz! 🎉 Te regala una pegatina ${sticker}`, en: `Happy customer! 🎉 You got a sticker ${sticker}` }, 'next-customer');
+    say(`¡Cliente feliz! 🎉 Te regala una pegatina ${sticker}`, 'next-customer');
   }
 
   function scene(): HTMLElement {
@@ -229,17 +225,18 @@ export const marketPage: Page = (ctx) => {
       const wrap = h('div', { class: 'game' });
       wrap.append(GameHeader({
         title: '🛒 Market Quest',
-        noun: { es: 'Cliente', en: 'Customer' },
+        noun: 'Cliente',
         index, total: CUSTOMERS_PER_DAY,
       }));
 
       if (stage.v === 'closed') {
         wrap.append(EndCard({
           tone: 'sun',
-          title: { es: '¡El mercado cierra por hoy! 🌙', en: 'The market is closed for today! 🌙' },
+          title: '¡El mercado cierra por hoy! 🌙',
           art: h('p', { class: 'big-emoji', 'aria-label': 'pegatinas' }, stickers.join(' ')),
-          body: { es: 'Vuelve cuando quieras. ¡Tus pegatinas te esperan!', en: 'Come back whenever you like. Your stickers will wait!' },
-          againLabel: { es: 'Otro día de mercado', en: 'Another market day' },
+          body: 'Vuelve cuando quieras. ¡Tus pegatinas te esperan!',
+          againLabel: 'Otro día de mercado',
+          againVoice: 'Another market day',
           againFocusKey: 'another-day',
           onAgain: () => ctx.refresh(),
           onBreakChange: () => draw(),

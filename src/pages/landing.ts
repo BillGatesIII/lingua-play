@@ -1,7 +1,9 @@
-import { addHoverVoice, rewardEmojiEnglish, speakEnglish, type RewardShelf } from '../shared/voice';
+import { resetBreakState } from '../shared/playBreak';
+import { rewardEmojiEnglish, type RewardShelf } from '../shared/rewards';
 import { playSfx } from '../shared/sfx';
 import { clearProgress, loadProgress } from '../shared/storage';
-import { Button, Card, type Tone } from '../ui/components';
+import { addHoverVoice } from '../shared/voice';
+import { Button, Card, SpeakButton, type Tone } from '../ui/components';
 import { h } from '../ui/dom';
 import { renderKeepingFocus } from '../ui/focus';
 import type { Page } from './types';
@@ -106,16 +108,11 @@ export const landingPage: Page = (ctx) => {
   const badgeChip = (kind: RewardShelf, emoji: string) => {
     const en = rewardEmojiEnglish(kind, emoji);
     if (!en) return h('span', { class: 'big-emoji' }, emoji);
-    const btn = h('button', {
-      type: 'button',
-      class: 'badge-chip',
-      'aria-label': `${emoji} (${en})`,
-      onclick: (e: MouseEvent) => {
-        playSfx('pop');
-        speakEnglish(en, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-      },
-    }, emoji);
-    return addHoverVoice(btn, en);
+    return SpeakButton(emoji, {
+      english: en,
+      className: 'badge-chip',
+      ariaLabel: `${emoji} (${en})`,
+    });
   };
 
   const shelf = (title: string, kind: RewardShelf, items: string[]) =>
@@ -130,16 +127,12 @@ export const landingPage: Page = (ctx) => {
       const progress = loadProgress();
       const wrap = h('div');
 
-      const parrotBtn = h('button', {
-        type: 'button',
-        class: 'hero__parrot-btn',
-        'aria-label': 'Loro de Lingua Play: escuchar saludo en inglés',
-        onclick: (e: MouseEvent) => {
-          playSfx('surprise');
-          speakEnglish("Hello! Let's play!", { anchor: e.currentTarget as HTMLElement, mode: 'click' });
-        },
-      }, '🦜');
-      addHoverVoice(parrotBtn, "Hello! Let's play!");
+      const parrotBtn = SpeakButton('🦜', {
+        english: "Hello! Let's play!",
+        className: 'hero__parrot-btn',
+        ariaLabel: 'Loro de Lingua Play: escuchar saludo en inglés',
+        sfx: 'surprise',
+      });
 
       const gameCards = GAMES.map((g) => {
         const card = Card([
@@ -187,6 +180,7 @@ export const landingPage: Page = (ctx) => {
                   onClick: () => {
                     playSfx('remove');
                     clearProgress();
+                    resetBreakState();
                     confirmingErase = false;
                     ctx.refresh();
                   },

@@ -10,7 +10,6 @@
 .badge-chip:active { transform: scale(0.95); }
 .hero__title { font-size: var(--text-hero); letter-spacing: -0.02em; color: var(--berry-deep); text-shadow: 3px 3px 0 var(--sun); }
 .hero__tag { font-size: var(--text-lg); display: flex; justify-content: center; }
-.hero__tag .bi { align-items: center; }
 .game-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); transition: transform var(--dur) var(--ease-pop); }
 .game-card:hover { transform: translateY(-4px) rotate(-0.6deg); }
 .game-card__art { font-size: 3.25rem; letter-spacing: 0.08em; }
@@ -70,7 +69,6 @@
 .product:disabled { opacity: 0.6; cursor: not-allowed; }
 .product__emoji { font-size: 2.5rem; }
 .product__name { font-weight: 900; }
-.product__name--sub { font-weight: 600; font-size: var(--text-xs); color: var(--ink-soft); }
 .product__price { margin-top: var(--space-1); background: var(--sun); border: 2px solid var(--ink); border-radius: var(--radius-pill); padding: 0 var(--space-3); font-weight: 900; }
 .basket { list-style: none; font-size: var(--text-md); margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .basket li { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
@@ -98,7 +96,6 @@
 .legend { margin: 0; }
 .action-cue { margin: 0 0 var(--space-2); font-weight: 800; background: #dff9ec; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
 .clue { font-size: var(--text-lg); font-weight: 800; margin-bottom: var(--space-2); }
-.clue--sub { color: var(--ink-soft); font-weight: 600; font-size: var(--text-md); }
 .wind { font-weight: 800; }
 .wind-pips { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; margin-left: var(--space-2); }
 .wind-pip { width: 0.75rem; height: 0.75rem; border-radius: 50%; border: 2px solid var(--ink); background: var(--sea-light); display: inline-block; }
@@ -149,7 +146,6 @@
 /* Mystery Detective world */
 .world--detective { background: linear-gradient(180deg, #fff6bf, #f9d89c); }
 .clue-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-2); font-size: var(--text-lg); font-weight: 800; }
-.clue-list__sub { color: var(--ink-soft); font-weight: 600; font-size: var(--text-md); }
 .suspects { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: var(--space-4); }
 .suspect-card { background: var(--white); border: var(--border); border-radius: var(--radius-md); padding: var(--space-3); box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: var(--space-2); transition: transform var(--dur) var(--ease-pop), opacity var(--dur); }
 .suspect-card:hover { transform: translateY(-2px); }
@@ -168,7 +164,6 @@
 
 /* Word Workshop world */
 .world--words { background: linear-gradient(180deg, #e5ddff, #b9aaff); }
-.word-picture { font-size: 5rem; text-align: center; }
 .word-picture-btn { display: block; margin: 0 auto; background: none; border: 0; font: inherit; font-size: 5rem; line-height: 1.1; cursor: pointer; border-radius: var(--radius-md); padding: var(--space-1) var(--space-3); transition: transform var(--dur) var(--ease-pop); }
 .word-picture-btn:hover { transform: scale(1.08); }
 .word-answer, .letter-rack, .number-choices { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
@@ -187,7 +182,7 @@
 .number-choice { min-width: 5.5rem; min-height: 4rem; font-size: var(--text-lg); }
 
 /* Interactive English speech triggers */
-.chameleon--btn, .clock-btn, .ticket-card--btn, .compass-rose-btn, .clue-btn {
+.chameleon--btn, .clock-btn, .ticket-card--btn, .jug-readout--btn, .compass-rose-btn, .clue-btn {
   cursor: pointer; font-family: inherit; color: inherit;
 }
 .clock-btn, .compass-rose-btn, .clue-btn { background: none; border: 0; padding: 0; text-align: left; }
@@ -259,7 +254,7 @@
   .suspect-card__avatar { font-size: 2.35rem; }
 
   /* Words & Garden */
-  .word-picture { font-size: 3.5rem; }
+  .word-picture-btn { font-size: 3.5rem; }
   .letter-tile, .letter-slot { min-width: 3rem; min-height: 3rem; }
   .flower-sequence { margin: var(--space-2) 0; gap: var(--space-2); }
   .flower-pot { min-width: 4.5rem; min-height: 5rem; }

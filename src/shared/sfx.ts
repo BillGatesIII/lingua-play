@@ -35,8 +35,20 @@ function getAudioContext(): AudioContext | null {
 export function bindAudioUnlock(): void {
   if (unlockBound || typeof document === 'undefined') return;
   unlockBound = true;
+  const detach = () => {
+    document.removeEventListener('pointerdown', unlock);
+    document.removeEventListener('keydown', unlock);
+  };
   const unlock = () => {
-    getAudioContext();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'running') {
+      detach();
+    } else if (ctx.state === 'suspended') {
+      void ctx.resume().then(() => {
+        if (ctx.state === 'running') detach();
+      }).catch(() => {});
+    }
   };
   document.addEventListener('pointerdown', unlock, { passive: true });
   document.addEventListener('keydown', unlock, { passive: true });
