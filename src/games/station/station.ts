@@ -1,6 +1,7 @@
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -15,6 +16,7 @@ import {
 
 export const stationPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x94d049bb) >>> 0);
+  const director = createGameDirector(rng);
   const travellers = shuffle(rng, TRAVELLERS);
   let index = 0;
   let challenge: TrainChallenge = generateTrain(rng, index);
@@ -41,7 +43,13 @@ export const stationPage: Page = (ctx) => {
     if (solved || closed) return;
     clock = stepClock(clock, delta);
     playSfx('tick');
-    speakEnglish(timeText(clock, 'en'), { anchor, mode: 'click' });
+    speakEnglish(timeText(clock, 'en'), {
+      anchor,
+      mode: 'click',
+      role: 'step',
+      topic: `station-${clock.hour}-${clock.minute}`,
+      coalesceKey: 'station-clock',
+    });
     say(null);
   }
 
@@ -50,7 +58,14 @@ export const stationPage: Page = (ctx) => {
     const err = checkClock(challenge.target, clock);
     if (err) {
       playSfx('oops');
-      speakEnglish(err.en.includes('early') ? 'Too early!' : 'Too late!', { anchor, mode: 'click' });
+      const early = err.en.includes('early');
+      const firstLine = early
+        ? director.pickLine('too-early', ['Too early!', 'A bit too early — push the clock forward!', 'Not quite time yet!'])
+        : director.pickLine('too-late', ['Too late!', 'A little too late — turn the clock back!', 'Oops, the train would have left!']);
+      const hint = early
+        ? 'Move the hands forward. Red is the hour, black is the minutes!'
+        : 'Move the hands back. Red is the hour, black is the minutes!';
+      speakEnglish(director.encourage(hint, firstLine), { anchor, mode: 'event' });
       return say(err.es, 'dispatch');
     }
     solved = true;
@@ -61,23 +76,39 @@ export const stationPage: Page = (ctx) => {
       if (!p.station.stamps.includes(stamp)) p.station.stamps.push(stamp);
     });
     playSfx('surprise');
-    speakEnglish(`Right on time! Off to ${challenge.destination.name.en}!`, { anchor, mode: 'click' });
+    speakEnglish(director.celebrate(director.pickLine('departed', [
+      `All aboard for ${challenge.destination.name.en}!`,
+      `Right on time! Off to ${challenge.destination.name.en}!`,
+      `Next stop, ${challenge.destination.name.en}!`,
+    ])), { anchor, mode: 'event' });
     say(`¡En punto! 🎫 El tren parte rumbo a ${challenge.destination.name.es} ${stamp}`, 'next-train');
   }
 
   function nextTrain() {
     index++;
+    director.nextPuzzle();
     if (index >= TRAINS_PER_ROUND) {
       closed = true;
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('All trains departed! Great job!');
+      speakEnglish(director.pickLine('station-end', [
+        'All trains departed! Great job!',
+        'Splendid stationmaster! Every train left on time!',
+        'Brilliant shift! The platform is all clear!',
+        'Marvellous timing! See you next shift!',
+      ]), { mode: 'event' });
     } else {
       challenge = generateTrain(rng, index);
       clock = pickStartClock(challenge);
       solved = false;
       playSfx('step');
-      speakEnglish(travellers[index % travellers.length].name.en);
+      const name = travellers[index % travellers.length].name.en;
+      const intro = director.transition('next-traveller', [
+        name,
+        `Next passenger: ${name}!`,
+        `All aboard! Here comes ${name}!`,
+      ], 2);
+      if (intro) speakEnglish(intro, { mode: 'event' });
     }
     message = null;
     draw(closed ? 'another-shift' : 'ctrl-p60');

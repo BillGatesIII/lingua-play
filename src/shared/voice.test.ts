@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearProgress, updateProgress } from './storage';
 import { playSfx } from './sfx';
+import { resetSpeechSession } from './speechDirector';
 import { addHoverVoice, cleanSpeechText, pickEnglishVoice, speakEnglish, stopSpeech } from './voice';
 
 describe('voice & speech bubble', () => {
@@ -10,10 +11,12 @@ describe('voice & speech bubble', () => {
     clearProgress();
     document.body.innerHTML = '';
     stopSpeech();
+    resetSpeechSession();
   });
 
   afterEach(() => {
     stopSpeech();
+    resetSpeechSession();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });

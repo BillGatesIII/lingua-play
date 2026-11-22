@@ -1,5 +1,5 @@
 import { playSfx, type SfxKind } from '../shared/sfx';
-import { addHoverVoice, speakEnglish } from '../shared/voice';
+import { addHoverVoice, speakEnglish, type VoiceRole } from '../shared/voice';
 import { h, type Child } from './dom';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
@@ -14,8 +14,10 @@ export interface ButtonOptions {
   href?: string;
   className?: string;
   focusKey?: string;
-  /** Optional English phrase spoken on mouseover (with speech bubble). */
+  /** Optional English phrase shown/spoken on mouseover (with speech bubble). */
   voiceHover?: string | (() => string);
+  /** Speech role for hover: defaults to 'chrome' (silent bubble) so UI controls don't nag. */
+  voiceRole?: VoiceRole;
 }
 
 /** Reusable button (or link when `href` is given). */
@@ -37,7 +39,7 @@ export function Button(content: Child | Child[], o: ButtonOptions = {}): HTMLEle
         },
         ...kids,
       );
-  if (o.voiceHover) addHoverVoice(el, o.voiceHover);
+  if (o.voiceHover) addHoverVoice(el, o.voiceHover, { role: o.voiceRole ?? 'chrome' });
   return el;
 }
 
@@ -52,18 +54,20 @@ export function Panel(title: Child, children: Child[], className = ''): HTMLElem
 }
 
 export interface SpeakButtonOptions {
-  english: string;
+  english: string | (() => string);
   className?: string;
   ariaLabel?: string;
   lang?: string;
   style?: string;
   sfx?: SfxKind;
   hover?: boolean;
+  hoverText?: string;
 }
 
 /** Interactive button that speaks an English phrase on click (and hover by default) with a subtle SFX. */
 export function SpeakButton(content: Child | Child[], o: SpeakButtonOptions): HTMLButtonElement {
   const kids = Array.isArray(content) ? content : [content];
+  const getText = () => (typeof o.english === 'function' ? o.english() : o.english);
   const btn = h(
     'button',
     {
@@ -74,10 +78,11 @@ export function SpeakButton(content: Child | Child[], o: SpeakButtonOptions): HT
       'aria-label': o.ariaLabel,
       onclick: (e: MouseEvent) => {
         playSfx(o.sfx ?? 'pop');
-        speakEnglish(o.english, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+        speakEnglish(getText(), { anchor: e.currentTarget as HTMLElement, mode: 'click', role: 'explicit' });
       },
     },
     ...kids,
   );
-  return o.hover === false ? btn : addHoverVoice(btn, o.english);
+  if (o.hover === false) return btn;
+  return addHoverVoice(btn, o.hoverText ?? (typeof o.english === 'string' ? o.english : getText), { role: 'vocab' });
 }

@@ -1,6 +1,7 @@
 import { resetBreakState } from '../shared/playBreak';
 import { rewardEmojiEnglish, type RewardShelf } from '../shared/rewards';
 import { playSfx } from '../shared/sfx';
+import { nextParrotGreeting, resetParrotGreeting, resetSpeechSession } from '../shared/speechDirector';
 import { clearProgress, loadProgress } from '../shared/storage';
 import { addHoverVoice } from '../shared/voice';
 import { Button, Card, SpeakButton, type Tone } from '../ui/components';
@@ -128,7 +129,8 @@ export const landingPage: Page = (ctx) => {
       const wrap = h('div');
 
       const parrotBtn = SpeakButton('🦜', {
-        english: "Hello! Let's play!",
+        english: () => nextParrotGreeting(),
+        hoverText: "Hello! Let's play!",
         className: 'hero__parrot-btn',
         ariaLabel: 'Loro de Lingua Play: escuchar saludo en inglés',
         sfx: 'surprise',
@@ -146,10 +148,11 @@ export const landingPage: Page = (ctx) => {
             variant: g.btnVariant,
             ariaLabel: `${g.title}: Jugar`,
             voiceHover: `Play ${g.title}`,
+            voiceRole: 'chrome',
             onClick: () => playSfx('pop'),
           }),
         ], g.tone, 'game-card');
-        return addHoverVoice(card, g.title, 220);
+        return addHoverVoice(card, g.title, { delayMs: 280, role: 'vocab' });
       });
 
       wrap.append(
@@ -181,6 +184,8 @@ export const landingPage: Page = (ctx) => {
                     playSfx('remove');
                     clearProgress();
                     resetBreakState();
+                    resetSpeechSession();
+                    resetParrotGreeting();
                     confirmingErase = false;
                     ctx.refresh();
                   },

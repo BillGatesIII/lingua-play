@@ -1,16 +1,36 @@
 import { h } from '../ui/dom';
+import { decideSpeech, recordSpoken, type VoiceRole } from './speechDirector';
 import { loadProgress } from './storage';
 
+export type { VoiceRole };
 export type SpeakMode = 'hover' | 'click' | 'event';
 
 export interface SpeakOptions {
   anchor?: HTMLElement | null;
   mode?: SpeakMode;
+  /** Semantic role controlling whether and how often audio plays. */
+  role?: VoiceRole;
   /** Optional custom visual text in the bubble (defaults to `text`). */
   displayText?: string;
+  /** Optional topic key for familiarity tracking (defaults to cleaned text). */
+  topic?: string;
+  /** Show the speech bubble visually without playing TTS audio. */
+  silent?: boolean;
+  /** Debounce rapid repeated actions under this key so TTS speaks the settled result once. */
+  coalesceKey?: string;
+  /** Custom coalesce settle delay in ms (defaults to 420ms). */
+  coalesceMs?: number;
 }
 
-const HOVER_DELAY_MS = 140;
+export interface HoverVoiceOptions {
+  delayMs?: number;
+  role?: VoiceRole;
+  topic?: string;
+}
+
+const HOVER_DELAY_MS = 260;
+const CHROME_HOVER_DELAY_MS = 320;
+const STEP_COALESCE_MS = 420;
 const SAME_TEXT_COOLDOWN_MS = 900;
 const PRIORITY_GRACE_MS = 350;
 
@@ -18,6 +38,7 @@ let bubbleEl: HTMLElement | null = null;
 let bubbleTextEl: HTMLElement | null = null;
 let hideTimer: number | null = null;
 let pendingHoverTimer: number | null = null;
+let pendingCoalesceTimer: number | null = null;
 let lastSpokenText = '';
 let lastSpokenAt = 0;
 let lastPriorityAt = 0;
@@ -188,10 +209,8 @@ export function hideBubble(): void {
 }
 
 export function stopSpeech(): void {
-  if (pendingHoverTimer !== null) {
-    window.clearTimeout(pendingHoverTimer);
-    pendingHoverTimer = null;
-  }
+  cancelPendingHover();
+  cancelPendingCoalesce();
   lastSpokenText = '';
   lastSpokenAt = 0;
   lastPriorityAt = 0;
@@ -207,37 +226,13 @@ export function stopSpeech(): void {
   hideBubble();
 }
 
-export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
-  const mode = opts.mode ?? 'click';
-  const spoken = cleanSpeechText(text);
-  const display = cleanSpeechText(opts.displayText ?? text) || text.trim();
-  if (!spoken && !display) return;
-
-  const now = Date.now();
-  if (mode === 'hover') {
-    if (spoken === lastSpokenText && now - lastSpokenAt < SAME_TEXT_COOLDOWN_MS) return;
-    if (now - lastPriorityAt < PRIORITY_GRACE_MS || isPrioritySpeechActive()) return;
-  } else {
-    cancelPendingHover();
-    lastPriorityAt = now;
-  }
-
-  lastSpokenText = spoken;
-  lastSpokenAt = now;
-
-  let anchorRect: DOMRect | null = null;
-  if (opts.anchor && opts.anchor.isConnected) {
-    anchorRect = opts.anchor.getBoundingClientRect();
-  }
-
-  const fallbackMs = Math.min(7000, Math.max(2000, display.length * 85));
-  showBubble(display, anchorRect, fallbackMs);
-
+function speakUtterance(spoken: string, mode: SpeakMode, topic: string): void {
   const soundOn = loadProgress().settings.sound;
   if (!soundOn || !spoken || typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
     return;
   }
 
+  recordSpoken(topic, mode, Date.now());
   const id = ++currentUtteranceId;
   activePriorityUtteranceId = mode === 'hover' ? null : id;
   try {
@@ -271,6 +266,61 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
   }
 }
 
+export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
+  const mode = opts.mode ?? 'click';
+  const role: VoiceRole = opts.role ?? (mode === 'hover' ? 'vocab' : mode === 'event' ? 'event' : 'explicit');
+  const spoken = cleanSpeechText(text);
+  const display = cleanSpeechText(opts.displayText ?? text) || text.trim();
+  if (!spoken && !display) return;
+  const topic = opts.topic ?? spoken;
+
+  const now = Date.now();
+  if (mode === 'hover') {
+    if (spoken === lastSpokenText && now - lastSpokenAt < SAME_TEXT_COOLDOWN_MS) return;
+    if (now - lastPriorityAt < PRIORITY_GRACE_MS || isPrioritySpeechActive()) return;
+  } else {
+    cancelPendingHover();
+    lastPriorityAt = now;
+    if (!opts.coalesceKey) cancelPendingCoalesce();
+  }
+
+  let anchorRect: DOMRect | null = null;
+  if (opts.anchor && opts.anchor.isConnected) {
+    anchorRect = opts.anchor.getBoundingClientRect();
+  }
+
+  const fallbackMs = Math.min(7000, Math.max(2000, display.length * 85));
+
+  if (opts.coalesceKey && mode !== 'hover') {
+    lastSpokenText = spoken;
+    lastSpokenAt = now;
+    showBubble(display, anchorRect, fallbackMs);
+    cancelPendingCoalesce();
+    if (opts.silent) return;
+    pendingCoalesceTimer = window.setTimeout(() => {
+      pendingCoalesceTimer = null;
+      const decision = decideSpeech({ role, mode, topic, now: Date.now() });
+      if (decision.speakAudio) {
+        speakUtterance(spoken, mode, topic);
+      }
+    }, opts.coalesceMs ?? STEP_COALESCE_MS);
+    return;
+  }
+
+  const decision = opts.silent
+    ? { showBubble: true, speakAudio: false }
+    : decideSpeech({ role, mode, topic, now });
+
+  if (!decision.showBubble) return;
+
+  lastSpokenText = spoken;
+  lastSpokenAt = now;
+  showBubble(display, anchorRect, fallbackMs);
+
+  if (!decision.speakAudio) return;
+  speakUtterance(spoken, mode, topic);
+}
+
 export function cancelPendingHover(): void {
   if (pendingHoverTimer !== null) {
     window.clearTimeout(pendingHoverTimer);
@@ -278,12 +328,25 @@ export function cancelPendingHover(): void {
   }
 }
 
+export function cancelPendingCoalesce(): void {
+  if (pendingCoalesceTimer !== null) {
+    window.clearTimeout(pendingCoalesceTimer);
+    pendingCoalesceTimer = null;
+  }
+}
+
 /** Attaches mouseover (pointerenter) English voice + speech bubble to an element. */
 export function addHoverVoice<T extends HTMLElement>(
   el: T,
   textOrFn: string | (() => string),
-  delayMs = HOVER_DELAY_MS,
+  delayOrOpts: number | HoverVoiceOptions = HOVER_DELAY_MS,
 ): T {
+  const opts: HoverVoiceOptions = typeof delayOrOpts === 'number'
+    ? { delayMs: delayOrOpts }
+    : delayOrOpts;
+  const role: VoiceRole = opts.role ?? 'vocab';
+  const delayMs = opts.delayMs ?? (role === 'chrome' ? CHROME_HOVER_DELAY_MS : HOVER_DELAY_MS);
+
   const onEnter = (e: Event) => {
     const pe = e as PointerEvent;
     if (pe.pointerType === 'touch') return;
@@ -291,7 +354,7 @@ export function addHoverVoice<T extends HTMLElement>(
     pendingHoverTimer = window.setTimeout(() => {
       pendingHoverTimer = null;
       const text = typeof textOrFn === 'function' ? textOrFn() : textOrFn;
-      if (text) speakEnglish(text, { anchor: el, mode: 'hover' });
+      if (text) speakEnglish(text, { anchor: el, mode: 'hover', role, topic: opts.topic });
     }, delayMs);
   };
   el.addEventListener('pointerenter', onEnter);

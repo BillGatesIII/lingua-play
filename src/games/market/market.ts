@@ -2,6 +2,7 @@ import { numberWord } from '../../shared/i18n';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32, pick, shuffle } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
+import { createGameDirector } from '../../shared/speechDirector';
 import { updateProgress } from '../../shared/storage';
 import { addHoverVoice, speakEnglish } from '../../shared/voice';
 import type { Page } from '../../pages/types';
@@ -24,6 +25,7 @@ function coinIcon(): SVGElement {
 
 export const marketPage: Page = (ctx) => {
   const rng = mulberry32((Date.now() ^ 0x9e3779b9) >>> 0);
+  const director = createGameDirector(rng);
   const stage = { v: 'basket' as Stage };
   const queue = shuffle(rng, CUSTOMERS).slice(0, CUSTOMERS_PER_DAY);
   let index = 0;
@@ -45,11 +47,17 @@ export const marketPage: Page = (ctx) => {
 
   function nextCustomer() {
     index++;
+    director.nextPuzzle();
     if (index >= CUSTOMERS_PER_DAY) {
       stage.v = 'closed';
       completeGameRound();
       playSfx('levelUp');
-      speakEnglish('Well done! The market is closed for today!');
+      speakEnglish(director.pickLine('closed', [
+        'Well done! The market is closed for today!',
+        'Splendid work! Time to pack up the stall!',
+        'What a busy market day! Brilliant job!',
+        'All shoppers served! Cheerio for now!',
+      ]), { mode: 'event' });
     } else {
       order = generateOrder(rng, index);
       customer = queue[index];
@@ -57,7 +65,12 @@ export const marketPage: Page = (ctx) => {
       coins = [];
       stage.v = 'basket';
       playSfx('step');
-      speakEnglish(customer.greeting.en);
+      const intro = director.transition('customer', [
+        customer.greeting.en,
+        `Here comes ${customer.name.en}!`,
+        `Next shopper: ${customer.name.en}!`,
+      ], 2);
+      if (intro) speakEnglish(intro, { mode: 'event' });
     }
     message = null;
     draw(stage.v === 'closed' ? 'another-day' : `p-${PRODUCTS[0].id}`);
@@ -66,13 +79,20 @@ export const marketPage: Page = (ctx) => {
   function submitBasket(anchor?: HTMLElement) {
     if (basketMatches(order, basket)) {
       stage.v = 'change';
+      director.nextPuzzle();
       playSfx('surprise');
-      speakEnglish('Perfect!', { anchor, mode: 'click' });
+      speakEnglish(director.pickLine('bag-ok', [
+        'Spot on! Now for the change.',
+        'Lovely! Everything is in the bag.',
+        'Smashing! Time to count the change.',
+        'Perfect! That is the exact order.',
+      ]), { anchor, mode: 'event' });
       say('¡Perfecto! 😄 Ahora el cliente te da el dinero. ¿Cuánto cambio le devuelves?', 'coin-1');
     } else {
       playSfx('oops');
       const m = basketMistake(order, basket, rng);
-      speakEnglish(m.en, { anchor, mode: 'click' });
+      const line = director.encourage('Listen to the customer again and check the bag!', m.en);
+      speakEnglish(line, { anchor, mode: 'event' });
       say(m.es);
     }
   }
@@ -81,7 +101,13 @@ export const marketPage: Page = (ctx) => {
     const result = checkChange(order, coins);
     if (result !== 'exact') {
       playSfx('oops');
-      speakEnglish(result === 'too-much' ? 'Too much change!' : 'Not enough coins!', { anchor, mode: 'click' });
+      const firstLine = result === 'too-much'
+        ? director.pickLine('too-much', ['Too much change!', 'Whoa, too many coins!', 'A bit too much change!'])
+        : director.pickLine('too-little', ['Not enough coins!', 'A few coins short!', 'That needs a bit more change!']);
+      const hint = result === 'too-much'
+        ? 'Take away a coin and check the total again.'
+        : 'Add a bit more change after counting the price.';
+      speakEnglish(director.encourage(hint, firstLine), { anchor, mode: 'event' });
       return say(changeFeedback(result).es, 'give-change');
     }
     const sticker = pick(rng, PRODUCTS).emoji;
@@ -92,7 +118,12 @@ export const marketPage: Page = (ctx) => {
     });
     stage.v = 'served';
     playSfx('surprise');
-    speakEnglish('Happy customer! Thank you!', { anchor, mode: 'click' });
+    speakEnglish(director.celebrate(director.pickLine('served', [
+      'Happy customer! Cheers!',
+      'Lovely service! Thank you!',
+      'One happy shopper!',
+      'Ta very much!',
+    ])), { anchor, mode: 'event' });
     say(`¡Cliente feliz! 🎉 Te regala una pegatina ${sticker}`, 'next-customer');
   }
 
@@ -109,6 +140,9 @@ export const marketPage: Page = (ctx) => {
             speakEnglish(`${numberWord(nextQty, 'en')} ${nextQty === 1 ? p.en.one : p.en.many}`, {
               anchor: e.currentTarget as HTMLElement,
               mode: 'click',
+              role: 'step',
+              topic: `market-${p.id}`,
+              coalesceKey: 'market-bag',
             });
             basket = { ...basket, [p.id]: nextQty };
             message = null;
@@ -118,7 +152,7 @@ export const marketPage: Page = (ctx) => {
         h('span', { class: 'product__emoji', 'aria-hidden': 'true' }, p.emoji),
         h('span', { class: 'product__name', lang: 'es' }, p.es.one),
         h('span', { class: 'product__price' }, coinIcon(), ` ${p.price}`));
-        return addHoverVoice(btn, p.en.one);
+        return addHoverVoice(btn, p.en.one, { role: 'vocab' });
       }),
     );
     return h('div', { class: 'stall' }, h('div', { class: 'awning', 'aria-hidden': 'true' }), products);
@@ -172,11 +206,18 @@ export const marketPage: Page = (ctx) => {
         variant: 'secondary', className: 'coin', disabled: stage.v !== 'change', focusKey: `coin-${c}`,
         ariaLabel: `Dar moneda de ${c}`,
         voiceHover: `${numberWord(c, 'en')} ${c === 1 ? 'coin' : 'coins'}`,
+        voiceRole: 'vocab',
         onClick: (e) => {
           playSfx('coin');
           coins = [...coins, c];
           const sum = sumCoins(coins);
-          speakEnglish(`${sum} ${sum === 1 ? 'coin' : 'coins'}`, { anchor: e.currentTarget as HTMLElement, mode: 'click' });
+          speakEnglish(`${sum} ${sum === 1 ? 'coin' : 'coins'}`, {
+            anchor: e.currentTarget as HTMLElement,
+            mode: 'click',
+            role: 'step',
+            topic: 'market-change-sum',
+            coalesceKey: 'market-coins',
+          });
           message = null;
           draw();
         },
