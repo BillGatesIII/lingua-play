@@ -22,7 +22,7 @@ export function Button(content: Child | Child[], o: ButtonOptions = {}): HTMLEle
   const cls = ['btn', `btn--${o.variant ?? 'primary'}`, o.large && 'btn--lg', o.className].filter(Boolean).join(' ');
   const kids = Array.isArray(content) ? content : [content];
   const el = o.href
-    ? h('a', { class: cls, href: o.href, 'aria-label': o.ariaLabel, 'data-focus': o.focusKey }, ...kids)
+    ? h('a', { class: cls, href: o.href, onclick: o.onClick, 'aria-label': o.ariaLabel, 'data-focus': o.focusKey }, ...kids)
     : h(
         'button',
         {

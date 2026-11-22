@@ -100,6 +100,8 @@ export const wordsPage: Page = (ctx) => {
       return;
     }
     if (e.key === 'Enter' && selected.length === wordLetterCount(puzzle, 'es')) {
+      const target = e.target instanceof Element ? e.target : null;
+      if (e.defaultPrevented || target?.closest('button, a, [role="button"]')) return;
       e.preventDefault();
       checkWord();
       return;

@@ -1,4 +1,4 @@
-import { EMOJI_ENGLISH, addHoverVoice, speakEnglish } from '../shared/voice';
+import { addHoverVoice, rewardEmojiEnglish, speakEnglish, type RewardShelf } from '../shared/voice';
 import { playSfx } from '../shared/sfx';
 import { clearProgress, loadProgress } from '../shared/storage';
 import { Button, Card, type Tone } from '../ui/components';
@@ -103,8 +103,8 @@ export const landingPage: Page = (ctx) => {
   const host = h('div');
   ctx.root.append(host);
 
-  const badgeChip = (emoji: string) => {
-    const en = EMOJI_ENGLISH[emoji];
+  const badgeChip = (kind: RewardShelf, emoji: string) => {
+    const en = rewardEmojiEnglish(kind, emoji);
     if (!en) return h('span', { class: 'big-emoji' }, emoji);
     const btn = h('button', {
       type: 'button',
@@ -118,11 +118,11 @@ export const landingPage: Page = (ctx) => {
     return addHoverVoice(btn, en);
   };
 
-  const shelf = (title: string, items: string[]) =>
+  const shelf = (title: string, kind: RewardShelf, items: string[]) =>
     h('div', { class: 'shelf-row' },
       h('h3', {}, title),
       items.length
-        ? h('div', { class: 'badge-row' }, ...items.map(badgeChip))
+        ? h('div', { class: 'badge-row' }, ...items.map((emoji) => badgeChip(kind, emoji)))
         : h('p', { class: 'big-emoji', 'aria-label': '—' }, '—'));
 
   function draw(focusTarget?: string) {
@@ -170,14 +170,14 @@ export const landingPage: Page = (ctx) => {
         Card([
           h('h2', {}, 'Mi colección'),
           h('div', { class: 'cols' },
-            shelf('Pegatinas del mercado', progress.market.stickers),
-            shelf('Tesoros de la isla', progress.compass.treasures),
-            shelf('Colores del camaleón', progress.colors.colours),
-            shelf('Platos de la cocina', progress.recipe.dishes),
-            shelf('Sellos de tren', progress.station.stamps),
-            shelf('Casos resueltos', progress.detective.badges),
-            shelf('Palabras mágicas', progress.words.badges),
-            shelf('Flores del jardín', progress.garden.flowers)),
+            shelf('Pegatinas del mercado', 'market', progress.market.stickers),
+            shelf('Tesoros de la isla', 'compass', progress.compass.treasures),
+            shelf('Colores del camaleón', 'colors', progress.colors.colours),
+            shelf('Platos de la cocina', 'recipe', progress.recipe.dishes),
+            shelf('Sellos de tren', 'station', progress.station.stamps),
+            shelf('Casos resueltos', 'detective', progress.detective.badges),
+            shelf('Palabras mágicas', 'words', progress.words.badges),
+            shelf('Flores del jardín', 'garden', progress.garden.flowers)),
           confirmingErase
             ? h('div', { class: 'confirm-box', role: 'alertdialog', 'aria-label': 'Confirmar borrado' },
                 h('p', { class: 'confirm-box__text' }, '¿Borrar todo lo guardado en este dispositivo?'),

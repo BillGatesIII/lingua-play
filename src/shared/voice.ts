@@ -22,6 +22,7 @@ let lastSpokenText = '';
 let lastSpokenAt = 0;
 let lastPriorityAt = 0;
 let currentUtteranceId = 0;
+let activePriorityUtteranceId: number | null = null;
 let cachedVoices: SpeechSynthesisVoice[] = [];
 let voicesHooked = false;
 
@@ -98,9 +99,10 @@ function positionBubble(bubble: HTMLElement, rect: DOMRect | null): void {
 
   const vw = window.innerWidth || 1024;
   const vh = window.innerHeight || 768;
-  const bRect = bubble.getBoundingClientRect();
-  const bw = Math.min(bRect.width || 240, vw - 24);
-  const bh = bRect.height || 52;
+  bubble.style.left = '0px';
+  bubble.style.top = '0px';
+  const bw = Math.min(bubble.offsetWidth || 240, vw - 24);
+  const bh = bubble.offsetHeight || 52;
   const margin = 12;
 
   const anchorCenter = rect.left + rect.width / 2;
@@ -134,6 +136,23 @@ function showBubble(displayText: string, anchorRect: DOMRect | null, durationMs:
   }, durationMs);
 }
 
+function isSynthBusy(): boolean {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
+  const synth = window.speechSynthesis;
+  return Boolean(synth.speaking || synth.pending);
+}
+
+function isPrioritySpeechActive(): boolean {
+  if (activePriorityUtteranceId === null) return false;
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    const synth = window.speechSynthesis;
+    if (typeof synth.speaking === 'boolean' && typeof synth.pending === 'boolean') {
+      return synth.speaking || synth.pending;
+    }
+  }
+  return true;
+}
+
 export function hideBubble(): void {
   if (hideTimer !== null) {
     window.clearTimeout(hideTimer);
@@ -142,6 +161,9 @@ export function hideBubble(): void {
   if (bubbleEl) {
     bubbleEl.classList.remove('voice-bubble--visible');
     bubbleEl.hidden = true;
+  }
+  if (activePriorityUtteranceId !== null && !isSynthBusy()) {
+    activePriorityUtteranceId = null;
   }
 }
 
@@ -154,6 +176,7 @@ export function stopSpeech(): void {
   lastSpokenAt = 0;
   lastPriorityAt = 0;
   currentUtteranceId += 1;
+  activePriorityUtteranceId = null;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
@@ -173,8 +196,9 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
   const now = Date.now();
   if (mode === 'hover') {
     if (spoken === lastSpokenText && now - lastSpokenAt < SAME_TEXT_COOLDOWN_MS) return;
-    if (now - lastPriorityAt < PRIORITY_GRACE_MS) return;
+    if (now - lastPriorityAt < PRIORITY_GRACE_MS || isPrioritySpeechActive()) return;
   } else {
+    cancelPendingHover();
     lastPriorityAt = now;
   }
 
@@ -195,6 +219,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
   }
 
   const id = ++currentUtteranceId;
+  activePriorityUtteranceId = mode === 'hover' ? null : id;
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(spoken);
@@ -209,6 +234,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
     utterance.pitch = 1.05;
 
     const scheduleShortHide = () => {
+      if (activePriorityUtteranceId === id) activePriorityUtteranceId = null;
       if (id !== currentUtteranceId) return;
       if (hideTimer !== null) window.clearTimeout(hideTimer);
       hideTimer = window.setTimeout(() => {
@@ -220,6 +246,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
 
     window.speechSynthesis.speak(utterance);
   } catch {
+    if (activePriorityUtteranceId === id) activePriorityUtteranceId = null;
     /* keep visual bubble even if speechSynthesis fails */
   }
 }
@@ -253,64 +280,100 @@ export function addHoverVoice<T extends HTMLElement>(
   return el;
 }
 
-/** Emoji-to-English names for interactive collection badges on the landing page. */
-export const EMOJI_ENGLISH: Record<string, string> = {
-  '🍌': 'banana',
-  '🥚': 'egg',
-  '🍎': 'apple',
-  '🍊': 'orange',
-  '🍞': 'bread',
-  '🍅': 'tomato',
-  '🧀': 'cheese',
-  '🍉': 'watermelon',
-  '💎': 'diamond',
-  '👑': 'crown',
-  '🏺': 'treasure vase',
-  '🗝️': 'golden key',
-  '💰': 'bag of gold',
-  '🔴': 'red',
-  '🟡': 'yellow',
-  '🔵': 'blue',
-  '⚪': 'white',
-  '⚫': 'black',
-  '🟠': 'orange',
-  '🟢': 'green',
-  '🟣': 'purple',
-  '🌸': 'pink',
-  '🩵': 'light blue',
-  '🧈': 'light yellow',
-  '🟤': 'brown',
-  '🩶': 'grey',
-  '🪻': 'lavender',
-  '🌿': 'mint green',
-  '🌲': 'dark green',
-  '🌌': 'navy blue',
-  '🍒': 'maroon',
-  '🍲': 'rainbow soup',
-  '🥤': 'space smoothie',
-  '🍕': 'monster pizza',
-  '🥗': 'magic salad',
-  '🧁': 'star cupcake',
-  '🏖️': 'the beach',
-  '🏔️': 'the mountains',
-  '🏛️': 'the museum',
-  '🎢': 'the funfair',
-  '🍪': 'cookies',
-  '🍍': 'golden pineapple',
-  '🔑': 'secret key',
-  '🎸': 'guitar',
-  '🏠': 'house',
-  '🐈': 'cat',
-  '🌙': 'moon',
-  '☁️': 'cloud',
-  '📚': 'book',
-  '🔥': 'fire',
-  '🏴‍☠️': 'pirate',
-  '⭐': 'star',
-  '🐢': 'turtle',
-  '🦋': 'butterfly',
-  '🌷': 'tulip',
-  '🌻': 'sunflower',
-  '🌼': 'daisy',
-  '🌺': 'hibiscus',
+export type RewardShelf =
+  | 'market'
+  | 'compass'
+  | 'colors'
+  | 'recipe'
+  | 'station'
+  | 'detective'
+  | 'words'
+  | 'garden';
+
+/** Shelf-scoped emoji-to-English names for interactive collection badges on the landing page. */
+export const SHELF_EMOJI_ENGLISH: Record<RewardShelf, Record<string, string>> = {
+  market: {
+    '🍌': 'banana',
+    '🥚': 'egg',
+    '🍎': 'apple',
+    '🍊': 'orange',
+    '🍞': 'bread',
+    '🍅': 'tomato',
+    '🧀': 'cheese',
+    '🍉': 'watermelon',
+  },
+  compass: {
+    '💎': 'diamond',
+    '👑': 'crown',
+    '🏺': 'treasure vase',
+    '🗝️': 'golden key',
+    '💰': 'bag of gold',
+  },
+  colors: {
+    '🔴': 'red',
+    '🟡': 'yellow',
+    '🔵': 'blue',
+    '⚪': 'white',
+    '⚫': 'black',
+    '🟠': 'orange',
+    '🟢': 'green',
+    '🟣': 'purple',
+    '🌸': 'pink',
+    '🩵': 'light blue',
+    '🧈': 'light yellow',
+    '🟤': 'brown',
+    '🩶': 'grey',
+    '🪻': 'lavender',
+    '🌿': 'mint green',
+    '🌲': 'dark green',
+    '🌌': 'navy blue',
+    '🍒': 'maroon',
+    '🪨': 'muddy brown',
+  },
+  recipe: {
+    '🍲': 'rainbow soup',
+    '🥤': 'space smoothie',
+    '🍕': 'monster pizza',
+    '🥗': 'magic salad',
+    '🧁': 'star cupcake',
+  },
+  station: {
+    '🏖️': 'the beach',
+    '🏔️': 'the mountains',
+    '🏛️': 'the museum',
+    '🌲': 'the forest',
+    '🎢': 'the funfair',
+  },
+  detective: {
+    '🍪': 'cookies',
+    '🍍': 'golden pineapple',
+    '🔑': 'secret key',
+    '🎸': 'guitar',
+    '👑': 'royal crown',
+  },
+  words: {
+    '🏠': 'house',
+    '🐈': 'cat',
+    '🌙': 'moon',
+    '☁️': 'cloud',
+    '📚': 'book',
+    '🏖️': 'beach',
+    '🧀': 'cheese',
+    '🔥': 'fire',
+    '🏴‍☠️': 'pirate',
+    '⭐': 'star',
+    '🐢': 'turtle',
+    '🦋': 'butterfly',
+  },
+  garden: {
+    '🌷': 'tulip',
+    '🌻': 'sunflower',
+    '🌼': 'daisy',
+    '🌺': 'hibiscus',
+    '🌸': 'cherry blossom',
+  },
 };
+
+export function rewardEmojiEnglish(shelf: RewardShelf, emoji: string): string | undefined {
+  return SHELF_EMOJI_ENGLISH[shelf][emoji];
+}

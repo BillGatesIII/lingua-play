@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { colorsPage } from '../games/colors/colors';
 import { compassPage } from '../games/compass/compass';
 import { detectivePage } from '../games/detective/detective';
@@ -7,7 +7,8 @@ import { marketPage } from '../games/market/market';
 import { recipePage } from '../games/recipe/recipe';
 import { stationPage } from '../games/station/station';
 import { wordsPage } from '../games/words/words';
-import { clearProgress } from '../shared/storage';
+import { clearProgress, updateProgress } from '../shared/storage';
+import { Button } from '../ui/components';
 import { landingPage } from './landing';
 import type { Page } from './types';
 
@@ -35,6 +36,75 @@ describe('pages smoke & Spanish UI rendering', () => {
     document.body.append(root);
     const cleanup = page({ root, refresh: () => {} });
     expect(root.textContent?.length).toBeGreaterThan(20);
+    if (typeof cleanup === 'function') cleanup();
+  });
+
+  it('forwards onClick on link buttons', () => {
+    const onClick = vi.fn();
+    const link = Button('▶ Jugar', { href: '#/market', onClick });
+    document.body.append(link);
+    expect(link.tagName).toBe('A');
+    link.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('labels shared reward emojis per shelf on the landing page', () => {
+    updateProgress((p) => {
+      p.colors.colours = ['🌲', '🌸'];
+      p.station.stamps = ['🌲'];
+      p.garden.flowers = ['🌸'];
+    });
+    const root = document.createElement('main');
+    document.body.append(root);
+    landingPage({ root, refresh: () => {} });
+
+    const shelfLabels = (heading: string) => {
+      const row = [...root.querySelectorAll('.shelf-row')].find((el) => el.querySelector('h3')?.textContent === heading);
+      return [...(row?.querySelectorAll('.badge-chip') ?? [])].map((el) => el.getAttribute('aria-label'));
+    };
+
+    expect(shelfLabels('Colores del camaleón')).toEqual(['🌲 (dark green)', '🌸 (pink)']);
+    expect(shelfLabels('Sellos de tren')).toEqual(['🌲 (the forest)']);
+    expect(shelfLabels('Flores del jardín')).toEqual(['🌸 (cherry blossom)']);
+  });
+
+  it('lets Enter activate controls instead of checking the word in Word Workshop', () => {
+    const root = document.createElement('main');
+    document.body.append(root);
+    const cleanup = wordsPage({ root, refresh: () => {} });
+
+    const emptySlots = () => root.querySelectorAll('.letter-slot--empty').length;
+    while (emptySlots() > 0) {
+      const tile = root.querySelector<HTMLButtonElement>('.letter-rack .letter-tile:not(:disabled)');
+      expect(tile).not.toBeNull();
+      tile!.click();
+    }
+
+    const messageText = () => root.querySelector('[data-live="message"]')?.textContent?.trim() ?? '';
+
+    const picBtn = root.querySelector<HTMLButtonElement>('.word-picture-btn')!;
+    const picEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    picBtn.dispatchEvent(picEnter);
+    expect(picEnter.defaultPrevented).toBe(false);
+    expect(messageText()).toBe('');
+
+    const listenBtn = root.querySelector<HTMLButtonElement>('[data-focus="listen-en"]')!;
+    const listenEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    listenBtn.dispatchEvent(listenEnter);
+    expect(listenEnter.defaultPrevented).toBe(false);
+    expect(messageText()).toBe('');
+
+    const bubble = root.querySelector<HTMLElement>('.bubble--interactive')!;
+    const bubbleEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    bubble.dispatchEvent(bubbleEnter);
+    expect(bubbleEnter.defaultPrevented).toBe(true);
+    expect(messageText()).toBe('');
+
+    const bodyEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(bodyEnter);
+    expect(bodyEnter.defaultPrevented).toBe(true);
+    expect(messageText().length).toBeGreaterThan(0);
+
     if (typeof cleanup === 'function') cleanup();
   });
 });

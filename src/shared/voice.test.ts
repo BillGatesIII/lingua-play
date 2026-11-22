@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearProgress, updateProgress } from './storage';
 import { playSfx } from './sfx';
-import { addHoverVoice, cleanSpeechText, pickEnglishVoice, speakEnglish, stopSpeech } from './voice';
+import { addHoverVoice, cleanSpeechText, pickEnglishVoice, rewardEmojiEnglish, speakEnglish, stopSpeech } from './voice';
 
 describe('voice & speech bubble', () => {
   beforeEach(() => {
@@ -108,5 +108,87 @@ describe('voice & speech bubble', () => {
     expect(() => playSfx('surprise')).not.toThrow();
     updateProgress((p) => { p.settings.sound = false; });
     expect(() => playSfx('levelUp')).not.toThrow();
+  });
+
+  it('positions the bubble using untransformed offset dimensions so it stays inside the viewport', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 });
+
+    speakEnglish('Warmup', { mode: 'click' });
+    const bubble = document.querySelector<HTMLElement>('.voice-bubble')!;
+    Object.defineProperty(bubble, 'offsetWidth', { configurable: true, value: 240 });
+    Object.defineProperty(bubble, 'offsetHeight', { configurable: true, value: 50 });
+    vi.spyOn(bubble, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 204, bottom: 42.5, width: 204, height: 42.5, x: 0, y: 0, toJSON: () => ({}),
+    });
+
+    const anchor = document.createElement('button');
+    document.body.append(anchor);
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
+      left: 960, top: 200, right: 1010, bottom: 240, width: 50, height: 40, x: 960, y: 200, toJSON: () => ({}),
+    });
+
+    speakEnglish('Right edge clue', { anchor, mode: 'click' });
+    expect(bubble.style.left).toBe('772px');
+  });
+
+  it('suppresses hover speech while click speech is active and allows another click to interrupt', () => {
+    const utterances: { onend: (() => void) | null }[] = [];
+    const synth = {
+      speaking: false,
+      pending: false,
+      speak: vi.fn((u: { onend: (() => void) | null }) => {
+        synth.speaking = true;
+        utterances.push(u);
+      }),
+      cancel: vi.fn(() => {
+        synth.speaking = false;
+        synth.pending = false;
+      }),
+      getVoices: () => [],
+    };
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: synth });
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: SpeechSynthesisVoice | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) {
+        this.text = t;
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+
+    speakEnglish('The train leaves at half past three.', { mode: 'click' });
+    expect(synth.speak).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(500);
+    speakEnglish('Plus five minutes', { mode: 'hover' });
+    expect(synth.speak).toHaveBeenCalledTimes(1);
+    expect(synth.cancel).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('The train leaves at half past three.');
+
+    speakEnglish('Four o clock', { mode: 'click' });
+    expect(synth.speak).toHaveBeenCalledTimes(2);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('Four o clock');
+
+    synth.speaking = false;
+    utterances[utterances.length - 1]?.onend?.();
+    vi.advanceTimersByTime(400);
+    speakEnglish('Home', { mode: 'hover' });
+    expect(synth.speak).toHaveBeenCalledTimes(3);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('Home');
+  });
+
+  it('resolves shared reward emojis using their shelf context', () => {
+    expect(rewardEmojiEnglish('colors', '🌲')).toBe('dark green');
+    expect(rewardEmojiEnglish('station', '🌲')).toBe('the forest');
+    expect(rewardEmojiEnglish('colors', '🌸')).toBe('pink');
+    expect(rewardEmojiEnglish('garden', '🌸')).toBe('cherry blossom');
+    expect(rewardEmojiEnglish('station', '🏖️')).toBe('the beach');
+    expect(rewardEmojiEnglish('words', '🏖️')).toBe('beach');
   });
 });
