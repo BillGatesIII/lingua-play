@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Button, SpeakButton } from '../ui/components';
 import { mulberry32 } from './rng';
 import {
   createGameDirector, decideSpeech, getTopicExposure, nextParrotGreeting, recordSpoken,
@@ -6,6 +7,32 @@ import {
 } from './speechDirector';
 import { clearProgress } from './storage';
 import { speakEnglish, stopSpeech } from './voice';
+
+function mockSpeechSynthesis(): string[] {
+  const spoken: string[] = [];
+  Object.defineProperty(window, 'speechSynthesis', {
+    configurable: true,
+    value: {
+      speaking: false,
+      pending: false,
+      speak: vi.fn((u: { text: string }) => { spoken.push(u.text); }),
+      cancel: vi.fn(),
+      getVoices: () => [],
+    },
+  });
+  class MockUtterance {
+    text: string;
+    lang = '';
+    rate = 1;
+    pitch = 1;
+    voice: SpeechSynthesisVoice | null = null;
+    onend: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    constructor(t: string) { this.text = t; }
+  }
+  vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+  return spoken;
+}
 
 describe('speechDirector (Layer 1 intelligent speech)', () => {
   beforeEach(() => {
@@ -83,28 +110,7 @@ describe('speechDirector (Layer 1 intelligent speech)', () => {
   });
 
   it('coalesces rapid step clicks so TTS speaks only the settled result once', () => {
-    const spoken: string[] = [];
-    Object.defineProperty(window, 'speechSynthesis', {
-      configurable: true,
-      value: {
-        speaking: false,
-        pending: false,
-        speak: vi.fn((u: { text: string }) => { spoken.push(u.text); }),
-        cancel: vi.fn(),
-        getVoices: () => [],
-      },
-    });
-    class MockUtterance {
-      text: string;
-      lang = '';
-      rate = 1;
-      pitch = 1;
-      voice: SpeechSynthesisVoice | null = null;
-      onend: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      constructor(t: string) { this.text = t; }
-    }
-    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+    const spoken = mockSpeechSynthesis();
 
     speakEnglish('one apple', { mode: 'click', role: 'step', coalesceKey: 'market-bag' });
     vi.advanceTimersByTime(150);
@@ -121,28 +127,7 @@ describe('speechDirector (Layer 1 intelligent speech)', () => {
   });
 
   it('cancels a pending coalesced step if an immediate event interrupts it', () => {
-    const spoken: string[] = [];
-    Object.defineProperty(window, 'speechSynthesis', {
-      configurable: true,
-      value: {
-        speaking: false,
-        pending: false,
-        speak: vi.fn((u: { text: string }) => { spoken.push(u.text); }),
-        cancel: vi.fn(),
-        getVoices: () => [],
-      },
-    });
-    class MockUtterance {
-      text: string;
-      lang = '';
-      rate = 1;
-      pitch = 1;
-      voice: SpeechSynthesisVoice | null = null;
-      onend: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      constructor(t: string) { this.text = t; }
-    }
-    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+    const spoken = mockSpeechSynthesis();
 
     speakEnglish('three apples', { mode: 'click', role: 'step', coalesceKey: 'market-bag' });
     vi.advanceTimersByTime(150);
@@ -170,12 +155,15 @@ describe('speechDirector (Layer 1 intelligent speech)', () => {
     const second = director.encourage('Look at the red hand!', 'Too early!');
     expect(second).toContain('Look at the red hand!');
 
-    // Solving after 2 mistakes triggers perseverance praise and resets mistakes
-    const afterStruggle = director.celebrate('Three o clock');
-    expect(afterStruggle).toContain('Three o clock!');
+    // Solving after 2 mistakes triggers perseverance praise and resets mistakes & first-try streak
+    const afterStruggle = director.celebrate('purple');
+    expect(afterStruggle).toContain('Purple!');
     expect(director.mistakes).toBe(0);
+    expect(director.streak).toBe(0);
 
     // 3 consecutive first-try solves trigger streak celebration
+    director.celebrate();
+    expect(director.streak).toBe(1);
     director.celebrate();
     expect(director.streak).toBe(2);
     const streakLine = director.celebrate();
@@ -183,10 +171,63 @@ describe('speechDirector (Layer 1 intelligent speech)', () => {
     expect(streakLine.length).toBeGreaterThan(5);
   });
 
-  it('cycles varied parrot greetings', () => {
+  it('quiets transitions after quietAfter and resets puzzle mistakes', () => {
+    const director = createGameDirector(mulberry32(7));
+    director.encourage('Hint text', 'Oops!');
+    expect(director.mistakes).toBe(1);
+
+    expect(director.transition('next', ['Line A', 'Line B'], 2)).not.toBeNull();
+    expect(director.mistakes).toBe(0);
+    expect(director.transition('next', ['Line A', 'Line B'], 2)).not.toBeNull();
+    expect(director.transition('next', ['Line A', 'Line B'], 2)).not.toBeNull();
+    expect(director.transition('next', ['Line A', 'Line B'], 2)).toBeNull();
+  });
+
+  it('keeps hover from stealing the bubble or TTS while a coalesced step is pending', () => {
+    const spoken = mockSpeechSynthesis();
+
+    speakEnglish('three apples', { mode: 'click', role: 'step', coalesceKey: 'market-bag' });
+    vi.advanceTimersByTime(380);
+    // Past PRIORITY_GRACE_MS (350ms), but still before STEP_COALESCE_MS (420ms)
+    speakEnglish('banana', { mode: 'hover', role: 'vocab' });
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('three apples');
+    expect(spoken).toEqual([]);
+
+    vi.advanceTimersByTime(60);
+    expect(spoken).toEqual(['three apples']);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('three apples');
+  });
+
+  it('uses silent chrome hovers for Button and hoverText for SpeakButton without calling english() early', () => {
+    const spoken = mockSpeechSynthesis();
+
+    const uiBtn = Button('Inicio', { voiceHover: 'Home' });
+    const getGreeting = vi.fn(() => 'Cheerio!');
+    const parrotBtn = SpeakButton('🦜', { english: getGreeting, hoverText: 'Hello!' });
+    document.body.append(uiBtn, parrotBtn);
+
+    uiBtn.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    vi.advanceTimersByTime(330);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('Home');
+    expect(spoken).toEqual([]);
+
+    parrotBtn.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    vi.advanceTimersByTime(270);
+    expect(getGreeting).not.toHaveBeenCalled();
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('Hello!');
+    expect(spoken).toEqual(['Hello!']);
+
+    parrotBtn.click();
+    expect(getGreeting).toHaveBeenCalledTimes(1);
+    expect(spoken).toEqual(['Hello!', 'Cheerio!']);
+  });
+
+  it('cycles varied parrot greetings and resets cleanly', () => {
     const first = nextParrotGreeting();
     const second = nextParrotGreeting();
     expect(first).toBe("Hello! Let's play!");
     expect(second).not.toBe(first);
+    resetParrotGreeting();
+    expect(nextParrotGreeting()).toBe("Hello! Let's play!");
   });
 });

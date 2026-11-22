@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
-  ALL_TARGETS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, clueText, generateRound, mix, playfulClue, togglePot,
+  ALL_TARGETS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, clueText, generateRound, mix, playfulClue,
+  recipePotCount, togglePot,
 } from './logic';
 
 describe('colors logic', () => {
@@ -59,5 +60,8 @@ describe('colors logic', () => {
     expect(clueText('lightblue', 'en')).toBe('Paint the chameleon light blue.');
     expect(playfulClue('green', 1, 'en')).toContain('frog');
     expect(COLORS.orange.name).toEqual({ es: 'naranja', en: 'orange' });
+    expect(recipePotCount('red')).toBe(1);
+    expect(recipePotCount('purple')).toBe(2);
+    expect(recipePotCount('lavender')).toBe(3);
   });
 });

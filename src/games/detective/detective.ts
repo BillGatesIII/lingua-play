@@ -95,7 +95,7 @@ export const detectivePage: Page = (ctx) => {
       const intro = director.transition('next-case', [
         current.mystery.prompt.en,
         `New mystery! ${current.mystery.prompt.en}`,
-      ], 3);
+      ], 2);
       if (intro) speakEnglish(intro, { mode: 'event' });
     }
     message = null;

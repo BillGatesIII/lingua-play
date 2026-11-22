@@ -130,7 +130,7 @@ export const landingPage: Page = (ctx) => {
 
       const parrotBtn = SpeakButton('🦜', {
         english: () => nextParrotGreeting(),
-        hoverText: "Hello! Let's play!",
+        hoverText: 'Hello!',
         className: 'hero__parrot-btn',
         ariaLabel: 'Loro de Lingua Play: escuchar saludo en inglés',
         sfx: 'surprise',

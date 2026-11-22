@@ -192,6 +192,7 @@ export const recipePage: Page = (ctx) => {
               focusKey: `scoop-${s}`,
               ariaLabel: `Añadir ${quartersBadge(s)}`,
               voiceHover: quartersText(s, 'en'),
+              voiceRole: 'vocab',
               onClick: (e) => addScoop(s, e.currentTarget as HTMLElement),
             })),
           Button('Vaciar', {

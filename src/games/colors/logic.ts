@@ -86,6 +86,12 @@ export function mix(pots: readonly PotId[]): ColorId | null {
   return RECIPES[key] ?? 'mud';
 }
 
+/** Number of distinct paint pots needed to mix `color`. */
+export function recipePotCount(color: ColorId): number {
+  const entry = Object.entries(RECIPES).find(([, result]) => result === color);
+  return entry ? entry[0].split('+').length : 0;
+}
+
 /** Tap a pot to put it in the bowl, tap again to take it out. A full bowl drops its oldest pot. */
 export function togglePot(bowl: readonly PotId[], pot: PotId, max: number): PotId[] {
   if (bowl.includes(pot)) return bowl.filter((p) => p !== pot);

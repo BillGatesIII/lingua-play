@@ -11,7 +11,7 @@ import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
   CHAMELEONS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, generateRound, mix, mixFeedback,
-  playfulClue, togglePot, type ColorId, type PotId,
+  playfulClue, recipePotCount, togglePot, type ColorId, type PotId,
 } from './logic';
 
 export const colorsPage: Page = (ctx) => {
@@ -44,8 +44,14 @@ export const colorsPage: Page = (ctx) => {
       speakEnglish(director.celebrate(COLORS[m].name.en), { anchor, mode: 'event' });
     } else if (m === 'mud') {
       playSfx('splash');
+      const neededPots = recipePotCount(target());
+      const mudHint = neededPots === 1
+        ? 'Empty the bowl and pick just one paint!'
+        : neededPots === 3
+          ? 'Empty the bowl and try mixing three different paints!'
+          : 'Empty the bowl and try mixing just two paints!';
       const line = director.encourage(
-        'Empty the bowl and try mixing just two paints!',
+        mudHint,
         director.pickLine('mud', [
           'Muddy brown! Looks like a puddle!',
           'Splodge! That turned muddy brown!',

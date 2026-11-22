@@ -136,7 +136,7 @@ const PERSEVERANCE_LINES: readonly string[] = [
   'Got it! You stuck with it!',
   'Yes! You worked it out!',
   'Brilliant! Never gave up!',
-  'Hooray! Third time lucky!',
+  'Hooray! You got there!',
 ];
 
 const OOPS_LINES: readonly string[] = [
@@ -223,7 +223,7 @@ export function createGameDirector(rng: Rng): GameSpeechDirector {
     let lead: string;
     if (mistakes >= 2) {
       lead = pickLine('perseverance', PERSEVERANCE_LINES);
-      streak = 1;
+      streak = 0;
     } else if (mistakes === 0) {
       streak += 1;
       if (streak >= 3) {
@@ -233,13 +233,14 @@ export function createGameDirector(rng: Rng): GameSpeechDirector {
         lead = pickLine('praise', PRAISE_LINES);
       }
     } else {
-      streak = 1;
+      streak = 0;
       lead = pickLine('praise', PRAISE_LINES);
     }
     mistakes = 0;
     if (!cleanSubject) return lead;
-    const endPunct = /[.!?]$/.test(cleanSubject) ? '' : '!';
-    return `${lead} ${cleanSubject}${endPunct}`;
+    const formatted = cleanSubject[0].toUpperCase() + cleanSubject.slice(1);
+    const endPunct = /[.!?]$/.test(formatted) ? '' : '!';
+    return `${lead} ${formatted}${endPunct}`;
   }
 
   function encourage(hint: string, firstMistakeLine?: string): string {

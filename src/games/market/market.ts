@@ -141,7 +141,7 @@ export const marketPage: Page = (ctx) => {
               anchor: e.currentTarget as HTMLElement,
               mode: 'click',
               role: 'step',
-              topic: `market-${p.id}`,
+              topic: `market-${p.id}-${nextQty}`,
               coalesceKey: 'market-bag',
             });
             basket = { ...basket, [p.id]: nextQty };
@@ -215,7 +215,7 @@ export const marketPage: Page = (ctx) => {
             anchor: e.currentTarget as HTMLElement,
             mode: 'click',
             role: 'step',
-            topic: 'market-change-sum',
+            topic: `market-change-${sum}`,
             coalesceKey: 'market-coins',
           });
           message = null;

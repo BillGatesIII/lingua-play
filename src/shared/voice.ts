@@ -16,7 +16,7 @@ export interface SpeakOptions {
   topic?: string;
   /** Show the speech bubble visually without playing TTS audio. */
   silent?: boolean;
-  /** Debounce rapid repeated actions under this key so TTS speaks the settled result once. */
+  /** Debounce rapid step actions so TTS speaks the latest settled result once. */
   coalesceKey?: string;
   /** Custom coalesce settle delay in ms (defaults to 420ms). */
   coalesceMs?: number;
@@ -184,6 +184,7 @@ function isSynthBusy(): boolean {
 }
 
 function isPrioritySpeechActive(): boolean {
+  if (pendingCoalesceTimer !== null) return true;
   if (activePriorityUtteranceId === null) return false;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     const synth = window.speechSynthesis;
@@ -299,8 +300,11 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
     if (opts.silent) return;
     pendingCoalesceTimer = window.setTimeout(() => {
       pendingCoalesceTimer = null;
-      const decision = decideSpeech({ role, mode, topic, now: Date.now() });
+      const settledAt = Date.now();
+      const decision = decideSpeech({ role, mode, topic, now: settledAt });
       if (decision.speakAudio) {
+        lastPriorityAt = settledAt;
+        showBubble(display, anchorRect, fallbackMs);
         speakUtterance(spoken, mode, topic);
       }
     }, opts.coalesceMs ?? STEP_COALESCE_MS);
