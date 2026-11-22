@@ -1,3 +1,4 @@
+import { diagnoseColorMistake, scaffoldVocab } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -11,7 +12,7 @@ import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
   CHAMELEONS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, generateRound, mix, mixFeedback,
-  playfulClue, recipePotCount, togglePot, type ColorId, type PotId,
+  playfulClue, togglePot, type ColorId, type PotId,
 } from './logic';
 
 export const colorsPage: Page = (ctx) => {
@@ -20,6 +21,7 @@ export const colorsPage: Page = (ctx) => {
   let round = generateRound(rng);
   let index = 0;
   let bowl: PotId[] = [];
+  let poursOnCurrent = 0;
   let solved = false;
   let closed = false;
 
@@ -31,10 +33,13 @@ export const colorsPage: Page = (ctx) => {
 
   function pour(pot: PotId, anchor?: HTMLElement) {
     if (solved || closed) return;
+    const removing = bowl.includes(pot);
     bowl = togglePot(bowl, pot, MAX_POTS);
+    if (!removing) poursOnCurrent += 1;
     const m = mixed();
     if (m === target()) {
       solved = true;
+      poursOnCurrent = 0;
       const emoji = COLORS[target()].emoji;
       updateProgress((p) => {
         p.colors.painted += 1;
@@ -44,14 +49,9 @@ export const colorsPage: Page = (ctx) => {
       speakEnglish(director.celebrate(COLORS[m].name.en), { anchor, mode: 'event' });
     } else if (m === 'mud') {
       playSfx('splash');
-      const neededPots = recipePotCount(target());
-      const mudHint = neededPots === 1
-        ? 'Empty the bowl and pick just one paint!'
-        : neededPots === 3
-          ? 'Empty the bowl and try mixing three different paints!'
-          : 'Empty the bowl and try mixing just two paints!';
+      const advice = diagnoseColorMistake(target(), bowl);
       const line = director.encourage(
-        mudHint,
+        advice.hint,
         director.pickLine('mud', [
           'Muddy brown! Looks like a puddle!',
           'Splodge! That turned muddy brown!',
@@ -61,13 +61,20 @@ export const colorsPage: Page = (ctx) => {
       speakEnglish(line, { anchor, mode: 'event' });
     } else {
       playSfx('splash');
-      speakEnglish(m ? COLORS[m].name.en : 'empty', {
-        anchor,
-        mode: 'click',
-        role: 'step',
-        topic: m ? `color-${m}` : 'color-empty',
-        coalesceKey: 'colors-bowl',
-      });
+      if (!removing && m && poursOnCurrent >= 4 && poursOnCurrent % 2 === 0) {
+        const advice = diagnoseColorMistake(target(), bowl);
+        speakEnglish(advice.hint, { anchor, mode: 'event' });
+      } else {
+        const colorName = m ? COLORS[m].name.en : 'empty';
+        const label = m ? scaffoldVocab(colorName, 'color', rng, colorName) : 'empty';
+        speakEnglish(label, {
+          anchor,
+          mode: 'click',
+          role: 'step',
+          topic: m ? label : 'color-empty',
+          coalesceKey: 'colors-bowl',
+        });
+      }
     }
     draw(solved ? 'next-chameleon' : undefined);
   }
@@ -75,6 +82,7 @@ export const colorsPage: Page = (ctx) => {
   function next() {
     index++;
     bowl = [];
+    poursOnCurrent = 0;
     solved = false;
     director.nextPuzzle();
     if (index >= ROUND_LENGTH) {
@@ -198,6 +206,7 @@ export const colorsPage: Page = (ctx) => {
               onClick: () => {
                 playSfx('remove');
                 bowl = [];
+                poursOnCurrent = Math.min(poursOnCurrent, 2);
                 draw(`pot-${POTS[0]}`);
               },
             }),

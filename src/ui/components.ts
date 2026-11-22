@@ -62,6 +62,7 @@ export interface SpeakButtonOptions {
   sfx?: SfxKind;
   hover?: boolean;
   hoverText?: string;
+  topic?: string;
 }
 
 /** Interactive button that speaks an English phrase on click (and hover by default) with a subtle SFX. */
@@ -78,11 +79,11 @@ export function SpeakButton(content: Child | Child[], o: SpeakButtonOptions): HT
       'aria-label': o.ariaLabel,
       onclick: (e: MouseEvent) => {
         playSfx(o.sfx ?? 'pop');
-        speakEnglish(getText(), { anchor: e.currentTarget as HTMLElement, mode: 'click', role: 'explicit' });
+        speakEnglish(getText(), { anchor: e.currentTarget as HTMLElement, mode: 'click', role: 'explicit', topic: o.topic });
       },
     },
     ...kids,
   );
   if (o.hover === false) return btn;
-  return addHoverVoice(btn, o.hoverText ?? (typeof o.english === 'string' ? o.english : getText), { role: 'vocab' });
+  return addHoverVoice(btn, o.hoverText ?? (typeof o.english === 'string' ? o.english : getText), { role: 'vocab', topic: o.topic });
 }

@@ -1,3 +1,4 @@
+import { diagnoseDetectiveMistake } from '../../shared/coach';
 import { completeGameRound } from '../../shared/playBreak';
 import { mulberry32 } from '../../shared/rng';
 import { playSfx } from '../../shared/sfx';
@@ -67,8 +68,9 @@ export const detectivePage: Page = (ctx) => {
       next.add(s.id);
       cleared = next;
       const alibi = wrongAccusationAlibi(s, rng);
+      const advice = diagnoseDetectiveMistake(s, current.clues);
       playSfx('oops');
-      const line = director.encourage('Check every clue and rule out who does not match!', alibi.en);
+      const line = director.encourage(advice.hint, alibi.en);
       speakEnglish(line, { anchor, mode: 'event' });
       say(alibi.es);
     }
