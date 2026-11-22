@@ -42,7 +42,7 @@ export const WORDS: readonly Word[] = [
   { emoji: '⏰', answer: { es: 'reloj', en: 'clock' }, clue: { es: 'Tiene agujas y nos dice qué hora es.', en: 'It has hands and tells us the time.' } },
   { emoji: '🤖', answer: { es: 'robot', en: 'robot' }, clue: { es: 'Una máquina inteligente que sigue instrucciones.', en: 'A clever machine that follows instructions.' } },
   { emoji: '❄️', answer: { es: 'nieve', en: 'snow' }, clue: { es: 'Cae blanca y fría en invierno.', en: 'It falls white and cold in winter.' } },
-  { emoji: '🪶', answer: { es: 'pluma', en: 'feather' }, clue: { es: 'Es muy ligera y cubre las alas de las aves.', en: 'It is very light and covers a bird wing.' } },
+  { emoji: '🪶', answer: { es: 'pluma', en: 'feather' }, clue: { es: 'Es muy ligera y cubre las alas de las aves.', en: "It is very light and covers birds' wings." } },
 
   // 6-8 letter words (later steps)
   { emoji: '🏴‍☠️', answer: { es: 'pirata', en: 'pirate' }, clue: { es: 'Navega en barco buscando tesoros.', en: 'Sails on a ship looking for treasure.' } },

@@ -12,7 +12,7 @@ import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
   DESTINATIONS, TRAINS_PER_ROUND, TRAVELLERS, checkClock, generateTrain, sameTime, stepClock,
-  timeText, trainSpeech, type ClockTime, type TrainChallenge,
+  timeText, toDestinationEs, trainSpeech, type ClockTime, type TrainChallenge,
 } from './logic';
 
 export const stationPage: Page = (ctx) => {
@@ -84,7 +84,7 @@ export const stationPage: Page = (ctx) => {
       `Right on time! Off to ${challenge.destination.name.en}!`,
       `Next stop, ${challenge.destination.name.en}!`,
     ])), { anchor, mode: 'event' });
-    say(`¡En punto! 🎫 El tren parte rumbo a ${challenge.destination.name.es} ${stamp}`, 'next-train');
+    say(`¡En punto! 🎫 El tren parte rumbo ${toDestinationEs(challenge.destination.name.es)} ${stamp}`, 'next-train');
   }
 
   function nextTrain() {

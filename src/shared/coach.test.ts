@@ -343,6 +343,21 @@ describe('Parrot Coach (context-aware diagnostics & vocab scaffolding)', () => {
     expect(diagnoseDetectiveMistake(owlSuspect, [{ kind: 'even', value: true }]).hint).toContain('odd, not even');
     expect(diagnoseDetectiveMistake(foxSuspect, [{ kind: 'gt', threshold: 6 }]).hint).toContain('not greater than 6');
     expect(diagnoseDetectiveMistake(foxSuspect, [{ kind: 'lt', threshold: 4 }]).hint).toContain('not less than 4');
+
+    const waterAnimals = ['dolphin', 'whale', 'turtle'] as const;
+    for (const name of waterAnimals) {
+      const suspect = { ...foxSuspect, animal: ANIMALS.find((a) => a.name.en === name)! };
+      expect(diagnoseDetectiveMistake(suspect, [{ kind: 'habitat', value: 'land' }]).hint).toBe(
+        `A ${name} is a water animal, not a land animal!`,
+      );
+    }
+    const landAnimals: [string, string][] = [['panda', 'A'], ['koala', 'A'], ['elephant', 'An']];
+    for (const [name, art] of landAnimals) {
+      const suspect = { ...foxSuspect, animal: ANIMALS.find((a) => a.name.en === name)! };
+      expect(diagnoseDetectiveMistake(suspect, [{ kind: 'habitat', value: 'water' }]).hint).toBe(
+        `${art} ${name} is a land animal, not a water animal!`,
+      );
+    }
   });
 
   it('diagnoses Recipe Lab mistakes including plural/singular ingredients, doubling, and jug volume', () => {

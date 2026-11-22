@@ -279,8 +279,9 @@ export function playfulClue(
 ): string {
   const info = COLORS[color];
   const similes = info.similes ?? (info.simile ? [info.simile] : []);
-  if ((index % 2 === 1 || forceSimile) && similes.length > 0) {
-    const picked = similes[simileIndex % similes.length];
+  if ((Math.abs(Math.trunc(index)) % 2 === 1 || forceSimile) && similes.length > 0) {
+    const idx = ((Math.trunc(simileIndex) % similes.length) + similes.length) % similes.length;
+    const picked = similes[idx];
     return lang === 'es'
       ? `¡Quiero ser ${info.name.es}, ${picked.es}!`
       : `I want to be ${info.name.en}, ${picked.en}!`;

@@ -118,7 +118,7 @@ export const CUSTOMERS: readonly Customer[] = [
     emoji: '🐱',
     name: { es: 'la gata Mishi', en: 'Mishi the cat' },
     greeting: { es: '¡Miau, hola!', en: 'Meow, hello!' },
-    orderFrame: { es: 'Me apetecen {list}, por favor.', en: 'I fancy {list}, please.' },
+    orderFrame: { es: 'Hoy quiero {list}, por favor.', en: 'I fancy {list}, please.' },
   },
 ];
 
@@ -183,6 +183,11 @@ export function orderSpeech(order: Order, lang: Lang, customer?: Customer): stri
   return lang === 'es' ? `${greet}Quiero ${list}, por favor.` : `${greet}I would like ${list}, please.`;
 }
 
+const wrapIndex = (index: number, length: number): number =>
+  ((Math.trunc(index) % length) + length) % length;
+
+const capitalize = (text: string): string => (text ? text[0].toUpperCase() + text.slice(1) : text);
+
 export function paySpeech(order: Order, lang: Lang, variant = 0): string {
   if (order.discount > 0) {
     const withCoupon: readonly Bi[] = [
@@ -199,14 +204,14 @@ export function paySpeech(order: Order, lang: Lang, variant = 0): string {
         en: `I am using my ${order.discount}-coin coupon and here are ${order.paid} coins.`,
       },
     ];
-    return withCoupon[variant % withCoupon.length][lang];
+    return withCoupon[wrapIndex(variant, withCoupon.length)][lang];
   }
   const plain: readonly Bi[] = [
     { es: `Aquí tienes ${order.paid} monedas.`, en: `Here you go, ${order.paid} coins.` },
     { es: `Te pago con ${order.paid} monedas.`, en: `Here are ${order.paid} coins for you.` },
     { es: `Toma ${order.paid} monedas, por favor.`, en: `Take ${order.paid} coins, please.` },
   ];
-  return plain[variant % plain.length][lang];
+  return plain[wrapIndex(variant, plain.length)][lang];
 }
 
 export type Basket = Record<string, number>;
@@ -234,8 +239,8 @@ export function basketMistake(order: Order, basket: Basket, rng: Rng): Bi {
         en: `${p.emoji} Surprise! Some ${p.en.many} sneaked into the bag!`,
       },
       {
-        es: `😄 ${p.emoji} «¿${p.es.many}? ¡Qué broma!», dice el cliente.`,
-        en: `😄 ${p.emoji} "${p.en.many}? What a funny surprise!" laughs the customer.`,
+        es: `😄 ${p.emoji} «¿${capitalize(p.es.many)}? ¡Qué broma!», dice el cliente.`,
+        en: `😄 ${p.emoji} "${capitalize(p.en.many)}? What a funny surprise!" laughs the customer.`,
       },
     ]);
   }

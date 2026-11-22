@@ -28,14 +28,14 @@ export const DESTINATIONS: readonly Destination[] = [
 
 export const TRAVELLERS = [
   { emoji: '🦆', name: { es: 'el pato Pepe', en: 'Pepe the duck' } },
-  { emoji: '🦉', name: { es: 'la búho Clara', en: 'Clara the owl' } },
+  { emoji: '🦉', name: { es: 'Clara el búho', en: 'Clara the owl' } },
   { emoji: '🐢', name: { es: 'la tortuga Tita', en: 'Tita the turtle' } },
   { emoji: '🦔', name: { es: 'el erizo Hugo', en: 'Hugo the hedgehog' } },
   { emoji: '🐧', name: { es: 'el pingüino Leo', en: 'Leo the penguin' } },
-  { emoji: '🦊', name: { es: 'la zorra Alba', en: 'Alba the fox' } },
+  { emoji: '🦊', name: { es: 'la zorrita Alba', en: 'Alba the fox' } },
   { emoji: '🐻', name: { es: 'el oso Mateo', en: 'Mateo the bear' } },
   { emoji: '🐰', name: { es: 'el conejo Nico', en: 'Nico the rabbit' } },
-  { emoji: '🐨', name: { es: 'la koala Vera', en: 'Vera the koala' } },
+  { emoji: '🐨', name: { es: 'Vera el koala', en: 'Vera the koala' } },
   { emoji: '🐸', name: { es: 'la rana Bruno', en: 'Bruno the frog' } },
 ] as const;
 
@@ -115,8 +115,17 @@ export function generateTrain(rng: Rng, index: number, destinationOverride?: Des
   return { destination, base, deltaMinutes, target, kind };
 }
 
+/** Contracts Spanish `a + el` -> `al` when building phrases towards a destination. */
+export function toDestinationEs(destEs: string): string {
+  return destEs.startsWith('el ') ? `al ${destEs.slice(3)}` : `a ${destEs}`;
+}
+
+const pickVariant = <T,>(items: readonly T[], variant: number): T =>
+  items[((Math.trunc(variant) % items.length) + items.length) % items.length];
+
 export function trainSpeech(c: TrainChallenge, lang: Lang, variant = 0): string {
   const dest = c.destination.name[lang];
+  const toDest = toDestinationEs(dest);
   const baseStr = timeText(c.base, lang);
   if (c.kind === 'direct') {
     const lines: readonly Bi[] = [
@@ -125,7 +134,7 @@ export function trainSpeech(c: TrainChallenge, lang: Lang, variant = 0): string 
         en: `Hello! My train to ${dest} leaves at ${baseStr}. Set the station clock!`,
       },
       {
-        es: `¡Qué emoción, voy a ${dest}! El tren parte a ${baseStr}.`,
+        es: `¡Qué emoción, voy ${toDest}! El tren parte a ${baseStr}.`,
         en: `How exciting, I am off to ${dest}! The train departs at ${baseStr}.`,
       },
       {
@@ -133,20 +142,20 @@ export function trainSpeech(c: TrainChallenge, lang: Lang, variant = 0): string 
         en: `Ticket ready for ${dest}! We leave at ${baseStr}.`,
       },
     ];
-    return lines[variant % lines.length][lang];
+    return pickVariant(lines, variant)[lang];
   }
   if (c.kind === 'delay') {
     const lines: readonly Bi[] = [
       {
-        es: `El tren hacia ${dest} de ${baseStr} lleva ${c.deltaMinutes} minutos de retraso. ¿A qué hora sale ahora?`,
+        es: `El tren de ${baseStr} hacia ${dest} lleva ${c.deltaMinutes} minutos de retraso. ¿A qué hora sale ahora?`,
         en: `The ${baseStr} train to ${dest} is ${c.deltaMinutes} minutes late. What time does it leave now?`,
       },
       {
-        es: `¡Aviso en el andén! El tren a ${dest} de ${baseStr} se retrasa ${c.deltaMinutes} minutos. ¿Cuándo sale?`,
+        es: `¡Aviso en el andén! El tren de ${baseStr} ${toDest} se retrasa ${c.deltaMinutes} minutos. ¿Cuándo sale?`,
         en: `Platform announcement! The ${baseStr} train to ${dest} is delayed by ${c.deltaMinutes} minutes. When does it leave?`,
       },
     ];
-    return lines[variant % lines.length][lang];
+    return pickVariant(lines, variant)[lang];
   }
   if (c.kind === 'duration') {
     const lines: readonly Bi[] = [
@@ -159,7 +168,7 @@ export function trainSpeech(c: TrainChallenge, lang: Lang, variant = 0): string 
         en: `We depart for ${dest} at ${baseStr} and the journey lasts ${c.deltaMinutes} minutes. When do we arrive?`,
       },
     ];
-    return lines[variant % lines.length][lang];
+    return pickVariant(lines, variant)[lang];
   }
   const mins = Math.abs(c.deltaMinutes);
   const lines: readonly Bi[] = [
@@ -168,11 +177,11 @@ export function trainSpeech(c: TrainChallenge, lang: Lang, variant = 0): string 
       en: `The train to ${dest} leaves at ${baseStr}, and we must arrive ${mins} minutes early. What time should we set?`,
     },
     {
-      es: `¡Sin prisas! El tren a ${dest} sale a ${baseStr}; queremos estar ${mins} minutos antes en el andén.`,
+      es: `¡Sin prisas! El tren ${toDest} sale a ${baseStr}; queremos estar ${mins} minutos antes en el andén.`,
       en: `No rushing! The train to ${dest} leaves at ${baseStr}; we want to be on the platform ${mins} minutes early.`,
     },
   ];
-  return lines[variant % lines.length][lang];
+  return pickVariant(lines, variant)[lang];
 }
 
 export function checkClock(target: ClockTime, chosen: ClockTime, rng?: Rng): Bi | null {

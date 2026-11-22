@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
-import { gardenMistake, generatePattern, isPatternSolved } from './logic';
+import { FLOWERS, FLOWER_NAMES, gardenMistake, generatePattern, isPatternSolved } from './logic';
 
 describe('garden pattern logic', () => {
   it('generates valid addition, countdown, middle-gap, multiplication and alternating patterns', () => {
@@ -25,5 +25,8 @@ describe('garden pattern logic', () => {
     const oops = gardenMistake(mulberry32(3));
     expect(oops.text.es.length).toBeGreaterThan(5);
     expect(oops.badge.length).toBeGreaterThan(0);
+    expect(FLOWERS.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(FLOWERS).size).toBe(FLOWERS.length);
+    for (const f of FLOWERS) expect(FLOWER_NAMES[f]).toBeTruthy();
   });
 });

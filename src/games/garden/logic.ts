@@ -81,7 +81,7 @@ export function generatePattern(rng: Rng, index: number): PatternPuzzle {
           en: `Harvest time! Each flower bed has ${numberWord(step, 'en')} fewer flowers than the last.`,
         },
         {
-          es: `Las abejas recogen pétalos: cada maceta baja de ${numberWord(step, 'es')} en ${numberWord(step, 'es')}.`,
+          es: `Las abejas recogen pétalos: las macetas bajan de ${numberWord(step, 'es')} en ${numberWord(step, 'es')}.`,
           en: `The bees are gathering petals: each pot goes down by ${numberWord(step, 'en')}.`,
         },
       ]),
@@ -150,13 +150,13 @@ export function isPatternSolved(puzzle: PatternPuzzle, choice: number): boolean 
 export function gardenMistake(rng: Rng): { badge: string; text: Bi } {
   return pick(rng, [
     { badge: '🐛', text: { es: '🐛 ¡Ups! De esa semilla salió una oruga haciendo cosquillas.', en: '🐛 Oops! A ticklish caterpillar popped out of that seed packet.' } },
-    { badge: '🍄', text: { es: '🍄 ¡Brotó una seta saltarina! Mira los números de al lado y prueba otra.', en: '🍄 A bouncy mushroom sprouted! Check the neighbouring pots and try another.' } },
+    { badge: '🍄', text: { es: '🍄 ¡Brotó una seta saltarina! Mira los números de al lado y prueba otra semilla.', en: '🍄 A bouncy mushroom sprouted! Check the neighbouring pots and try another.' } },
     { badge: '🐸', text: { es: '🐸 ¡Un sapo se sentó en esa maceta! Prueba con otro paquete.', en: '🐸 A frog hopped onto that pot! Try another seed packet.' } },
     { badge: '🦔', text: { es: '🦔 ¡Un erizo curioso salió a saludar! Prueba otra semilla.', en: '🦔 A curious hedgehog popped up to say hello! Try another seed.' } },
     { badge: '🐞', text: { es: '🐞 ¡Una mariquita aterrizó aquí! Cuenta el salto entre las macetas.', en: '🐞 A ladybird landed here! Count the jump between the pots.' } },
     { badge: '🐌', text: { es: '🐌 ¡Un caracol dormilón se mudó a esta maceta! Intenta con otro número.', en: '🐌 A sleepy snail moved into this pot! Try another number.' } },
     { badge: '🦋', text: { es: '🦋 ¡Una mariposa despistada revolotea por aquí! Prueba otro paquete.', en: '🦋 A cheeky butterfly fluttered out! Try another seed packet.' } },
-    { badge: '🐇', text: { es: '🐇 ¡Un conejo buscaba zanahorias en esa maceta! Prueba otra.', en: '🐇 A rabbit was hunting for carrots in that pot! Try another.' } },
+    { badge: '🐇', text: { es: '🐇 ¡Un conejo buscaba zanahorias en esa maceta! Prueba otra semilla.', en: '🐇 A rabbit was hunting for carrots in that pot! Try another.' } },
     { badge: '🦗', text: { es: '🦗 ¡Cri-cri! Un grillo dio un concierto en vez de flores.', en: '🦗 Chirp-chirp! A cricket played a concert instead of flowers.' } },
     { badge: '🐦', text: { es: '🐦 ¡Un pajarito picoteó esa semilla! Elige otro paquete.', en: '🐦 A little bird nibbled that seed! Pick another packet.' } },
   ]);

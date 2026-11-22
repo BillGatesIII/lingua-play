@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
-  checkClock, generateTrain, sameTime, stepClock, timeText, trainSpeech,
+  DESTINATIONS, TRAVELLERS, checkClock, generateTrain, sameTime, stepClock, timeText, toDestinationEs,
+  trainSpeech,
 } from './logic';
 
 describe('station logic', () => {
@@ -35,10 +36,41 @@ describe('station logic', () => {
     }
   });
 
-  it('checks whether the set clock matches the target time', () => {
+  it('checks whether the set clock matches the target time across all variants', () => {
     const target = { hour: 3, minute: 30 };
     expect(checkClock(target, { hour: 3, minute: 30 })).toBeNull();
     expect(checkClock(target, { hour: 3, minute: 15 })?.en).toContain('early');
     expect(checkClock(target, { hour: 3, minute: 45 })?.es).toContain('tarde');
+    for (let seed = 0; seed < 25; seed++) {
+      const early = checkClock(target, { hour: 3, minute: 15 }, mulberry32(seed))!;
+      expect(early.en).toContain('early');
+      expect(early.es).not.toContain('tarde');
+      const late = checkClock(target, { hour: 3, minute: 45 }, mulberry32(seed))!;
+      expect(late.es).toContain('tarde');
+      expect(late.en).not.toContain('early');
+    }
+  });
+
+  it('contracts Spanish a + el to al across all train speeches and destinations', () => {
+    expect(toDestinationEs('el museo')).toBe('al museo');
+    expect(toDestinationEs('la biblioteca')).toBe('a la biblioteca');
+    expect(TRAVELLERS.length).toBeGreaterThanOrEqual(10);
+    for (const dest of DESTINATIONS) {
+      for (const kind of ['direct', 'delay', 'duration', 'early'] as const) {
+        const challenge = {
+          destination: dest,
+          base: { hour: 3, minute: 15 },
+          deltaMinutes: kind === 'early' ? -15 : kind === 'direct' ? 0 : 20,
+          target: { hour: 3, minute: 30 },
+          kind,
+        };
+        for (const variant of [-1, 0, 1, 2]) {
+          const es = trainSpeech(challenge, 'es', variant);
+          const en = trainSpeech(challenge, 'en', variant);
+          expect(es).not.toMatch(/\ba el\b/);
+          expect(en.length).toBeGreaterThan(10);
+        }
+      }
+    }
   });
 });

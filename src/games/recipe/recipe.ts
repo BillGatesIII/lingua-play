@@ -11,8 +11,8 @@ import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
-  CHEFS, DISHES, INGREDIENTS, RECIPES_PER_ROUND, SCOOPS, VERBS, checkRecipe, generateRecipe,
-  quartersBadge, quartersText, recipeSpeech, type Recipe, type VerbId,
+  CHEFS, DISHES, INGREDIENTS, RECIPES_PER_ROUND, SCOOPS, VERBS, checkRecipe, dishComplimentEs,
+  generateRecipe, quartersBadge, quartersText, recipeSpeech, type Recipe, type VerbId,
 } from './logic';
 
 export const recipePage: Page = (ctx) => {
@@ -88,7 +88,7 @@ export const recipePage: Page = (ctx) => {
     });
     playSfx('surprise');
     speakEnglish(director.celebrate(`Yum, ${recipe.dish.name.en}!`), { anchor, mode: 'event' });
-    say(`¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan deliciosa!`, 'next-dish');
+    say(`¡Ñam! ${recipe.dish.emoji} ¡Qué ${recipe.dish.name.es} tan ${dishComplimentEs(recipe.dish)}!`, 'next-dish');
   }
 
   function nextDish() {
