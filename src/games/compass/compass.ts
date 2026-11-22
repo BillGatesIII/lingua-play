@@ -83,11 +83,12 @@ export const compassPage: Page = (ctx) => {
     playSfx('step');
     if (anchor) {
       const dirWord = DIR_NAMES[dir].en;
-      speakEnglish(scaffoldVocab(dirWord, 'direction', rng, dirWord), {
+      const label = scaffoldVocab(dirWord, 'direction', rng, dirWord);
+      speakEnglish(label, {
         anchor,
         mode: 'click',
         role: 'step',
-        topic: dirWord,
+        topic: label,
         coalesceKey: 'compass-step',
       });
     }

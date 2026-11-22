@@ -147,7 +147,7 @@ export const marketPage: Page = (ctx) => {
               anchor: e.currentTarget as HTMLElement,
               mode: 'click',
               role: 'step',
-              topic: nextQty === 1 ? p.en.one : `market-${p.id}-${nextQty}`,
+              topic: nextQty === 1 ? label : `market-${p.id}-${nextQty}`,
               coalesceKey: 'market-bag',
             });
             basket = { ...basket, [p.id]: nextQty };

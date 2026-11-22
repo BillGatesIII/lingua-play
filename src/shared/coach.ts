@@ -6,9 +6,10 @@ import { PRODUCTS, sumCoins, type Basket, type Order } from '../games/market/log
 import { INGREDIENTS, quartersText, type Recipe, type VerbId } from '../games/recipe/logic';
 import { sameTime, toMinutes, type ClockTime, type TrainChallenge } from '../games/station/logic';
 import type { WordPuzzle } from '../games/words/logic';
-import { numberWord, type Lang } from './i18n';
+import { joinList, numberWord, type Lang } from './i18n';
 import { pick, type Rng } from './rng';
 import { getTopicExposure } from './speechDirector';
+import { cleanSpeechText } from './voice';
 
 export interface CoachAdvice {
   /** Optional specific reaction for the first mistake (otherwise falls back to default). */
@@ -19,33 +20,82 @@ export interface CoachAdvice {
 
 export type VocabCategory = 'product' | 'color' | 'ingredient' | 'direction' | 'destination';
 
-const SCAFFOLD_TEMPLATES: Record<VocabCategory, readonly ((word: string) => string)[]> = {
-  product: [
-    (w) => `Fresh ${w}!`,
-    (w) => `Lovely ${w}!`,
-    (w) => `Nice ${w}!`,
-  ],
-  color: [
-    (w) => `Lovely ${w}!`,
-    (w) => `A splash of ${w}!`,
-    (w) => `Bright ${w}!`,
-  ],
-  ingredient: [
-    (w) => `Tasty ${w}!`,
-    (w) => `Fresh ${w}!`,
-    (w) => `Some ${w} for the pot!`,
-  ],
-  direction: [
-    (w) => `Heading ${w}!`,
-    (w) => `Sailing ${w}!`,
-    (w) => `Off to the ${w}!`,
-  ],
-  destination: [
-    (w) => `Off to ${w}!`,
-    (w) => `Next stop, ${w}!`,
-    (w) => `All aboard for ${w}!`,
-  ],
-};
+const UNCOUNTABLES = new Set([
+  'cheese', 'milk', 'honey', 'cocoa', 'bread', 'butter', 'sugar', 'flour', 'water', 'juice', 'rice', 'soup',
+]);
+
+function isUncountable(word: string): boolean {
+  return UNCOUNTABLES.has(word.toLowerCase());
+}
+
+function isPluralNoun(word: string): boolean {
+  const head = word.trim().split(/\s+of\s+/i)[0]?.toLowerCase() ?? '';
+  return head.length > 1 && head.endsWith('s') && !head.endsWith('ss') && !head.endsWith('us');
+}
+
+function indefiniteArticle(word: string): 'a' | 'an' {
+  return /^[aeiou]/i.test(word.trim()) ? 'an' : 'a';
+}
+
+function withSnackArticle(snack: string): string {
+  if (isUncountable(snack) || isPluralNoun(snack)) return snack;
+  return `${indefiniteArticle(snack)} ${snack}`;
+}
+
+function productTemplates(word: string): readonly ((w: string) => string)[] {
+  if (isUncountable(word) || isPluralNoun(word)) {
+    return [
+      (w) => `Fresh ${w}!`,
+      (w) => `Lovely ${w}!`,
+      (w) => `Nice ${w}!`,
+    ];
+  }
+  return [
+    (w) => `A fresh ${w}!`,
+    (w) => `A lovely ${w}!`,
+    (w) => `A nice ${w}!`,
+  ];
+}
+
+function ingredientTemplates(word: string): readonly ((w: string) => string)[] {
+  if (isPluralNoun(word)) {
+    return [
+      (w) => `Fresh ${w}!`,
+      (w) => `Tasty ${w}!`,
+      (w) => `Some ${w} for the pot!`,
+    ];
+  }
+  if (isUncountable(word)) {
+    return [
+      (w) => `Lovely ${w}!`,
+      (w) => `Some ${w} for the pot!`,
+      (w) => `Into the pot with the ${w}!`,
+    ];
+  }
+  return [
+    (w) => `A fresh ${w}!`,
+    (w) => `A tasty ${w}!`,
+    (w) => `Into the pot with the ${w}!`,
+  ];
+}
+
+const COLOR_TEMPLATES: readonly ((w: string) => string)[] = [
+  (w) => `Lovely ${w}!`,
+  (w) => `A splash of ${w}!`,
+  (w) => `Look, ${w}!`,
+];
+
+const DIRECTION_TEMPLATES: readonly ((w: string) => string)[] = [
+  (w) => `Heading ${w}!`,
+  (w) => `Sailing ${w}!`,
+  (w) => (/^the\s+/i.test(w) ? `Off to ${w}!` : `Off to the ${w}!`),
+];
+
+const DESTINATION_TEMPLATES: readonly ((w: string) => string)[] = [
+  (w) => `Off to ${w}!`,
+  (w) => `Next stop, ${w}!`,
+  (w) => `All aboard for ${w}!`,
+];
 
 /**
  * Gently enriches familiar vocabulary into short natural British phrases once
@@ -60,7 +110,16 @@ export function scaffoldVocab(
   const clean = word.trim();
   if (!clean) return clean;
   if (getTopicExposure(topic) < 2) return clean;
-  return pick(rng, SCAFFOLD_TEMPLATES[category])(clean);
+  const templates = category === 'product'
+    ? productTemplates(clean)
+    : category === 'ingredient'
+      ? ingredientTemplates(clean)
+      : category === 'color'
+        ? COLOR_TEMPLATES
+        : category === 'direction'
+          ? DIRECTION_TEMPLATES
+          : DESTINATION_TEMPLATES;
+  return pick(rng, templates)(clean);
 }
 
 /** Diagnoses why a Train Station clock setting missed the target time. */
@@ -90,10 +149,13 @@ export function diagnoseClockMistake(challenge: TrainChallenge, chosen: ClockTim
   const raw = ((toMinutes(chosen) - toMinutes(challenge.target)) + 720) % 720;
   const early = raw > 360;
   const diff = early ? 720 - raw : raw;
+  const minLabel = diff === 1 ? '1 minute' : `${diff} minutes`;
+  const justPrefix = diff <= 15 ? 'Just ' : '';
 
   if (chosen.minute === challenge.target.minute) {
+    const lead = diff <= 120 ? 'Almost! ' : '';
     return {
-      first: early ? 'Almost! Too early — check the hour!' : 'Almost! Too late — check the hour!',
+      first: early ? `${lead}Too early — check the hour!` : `${lead}Too late — check the hour!`,
       hint: 'Your minutes are spot on! Move the short red hour hand.',
     };
   }
@@ -101,22 +163,22 @@ export function diagnoseClockMistake(challenge: TrainChallenge, chosen: ClockTim
   if (chosen.hour === challenge.target.hour) {
     return {
       first: early
-        ? `So close! Just ${diff} minutes too early!`
-        : `So close! Just ${diff} minutes too late!`,
+        ? `So close! ${justPrefix}${minLabel} too early!`
+        : `So close! ${justPrefix}${minLabel} too late!`,
       hint: early
-        ? `The hour is right! Move the minute hand forward ${diff} minutes.`
-        : `The hour is right! Turn the minute hand back ${diff} minutes.`,
+        ? `The hour is right! Move the minute hand forward ${minLabel}.`
+        : `The hour is right! Turn the minute hand back ${minLabel}.`,
     };
   }
 
   if (diff <= 30) {
     return {
       first: early
-        ? `Ooh, just ${diff} minutes too early!`
-        : `Ooh, just ${diff} minutes too late!`,
+        ? `Ooh, ${diff <= 15 ? 'just ' : ''}${minLabel} too early!`
+        : `Ooh, ${diff <= 15 ? 'just ' : ''}${minLabel} too late!`,
       hint: early
-        ? `Push the clock forward ${diff} minutes!`
-        : `Turn the clock back ${diff} minutes!`,
+        ? `Push the clock forward ${minLabel}!`
+        : `Turn the clock back ${minLabel}!`,
     };
   }
 
@@ -134,24 +196,31 @@ export function diagnoseBasketMistake(order: Order, basket: Basket): CoachAdvice
 
   const extraId = Object.keys(basket).find((id) => basket[id] > 0 && !wanted.has(id));
   if (extraId) {
-    const p = byId.get(extraId)!;
-    return {
-      hint: `Take out the ${p.en.many} — nobody ordered those!`,
-    };
+    const p = byId.get(extraId);
+    if (p) {
+      return {
+        hint: `Take out the ${p.en.many} — nobody ordered those!`,
+      };
+    }
   }
 
   for (const line of order.lines) {
     const have = basket[line.product.id] ?? 0;
     if (have === line.qty) continue;
 
-    if (line.phrase === 'pair' && have !== 2) {
+    if (line.phrase === 'pair' && line.qty === 2 && have !== 2) {
       return { hint: `A pair means two ${line.product.en.many}!` };
     }
-    if (line.phrase === 'half-dozen' && have !== 6) {
+    if (line.phrase === 'half-dozen' && line.qty === 6 && have !== 6) {
       return { hint: `Half a dozen means six ${line.product.en.many}!` };
     }
     if (line.phrase === 'double') {
-      return { hint: `Remember, twice as many ${line.product.en.many}!` };
+      const ref = order.lines[0];
+      return {
+        hint: ref && ref !== line
+          ? `Remember, twice as many ${line.product.en.many} as ${ref.product.en.many}!`
+          : `Remember, twice as many ${line.product.en.many}!`,
+      };
     }
     if (have > line.qty) {
       const over = have - line.qty;
@@ -179,10 +248,15 @@ export function diagnoseChangeMistake(order: Order, coins: readonly number[]): C
   if (given === order.change) return null;
 
   if (order.discount > 0 && given === order.paid - order.total) {
+    const coinUnit = order.discount === 1 ? 'coin' : 'coins';
     return {
       first: `Ooh, do not forget the ${order.discount}-coin coupon!`,
-      hint: `The coupon saves ${order.discount} coins, so give ${order.discount} more in change!`,
+      hint: `The coupon saves ${order.discount} ${coinUnit}, so give ${order.discount} more in change!`,
     };
+  }
+
+  if (given === 0) {
+    return { hint: 'Pick some coins from the till for the change!' };
   }
 
   const diff = Math.abs(given - order.change);
@@ -210,8 +284,10 @@ export function diagnoseColorMistake(target: ColorId, bowl: readonly PotId[]): C
   const missing = needed.filter((p) => !bowl.includes(p));
 
   if (kept.length > 0 && extra.length > 0) {
+    const keepList = joinList(kept.map((p) => COLORS[p].name.en), 'en');
+    const extraList = joinList(extra.map((p) => COLORS[p].name.en), 'en');
     return {
-      hint: `Keep the ${COLORS[kept[0]].name.en}, and take out the ${COLORS[extra[0]].name.en}!`,
+      hint: `Keep the ${keepList}, and take out the ${extraList}!`,
     };
   }
   if (extra.length > 0) {
@@ -220,6 +296,13 @@ export function diagnoseColorMistake(target: ColorId, bowl: readonly PotId[]): C
       : `${numberWord(needed.length, 'en')} different paints`;
     return {
       hint: `Empty the bowl and try ${countPhrase}!`,
+    };
+  }
+  if (bowl.length === 0 && needed.length > 0) {
+    return {
+      hint: needed.length === 1
+        ? 'Pick one paint pot to colour the chameleon!'
+        : `Try mixing ${numberWord(needed.length, 'en')} different paints!`,
     };
   }
   if (missing.length > 0) {
@@ -245,7 +328,7 @@ export function diagnoseDetectiveMistake(suspect: Suspect, clues: readonly ClueP
     case 'glasses':
       return {
         hint: failed.value
-          ? `${suspect.name} does not wear glasses, but the clue says wears glasses!`
+          ? `${suspect.name} does not wear glasses, but the clue says they wear glasses!`
           : `${suspect.name} wears glasses, and the clue says no glasses!`,
       };
     case 'hat':
@@ -260,18 +343,21 @@ export function diagnoseDetectiveMistake(suspect: Suspect, clues: readonly ClueP
       };
     case 'snack':
       return {
-        hint: `${suspect.name} does not have ${SNACKS[failed.value].en}!`,
+        hint: `${suspect.name} does not have ${withSnackArticle(SNACKS[failed.value].en)}!`,
       };
     case 'not-snack':
       return {
-        hint: `${suspect.name} has ${SNACKS[failed.value].en}, and the clue rules that out!`,
+        hint: `${suspect.name} has ${withSnackArticle(SNACKS[failed.value].en)}, and the clue rules that out!`,
       };
-    case 'habitat':
+    case 'habitat': {
+      const animal = suspect.animal.name.en;
+      const art = indefiniteArticle(animal) === 'an' ? 'An' : 'A';
       return {
         hint: failed.value === 'water'
-          ? `A ${suspect.animal.name.en} is a land animal, not a water animal!`
-          : `A ${suspect.animal.name.en} is a water animal, not a land animal!`,
+          ? `${art} ${animal} is a land animal, not a water animal!`
+          : `${art} ${animal} is a water animal, not a land animal!`,
       };
+    }
     case 'even':
       return {
         hint: failed.value
@@ -297,8 +383,11 @@ export function diagnoseRecipeMistake(
 
   const extra = [...picked].find((id) => !wanted.has(id));
   if (extra) {
-    const ing = INGREDIENTS.find((i) => i.id === extra)!;
-    return { hint: `Take out the ${ing.name.en} — it is not in this recipe!` };
+    const ing = INGREDIENTS.find((i) => i.id === extra);
+    if (ing) {
+      const verb = isPluralNoun(ing.name.en) ? 'they are' : 'it is';
+      return { hint: `Take out the ${ing.name.en} — ${verb} not in this recipe!` };
+    }
   }
 
   if (picked.size < wanted.size) {
@@ -306,6 +395,10 @@ export function diagnoseRecipeMistake(
     return {
       hint: `Check the ingredients — you still need ${missing === 1 ? 'one more' : `${numberWord(missing, 'en')} more`}!`,
     };
+  }
+
+  if (quarters === 0) {
+    return { hint: 'Pour some liquid into the measuring jug first!' };
   }
 
   if (recipe.scale === 2 && quarters === recipe.baseQuarters) {
@@ -321,10 +414,6 @@ export function diagnoseRecipeMistake(
         ? 'Too much in the jug! Empty it and measure double the recipe carefully.'
         : 'Too much in the jug! Empty it and pour a little less.',
     };
-  }
-
-  if (quarters === 0) {
-    return { hint: 'Pour some liquid into the measuring jug first!' };
   }
 
   if (quarters < recipe.targetQuarters) {
@@ -344,10 +433,24 @@ export function diagnoseRecipeMistake(
   return { hint: 'Check the ingredients, the jug, and the final step!' };
 }
 
+const stripAccents = (s: string): string => s.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+
 /** Diagnoses a wrong spelling attempt in Word Workshop without giving away the answer. */
 export function diagnoseWordMistake(puzzle: WordPuzzle, attempt: string, lang: Lang): CoachAdvice {
-  const target = puzzle.answer[lang].toLowerCase();
-  const guess = attempt.toLowerCase();
+  const target = puzzle.answer[lang].normalize('NFC').toLocaleLowerCase(lang).trim();
+  const guess = attempt.normalize('NFC').toLocaleLowerCase(lang).trim();
+
+  if (!guess) {
+    return { hint: 'Tap the picture or Berta the owl to hear the clue again!' };
+  }
+
+  if (guess === target) {
+    return { hint: 'Double check that spelling — it looks spot on!' };
+  }
+
+  if (stripAccents(guess) === stripAccents(target)) {
+    return { hint: 'Almost! Check the accent marks on the letters.' };
+  }
 
   const sortLetters = (s: string) => [...s].sort().join('');
   if (guess.length === target.length && sortLetters(guess) === sortLetters(target)) {
@@ -362,28 +465,45 @@ export function diagnoseWordMistake(puzzle: WordPuzzle, attempt: string, lang: L
   if (guess[0] === target[0] && exactMatches >= 2) {
     return { hint: 'Good start! Several letters are already in the right spot.' };
   }
-  if (guess[0] === target[0]) {
-    return { hint: 'The first letter is right! Try swapping the rest.' };
+  if (exactMatches >= 2) {
+    return { hint: 'Several letters are already in the right spot — check the others!' };
   }
-  if (guess.length > 0 && guess[guess.length - 1] === target[target.length - 1]) {
-    return { hint: 'The last letter is right! Try a different starting letter.' };
+  if (guess[0] === target[0]) {
+    return { hint: 'The first letter is right! Check the other letters.' };
+  }
+  if (guess[guess.length - 1] === target[target.length - 1]) {
+    return { hint: 'The last letter is right! Check the other letters.' };
   }
   return { hint: 'Tap the picture or Berta the owl to hear the clue again!' };
 }
 
+function ensureSentencePunct(text: string): string {
+  if (!text) return '';
+  return /[.!?]$/.test(text) ? text : `${text}!`;
+}
+
 /** Gives a compass-direction nudge after repeated unsuccessful digs in Compass Island. */
 export function diagnoseDigMistake(pos: Pos, target: Pos, junkEn: string, tempEn: string, trendEn: string | null): CoachAdvice {
+  const cleanJunk = cleanSpeechText(junkEn);
+  const junkLabel = cleanJunk ? cleanJunk[0].toUpperCase() + cleanJunk.slice(1) : 'Oops';
+  const cleanTemp = ensureSentencePunct(cleanSpeechText(tempEn));
+  const cleanTrend = trendEn ? ensureSentencePunct(cleanSpeechText(trendEn)) : '';
+  const first = cleanTrend
+    ? [cleanTemp, cleanTrend].filter(Boolean).join(' ')
+    : [`${junkLabel}!`, cleanTemp].filter(Boolean).join(' ');
+
   const dx = target.x - pos.x;
   const dy = target.y - pos.y;
-  let dir: string;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    dir = dx > 0 ? 'east' : 'west';
-  } else {
-    dir = dy > 0 ? 'north' : 'south';
+  if (dx === 0 && dy === 0) {
+    return {
+      first,
+      hint: 'You are right on the spot — dig here!',
+    };
   }
-  const cleanJunk = junkEn.trim();
-  const junkLabel = cleanJunk ? cleanJunk[0].toUpperCase() + cleanJunk.slice(1) : 'Oops';
-  const first = trendEn ? `${tempEn} ${trendEn}` : `${junkLabel}! ${tempEn}`;
+  const dir = Math.abs(dx) >= Math.abs(dy)
+    ? (dx > 0 ? 'east' : 'west')
+    : (dy > 0 ? 'north' : 'south');
+
   return {
     first,
     hint: `Try sailing further ${dir}!`,
@@ -393,36 +513,45 @@ export function diagnoseDigMistake(pos: Pos, target: Pos, junkEn: string, tempEn
 /** Diagnoses the underlying pattern rule in Bloom Garden and nudges higher or lower. */
 export function diagnosePatternMistake(puzzle: PatternPuzzle, chosen: number): CoachAdvice {
   const seq = puzzle.fullSequence;
-  const dirHint = chosen < puzzle.answer ? 'Try a bigger number.' : 'Try a smaller number.';
+  const dirHint = chosen === puzzle.answer
+    ? ''
+    : chosen < puzzle.answer
+      ? ' Try a bigger number.'
+      : ' Try a smaller number.';
 
   if (seq.length >= 4) {
-    const d0 = seq[1] - seq[0];
-    const d1 = seq[2] - seq[1];
-    const d2 = seq[3] - seq[2];
+    const diffs = seq.slice(1).map((v, i) => v - seq[i]);
+    const d0 = diffs[0];
+    const d1 = diffs[1];
 
-    if (d0 === d1 && d1 === d2) {
+    if (diffs.every((d) => d === d0)) {
       if (d0 > 0) {
-        return { hint: `Each pot adds ${numberWord(d0, 'en')}! ${dirHint}` };
+        return { hint: `Each pot adds ${numberWord(d0, 'en')}!${dirHint}` };
       }
       if (d0 < 0) {
-        return { hint: `Count backwards by ${numberWord(-d0, 'en')}! ${dirHint}` };
+        return { hint: `Count backwards by ${numberWord(-d0, 'en')}!${dirHint}` };
       }
     }
 
     if (seq[0] > 0 && seq[1] % seq[0] === 0) {
       const factor = seq[1] / seq[0];
-      if (seq[2] === seq[1] * factor && seq[3] === seq[2] * factor) {
-        const mult = factor === 2 ? 'Double' : factor === 3 ? 'Triple' : `Multiply by ${numberWord(factor, 'en')}`;
-        return { hint: `${mult} each pot to get the next one! ${dirHint}` };
+      if (factor > 1 && Number.isInteger(factor) && seq.slice(1).every((v, i) => v === seq[i] * factor)) {
+        const mult = factor === 2
+          ? 'Double each pot'
+          : factor === 3
+            ? 'Triple each pot'
+            : `Multiply each pot by ${numberWord(factor, 'en')}`;
+        return { hint: `${mult} to get the next one!${dirHint}` };
       }
     }
 
-    if (d0 !== d1 && d0 === d2) {
+    if (d0 !== d1 && diffs.every((d, i) => d === (i % 2 === 0 ? d0 : d1))) {
+      const jumpPhrase = (d: number) => (d >= 0 ? `plus ${numberWord(d, 'en')}` : `minus ${numberWord(-d, 'en')}`);
       return {
-        hint: `Watch the alternating jumps: plus ${numberWord(d0, 'en')}, then plus ${numberWord(d1, 'en')}! ${dirHint}`,
+        hint: `Watch the alternating jumps: ${jumpPhrase(d0)}, then ${jumpPhrase(d1)}!${dirHint}`,
       };
     }
   }
 
-  return { hint: `Look at how the numbers jump from pot to pot! ${dirHint}` };
+  return { hint: `Look at how the numbers jump from pot to pot!${dirHint}` };
 }

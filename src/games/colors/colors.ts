@@ -33,8 +33,9 @@ export const colorsPage: Page = (ctx) => {
 
   function pour(pot: PotId, anchor?: HTMLElement) {
     if (solved || closed) return;
+    const removing = bowl.includes(pot);
     bowl = togglePot(bowl, pot, MAX_POTS);
-    poursOnCurrent += 1;
+    if (!removing) poursOnCurrent += 1;
     const m = mixed();
     if (m === target()) {
       solved = true;
@@ -60,16 +61,17 @@ export const colorsPage: Page = (ctx) => {
       speakEnglish(line, { anchor, mode: 'event' });
     } else {
       playSfx('splash');
-      if (m && poursOnCurrent >= 4 && poursOnCurrent % 2 === 0) {
+      if (!removing && m && poursOnCurrent >= 4 && poursOnCurrent % 2 === 0) {
         const advice = diagnoseColorMistake(target(), bowl);
         speakEnglish(advice.hint, { anchor, mode: 'event' });
       } else {
         const colorName = m ? COLORS[m].name.en : 'empty';
-        speakEnglish(m ? scaffoldVocab(colorName, 'color', rng, colorName) : 'empty', {
+        const label = m ? scaffoldVocab(colorName, 'color', rng, colorName) : 'empty';
+        speakEnglish(label, {
           anchor,
           mode: 'click',
           role: 'step',
-          topic: m ? colorName : 'color-empty',
+          topic: m ? label : 'color-empty',
           coalesceKey: 'colors-bowl',
         });
       }
@@ -204,6 +206,7 @@ export const colorsPage: Page = (ctx) => {
               onClick: () => {
                 playSfx('remove');
                 bowl = [];
+                poursOnCurrent = Math.min(poursOnCurrent, 2);
                 draw(`pot-${POTS[0]}`);
               },
             }),

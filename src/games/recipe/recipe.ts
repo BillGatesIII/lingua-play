@@ -43,11 +43,12 @@ export const recipePage: Page = (ctx) => {
     playSfx(removing ? 'remove' : 'pop');
     if (!removing) {
       const ing = INGREDIENTS.find((x) => x.id === id)!;
-      speakEnglish(scaffoldVocab(ing.name.en, 'ingredient', rng, ing.name.en), {
+      const label = scaffoldVocab(ing.name.en, 'ingredient', rng, ing.name.en);
+      speakEnglish(label, {
         anchor,
         mode: 'click',
         role: 'step',
-        topic: ing.name.en,
+        topic: label,
         coalesceKey: 'recipe-ing',
       });
     }
