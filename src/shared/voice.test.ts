@@ -1,0 +1,194 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearProgress, updateProgress } from './storage';
+import { playSfx } from './sfx';
+import { addHoverVoice, cleanSpeechText, pickEnglishVoice, rewardEmojiEnglish, speakEnglish, stopSpeech } from './voice';
+
+describe('voice & speech bubble', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    clearProgress();
+    document.body.innerHTML = '';
+    stopSpeech();
+  });
+
+  afterEach(() => {
+    stopSpeech();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('strips emojis cleanly for speech synthesis', () => {
+    expect(cleanSpeechText('🍎 Two apples! 🎉')).toBe('Two apples!');
+    expect(cleanSpeechText('Treasure! 💎 You found it!')).toBe('Treasure! You found it!');
+  });
+
+  it('picks a preferred English voice when available', () => {
+    const voices = [
+      { lang: 'es-ES', name: 'Monica', localService: true },
+      { lang: 'en-GB', name: 'Generic UK', localService: false },
+      { lang: 'en-US', name: 'Google US English', localService: false },
+    ] as SpeechSynthesisVoice[];
+    expect(pickEnglishVoice(voices)?.name).toBe('Google US English');
+    expect(pickEnglishVoice([{ lang: 'es-ES', name: 'Monica' }] as SpeechSynthesisVoice[])).toBeNull();
+  });
+
+  it('displays an English speech bubble and speaks via speechSynthesis when sound is enabled', () => {
+    const speak = vi.fn();
+    const cancel = vi.fn();
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: { speak, cancel, getVoices: () => [] },
+    });
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: SpeechSynthesisVoice | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) {
+        this.text = t;
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+
+    const anchor = document.createElement('button');
+    document.body.append(anchor);
+    speakEnglish('Two apples!', { anchor, mode: 'click' });
+
+    const bubble = document.querySelector<HTMLElement>('.voice-bubble');
+    expect(bubble).not.toBeNull();
+    expect(bubble?.hidden).toBe(false);
+    expect(bubble?.getAttribute('lang')).toBe('en');
+    expect(bubble?.textContent).toContain('Two apples!');
+    expect(speak).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(5000);
+    expect(bubble?.hidden).toBe(true);
+  });
+
+  it('shows visual bubble silently when sound is muted', () => {
+    const speak = vi.fn();
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: { speak, cancel: vi.fn(), getVoices: () => [] },
+    });
+    updateProgress((p) => { p.settings.sound = false; });
+
+    speakEnglish('Red', { mode: 'click' });
+    const bubble = document.querySelector<HTMLElement>('.voice-bubble');
+    expect(bubble?.hidden).toBe(false);
+    expect(bubble?.textContent).toContain('Red');
+    expect(speak).not.toHaveBeenCalled();
+  });
+
+  it('speaks on mouse hover after delay and cancels on pointer leave', () => {
+    const btn = document.createElement('button');
+    document.body.append(btn);
+    addHoverVoice(btn, 'apple', 140);
+
+    btn.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    vi.advanceTimersByTime(100);
+    expect(document.querySelector('.voice-bubble')).toBeNull();
+
+    btn.dispatchEvent(new MouseEvent('pointerleave'));
+    vi.advanceTimersByTime(100);
+    expect(document.querySelector('.voice-bubble')).toBeNull();
+
+    btn.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    vi.advanceTimersByTime(150);
+    const bubble = document.querySelector<HTMLElement>('.voice-bubble');
+    expect(bubble?.hidden).toBe(false);
+    expect(bubble?.textContent).toContain('apple');
+  });
+
+  it('safely handles playSfx when AudioContext is unavailable or muted', () => {
+    expect(() => playSfx('surprise')).not.toThrow();
+    updateProgress((p) => { p.settings.sound = false; });
+    expect(() => playSfx('levelUp')).not.toThrow();
+  });
+
+  it('positions the bubble using untransformed offset dimensions so it stays inside the viewport', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 });
+
+    speakEnglish('Warmup', { mode: 'click' });
+    const bubble = document.querySelector<HTMLElement>('.voice-bubble')!;
+    Object.defineProperty(bubble, 'offsetWidth', { configurable: true, value: 240 });
+    Object.defineProperty(bubble, 'offsetHeight', { configurable: true, value: 50 });
+    vi.spyOn(bubble, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 204, bottom: 42.5, width: 204, height: 42.5, x: 0, y: 0, toJSON: () => ({}),
+    });
+
+    const anchor = document.createElement('button');
+    document.body.append(anchor);
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
+      left: 960, top: 200, right: 1010, bottom: 240, width: 50, height: 40, x: 960, y: 200, toJSON: () => ({}),
+    });
+
+    speakEnglish('Right edge clue', { anchor, mode: 'click' });
+    expect(bubble.style.left).toBe('772px');
+  });
+
+  it('suppresses hover speech while click speech is active and allows another click to interrupt', () => {
+    const utterances: { onend: (() => void) | null }[] = [];
+    const synth = {
+      speaking: false,
+      pending: false,
+      speak: vi.fn((u: { onend: (() => void) | null }) => {
+        synth.speaking = true;
+        utterances.push(u);
+      }),
+      cancel: vi.fn(() => {
+        synth.speaking = false;
+        synth.pending = false;
+      }),
+      getVoices: () => [],
+    };
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: synth });
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: SpeechSynthesisVoice | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) {
+        this.text = t;
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+
+    speakEnglish('The train leaves at half past three.', { mode: 'click' });
+    expect(synth.speak).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(500);
+    speakEnglish('Plus five minutes', { mode: 'hover' });
+    expect(synth.speak).toHaveBeenCalledTimes(1);
+    expect(synth.cancel).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('The train leaves at half past three.');
+
+    speakEnglish('Four o clock', { mode: 'click' });
+    expect(synth.speak).toHaveBeenCalledTimes(2);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('Four o clock');
+
+    synth.speaking = false;
+    utterances[utterances.length - 1]?.onend?.();
+    vi.advanceTimersByTime(400);
+    speakEnglish('Home', { mode: 'hover' });
+    expect(synth.speak).toHaveBeenCalledTimes(3);
+    expect(document.querySelector('.voice-bubble')?.textContent).toContain('Home');
+  });
+
+  it('resolves shared reward emojis using their shelf context', () => {
+    expect(rewardEmojiEnglish('colors', '🌲')).toBe('dark green');
+    expect(rewardEmojiEnglish('station', '🌲')).toBe('the forest');
+    expect(rewardEmojiEnglish('colors', '🌸')).toBe('pink');
+    expect(rewardEmojiEnglish('garden', '🌸')).toBe('cherry blossom');
+    expect(rewardEmojiEnglish('station', '🏖️')).toBe('the beach');
+    expect(rewardEmojiEnglish('words', '🏖️')).toBe('beach');
+  });
+});
