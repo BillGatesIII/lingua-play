@@ -32,12 +32,37 @@ a { color: var(--berry-deep); }
 
 .topbar {
   display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between;
-  padding: var(--space-3) var(--space-5); max-width: 72rem; margin: 0 auto;
+  padding: var(--space-2) var(--space-5); max-width: 72rem; margin: 0 auto;
 }
 .logo { font-size: var(--text-lg); font-weight: 900; color: var(--ink); text-decoration: none; }
 .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
-.main { max-width: 72rem; margin: 0 auto; padding: var(--space-3) var(--space-5) var(--space-7); outline: none; }
+.main { max-width: 72rem; margin: 0 auto; padding: var(--space-2) var(--space-5) var(--space-7); outline: none; }
+
+.app-version {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--space-5) var(--space-3);
+  text-align: right;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+@media (min-width: 1280px) {
+  .app-version {
+    position: fixed;
+    right: var(--space-3);
+    bottom: var(--space-2);
+    z-index: 20;
+    margin: 0;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: rgb(255 250 240 / 0.85);
+    pointer-events: none;
+  }
+}
 
 .muted { color: var(--ink-soft); font-size: var(--text-sm); }
 .big-emoji { font-size: var(--text-2xl); letter-spacing: 0.1em; margin: 0; }

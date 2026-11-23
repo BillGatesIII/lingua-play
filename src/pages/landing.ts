@@ -7,19 +7,20 @@ import { addHoverVoice } from '../shared/voice';
 import { Button, Card, SpeakButton, type Tone } from '../ui/components';
 import { h } from '../ui/dom';
 import { renderKeepingFocus } from '../ui/focus';
+import { startIconChoreography, type IconMotion, type MotionIcon } from './iconMotion';
 import type { Page } from './types';
 
-const PROMISES: { icon: string; text: string }[] = [
-  { icon: '🚫', text: 'Sin anuncios' },
-  { icon: '🕵️', text: 'Sin rastreadores' },
-  { icon: '🌙', text: 'Sin prisas ni rachas' },
-  { icon: '💾', text: 'Se guarda solo en tu dispositivo' },
+const PROMISES: { icon: string; motion: IconMotion; text: string }[] = [
+  { icon: '🚫', motion: 'no-shake', text: 'Sin anuncios' },
+  { icon: '🕵️', motion: 'spy-peek', text: 'Sin rastreadores' },
+  { icon: '🌙', motion: 'moon-rock', text: 'Sin prisas ni rachas' },
+  { icon: '💾', motion: 'disk-click', text: 'Se guarda solo en tu dispositivo' },
 ];
 
 interface GameEntry {
   route: string;
   title: string;
-  art: string;
+  art: readonly MotionIcon[];
   tag: string;
   desc: string;
   tone: Tone;
@@ -30,7 +31,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/market',
     title: 'Market Quest',
-    art: '🍎🧀🍞',
+    art: [
+      { emoji: '🍎', motion: 'apple-roll' },
+      { emoji: '🧀', motion: 'cheese-wiggle' },
+      { emoji: '🍞', motion: 'bread-rise' },
+    ],
     tag: 'Palabras · Sumas y cambio',
     desc: 'Atiende el puesto del mercado: llena la bolsa y devuelve el cambio.',
     tone: 'sun',
@@ -39,7 +44,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/compass',
     title: 'Compass Island',
-    art: '🧭🏝️⛵',
+    art: [
+      { emoji: '🧭', motion: 'compass-seek' },
+      { emoji: '🏝️', motion: 'island-sway' },
+      { emoji: '⛵', motion: 'boat-sail' },
+    ],
     tag: 'Rumbos · Coordenadas',
     desc: 'Sigue las pistas del mapa, navega entre rocas y encuentra el tesoro.',
     tone: 'sea',
@@ -48,7 +57,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/colors',
     title: 'Color Chameleon',
-    art: '🎨🦎🖌️',
+    art: [
+      { emoji: '🎨', motion: 'palette-tilt' },
+      { emoji: '🦎', motion: 'chameleon-step' },
+      { emoji: '🖌️', motion: 'brush-stroke' },
+    ],
     tag: 'Colores · Mezclas',
     desc: 'Mezcla pinturas y pinta al camaleón del color que pide.',
     tone: 'leaf',
@@ -57,7 +70,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/recipe',
     title: 'Recipe Lab',
-    art: '🍳🍓🥛',
+    art: [
+      { emoji: '🍳', motion: 'pan-flip' },
+      { emoji: '🍓', motion: 'berry-bounce' },
+      { emoji: '🥛', motion: 'milk-pour' },
+    ],
     tag: 'Verbos · Fracciones',
     desc: 'Mide ¼, ½ y ¾ de taza, elige ingredientes y cocina platos locos.',
     tone: 'peach',
@@ -66,7 +83,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/station',
     title: 'Train Station',
-    art: '🚂🕒🎫',
+    art: [
+      { emoji: '🚂', motion: 'train-chug' },
+      { emoji: '🕒', motion: 'clock-tick' },
+      { emoji: '🎫', motion: 'ticket-flutter' },
+    ],
     tag: 'La hora · Viajes',
     desc: 'Ajusta el reloj de la estación para que cada viajero suba a su tren.',
     tone: 'berry',
@@ -75,7 +96,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/detective',
     title: 'Mystery Detective',
-    art: '🔎🦊🍪',
+    art: [
+      { emoji: '🔎', motion: 'magnifier-scan' },
+      { emoji: '🦊', motion: 'fox-peek' },
+      { emoji: '🍪', motion: 'cookie-nibble' },
+    ],
     tag: 'Lógica · Pistas',
     desc: 'Lee las pistas, descarta sospechosos y descubre quién fue.',
     tone: 'lemon',
@@ -84,7 +109,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/words',
     title: 'Word Workshop',
-    art: '🔤🦉📚',
+    art: [
+      { emoji: '🔤', motion: 'letters-pop' },
+      { emoji: '🦉', motion: 'owl-head-tilt' },
+      { emoji: '📚', motion: 'books-settle' },
+    ],
     tag: 'Letras · Ortografía',
     desc: 'Descifra pistas y ordena letras para encontrar cada palabra.',
     tone: 'sea',
@@ -93,7 +122,11 @@ const GAMES: readonly GameEntry[] = [
   {
     route: '#/garden',
     title: 'Bloom Garden',
-    art: '🌷🐝🌻',
+    art: [
+      { emoji: '🌷', motion: 'flower-sway' },
+      { emoji: '🐝', motion: 'bee-buzz' },
+      { emoji: '🌻', motion: 'sunflower-turn' },
+    ],
     tag: 'Series · Patrones',
     desc: 'Observa cómo crecen las flores y planta el paquete de semillas correcto.',
     tone: 'leaf',
@@ -138,7 +171,12 @@ export const landingPage: Page = (ctx) => {
 
       const gameCards = GAMES.map((g) => {
         const card = Card([
-          h('div', { class: 'game-card__art', 'aria-hidden': 'true' }, g.art),
+          h(
+            'div',
+            { class: 'game-card__art', 'aria-hidden': 'true' },
+            ...g.art.map((icon) =>
+              h('span', { class: 'art-icon', 'data-motion': icon.motion }, icon.emoji)),
+          ),
           h('span', { class: 'game-card__meta' }, g.tag),
           h('h2', {}, g.title),
           h('p', {}, g.desc),
@@ -157,12 +195,13 @@ export const landingPage: Page = (ctx) => {
 
       wrap.append(
         h('section', { class: 'hero' },
-          h('p', { class: 'hero__parrot' }, parrotBtn),
-          h('h1', { class: 'hero__title' }, 'Lingua Play'),
+          h('div', { class: 'hero__head' },
+            h('span', { class: 'hero__parrot' }, parrotBtn),
+            h('h1', { class: 'hero__title' }, 'Lingua Play')),
           h('p', { class: 'hero__tag' }, '¡Juega primero! Las palabras en inglés y los números vienen contigo.')),
         h('div', { class: 'cols cols--games' }, ...gameCards),
         h('ul', { class: 'promises' }, ...PROMISES.map((p) =>
-          h('li', {}, h('span', { 'aria-hidden': 'true' }, p.icon), ' ', p.text))),
+          h('li', {}, h('span', { class: 'art-icon promise-icon', 'data-motion': p.motion, 'aria-hidden': 'true' }, p.icon), ' ', p.text))),
         Card([
           h('h2', {}, 'Mi colección'),
           h('div', { class: 'cols' },
@@ -207,4 +246,5 @@ export const landingPage: Page = (ctx) => {
   }
 
   draw();
+  return startIconChoreography(host);
 };
