@@ -137,4 +137,31 @@ describe('pages smoke & Spanish UI rendering', () => {
     expect(bubble?.hidden).toBe(false);
     expect(bubble?.textContent).toContain('apple');
   });
+
+  it('animates landing icons subtly one at a time and cleans up timers', () => {
+    vi.useFakeTimers();
+    try {
+      const root = document.createElement('main');
+      document.body.append(root);
+      const cleanup = landingPage({ root, refresh: () => {} });
+
+      const icons = root.querySelectorAll<HTMLElement>('[data-motion]');
+      expect(icons.length).toBe(28);
+      expect(root.querySelectorAll('.is-alive').length).toBe(0);
+
+      vi.advanceTimersByTime(800);
+      expect(root.querySelectorAll('.is-alive').length).toBe(1);
+
+      vi.advanceTimersByTime(3000);
+      expect(root.querySelectorAll('.is-alive').length).toBeLessThanOrEqual(2);
+
+      if (typeof cleanup === 'function') cleanup();
+      // Clearing timers prevents any further ambient animations from starting
+      root.querySelectorAll('.is-alive').forEach((el) => el.classList.remove('is-alive'));
+      vi.advanceTimersByTime(10000);
+      expect(root.querySelectorAll('.is-alive').length).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
