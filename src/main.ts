@@ -33,7 +33,7 @@ const routes: Record<string, Page> = {
 const app = document.getElementById('app')!;
 const header = h('header', { class: 'topbar' });
 const main = h('main', { id: 'main', class: 'main', tabindex: '-1' });
-const versionBadge = h('div', { class: 'app-version', 'aria-label': `Versión ${__APP_VERSION__}` }, `v${__APP_VERSION__}`);
+const versionBadge = h('footer', { class: 'app-version', 'aria-label': `Versión ${__APP_VERSION__}` }, `v${__APP_VERSION__}`);
 app.append(header, main, versionBadge);
 
 bindAudioUnlock();

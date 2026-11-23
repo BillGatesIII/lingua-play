@@ -156,10 +156,80 @@ describe('pages smoke & Spanish UI rendering', () => {
       expect(root.querySelectorAll('.is-alive').length).toBeLessThanOrEqual(2);
 
       if (typeof cleanup === 'function') cleanup();
-      // Clearing timers prevents any further ambient animations from starting
-      root.querySelectorAll('.is-alive').forEach((el) => el.classList.remove('is-alive'));
+      // Cleanup clears active .is-alive classes and prevents further ambient animations
+      expect(root.querySelectorAll('.is-alive').length).toBe(0);
       vi.advanceTimersByTime(10000);
       expect(root.querySelectorAll('.is-alive').length).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ripples a game card on hover/focus, clears on animationend, and skips when reduced motion is enabled', () => {
+    vi.useFakeTimers();
+    try {
+      const root = document.createElement('main');
+      document.body.append(root);
+      const cleanup = landingPage({ root, refresh: () => {} });
+
+      const firstCard = root.querySelector<HTMLElement>('.game-card')!;
+      const cardIcons = Array.from(firstCard.querySelectorAll<HTMLElement>('[data-motion]'));
+      expect(cardIcons.length).toBe(3);
+
+      // Hovering inside the card ripples its 3 icons in a staggered wave
+      firstCard.dispatchEvent(new Event('pointerover', { bubbles: true }));
+      expect(cardIcons.map((el) => el.classList.contains('is-alive'))).toEqual([true, false, false]);
+
+      // Child-to-child pointerover inside the same card does not cancel/restart the wave
+      const cardHeading = firstCard.querySelector('h2')!;
+      cardHeading.dispatchEvent(new MouseEvent('pointerover', { bubbles: true, relatedTarget: firstCard }));
+
+      vi.advanceTimersByTime(140);
+      expect(cardIcons.map((el) => el.classList.contains('is-alive'))).toEqual([true, true, false]);
+
+      // animationend clears .is-alive promptly before fallback timeout
+      cardIcons[0].dispatchEvent(new Event('animationend'));
+      expect(cardIcons[0].classList.contains('is-alive')).toBe(false);
+
+      // cleanup cancels pending staggered wave timers (icon 2 at 280ms) and beat timers (700ms)
+      if (typeof cleanup === 'function') cleanup();
+      vi.advanceTimersByTime(1000);
+      expect(root.querySelectorAll('.is-alive').length).toBe(0);
+
+      // Keyboard focusin on a card link ripples that card's icons, and survives redraws
+      const root2 = document.createElement('main');
+      document.body.append(root2);
+      const cleanup2 = landingPage({ root: root2, refresh: () => {} });
+      root2.querySelector<HTMLButtonElement>('[data-focus="erase-btn"]')?.click();
+      const secondCard = root2.querySelectorAll<HTMLElement>('.game-card')[1]!;
+      const secondLink = secondCard.querySelector<HTMLAnchorElement>('a.btn')!;
+      secondLink.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      expect(secondCard.querySelector('[data-motion]')?.classList.contains('is-alive')).toBe(true);
+      if (typeof cleanup2 === 'function') cleanup2();
+
+      // prefers-reduced-motion disables choreography altogether
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+      try {
+        const reducedRoot = document.createElement('main');
+        document.body.append(reducedRoot);
+        const reducedCleanup = landingPage({ root: reducedRoot, refresh: () => {} });
+        reducedRoot.querySelector('.game-card')!.dispatchEvent(new Event('pointerover', { bubbles: true }));
+        vi.advanceTimersByTime(5000);
+        expect(reducedRoot.querySelectorAll('.is-alive').length).toBe(0);
+        if (typeof reducedCleanup === 'function') reducedCleanup();
+      } finally {
+        window.matchMedia = originalMatchMedia;
+      }
     } finally {
       vi.useRealTimers();
     }

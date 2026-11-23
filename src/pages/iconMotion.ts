@@ -79,30 +79,29 @@ export function startIconChoreography(
   let beatTimer: number | undefined;
   let lastIcon: HTMLElement | null = null;
   let lastGroup: Element | null = null;
-  const activeTimers = new Map<HTMLElement, number>();
+  const activeCleanups = new Map<HTMLElement, () => void>();
   const waveTimers = new Set<number>();
 
-  const clearIcon = (el: HTMLElement) => {
-    const timer = activeTimers.get(el);
-    if (timer !== undefined) {
-      window.clearTimeout(timer);
-      activeTimers.delete(el);
-    }
-    el.classList.remove(ALIVE_CLASS);
-  };
-
   const animateIcon = (el: HTMLElement) => {
-    if (stopped || !el.isConnected) return;
+    if (stopped || !el.isConnected || prefersReducedMotion()) return;
     if (el.classList.contains(ALIVE_CLASS)) return;
 
     el.classList.add(ALIVE_CLASS);
-    const onEnd = () => clearIcon(el);
-    el.addEventListener('animationend', onEnd, { once: true });
-    const fallback = window.setTimeout(() => {
-      el.removeEventListener('animationend', onEnd);
-      clearIcon(el);
-    }, fallbackClearMs);
-    activeTimers.set(el, fallback);
+    let fallback: number | undefined;
+    const clear = () => {
+      if (fallback !== undefined) {
+        window.clearTimeout(fallback);
+        fallback = undefined;
+      }
+      el.removeEventListener('animationend', clear);
+      el.removeEventListener('animationcancel', clear);
+      activeCleanups.delete(el);
+      el.classList.remove(ALIVE_CLASS);
+    };
+    activeCleanups.set(el, clear);
+    el.addEventListener('animationend', clear);
+    el.addEventListener('animationcancel', clear);
+    fallback = window.setTimeout(clear, fallbackClearMs);
   };
 
   const pickNextIcon = (): HTMLElement | null => {
@@ -130,7 +129,7 @@ export function startIconChoreography(
   const tick = () => {
     if (stopped) return;
     const isHidden = typeof document !== 'undefined' && document.hidden;
-    if (!isHidden) {
+    if (!isHidden && !prefersReducedMotion()) {
       const currentAlive = root.querySelectorAll(`[data-motion].${ALIVE_CLASS}`).length;
       if (currentAlive < maxConcurrent) {
         const next = pickNextIcon();
@@ -141,21 +140,27 @@ export function startIconChoreography(
         }
       }
     }
-    const nextDelay = minDelayMs + Math.round(random() * (maxDelayMs - minDelayMs));
+    const spread = Math.max(0, maxDelayMs - minDelayMs);
+    const nextDelay = minDelayMs + Math.round(random() * spread);
     scheduleNext(nextDelay);
   };
 
-  // Gentle staggered ripple when hovering a game card.
-  const onPointerOver = (event: Event) => {
-    if (stopped) return;
-    const target = event.target as HTMLElement | null;
-    const card = target?.closest<HTMLElement>('.game-card');
+  // Gentle staggered ripple when hovering or tabbing into a game card.
+  const onCardEnter = (event: Event) => {
+    if (stopped || prefersReducedMotion()) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const card = target.closest<HTMLElement>('.game-card');
     if (!card) return;
-    const related = (event as PointerEvent).relatedTarget as Node | null;
+    const related = (event as PointerEvent | FocusEvent).relatedTarget as Node | null;
     if (related && card.contains(related)) return;
 
     const icons = Array.from(card.querySelectorAll<HTMLElement>('[data-motion]'));
     icons.forEach((icon, index) => {
+      if (index === 0) {
+        animateIcon(icon);
+        return;
+      }
       const t = window.setTimeout(() => {
         waveTimers.delete(t);
         animateIcon(icon);
@@ -164,16 +169,20 @@ export function startIconChoreography(
     });
   };
 
-  root.addEventListener('pointerover', onPointerOver);
+  root.addEventListener('pointerover', onCardEnter);
+  root.addEventListener('focusin', onCardEnter);
   scheduleNext(initialDelayMs);
 
   return () => {
     stopped = true;
     if (beatTimer !== undefined) window.clearTimeout(beatTimer);
-    for (const timer of activeTimers.values()) window.clearTimeout(timer);
-    activeTimers.clear();
+    for (const clear of Array.from(activeCleanups.values())) clear();
+    activeCleanups.clear();
     for (const timer of waveTimers) window.clearTimeout(timer);
     waveTimers.clear();
-    root.removeEventListener('pointerover', onPointerOver);
+    lastIcon = null;
+    lastGroup = null;
+    root.removeEventListener('pointerover', onCardEnter);
+    root.removeEventListener('focusin', onCardEnter);
   };
 }

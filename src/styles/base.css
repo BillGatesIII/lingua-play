@@ -40,16 +40,28 @@ a { color: var(--berry-deep); }
 .main { max-width: 72rem; margin: 0 auto; padding: var(--space-2) var(--space-5) var(--space-7); outline: none; }
 
 .app-version {
-  position: fixed;
-  right: var(--space-3);
-  bottom: var(--space-2);
-  z-index: 20;
-  pointer-events: none;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--space-5) var(--space-3);
+  text-align: right;
   font-size: 0.75rem;
   font-weight: 800;
   color: var(--ink-soft);
-  opacity: 0.65;
   letter-spacing: 0.02em;
+}
+
+@media (min-width: 1280px) {
+  .app-version {
+    position: fixed;
+    right: var(--space-3);
+    bottom: var(--space-2);
+    z-index: 20;
+    margin: 0;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: rgb(255 250 240 / 0.85);
+    pointer-events: none;
+  }
 }
 
 .muted { color: var(--ink-soft); font-size: var(--text-sm); }
