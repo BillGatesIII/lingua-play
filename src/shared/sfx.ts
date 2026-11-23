@@ -26,9 +26,6 @@ function getAudioContext(): AudioContext | null {
       return null;
     }
   }
-  if (audioCtx.state === 'suspended') {
-    void audioCtx.resume().catch(() => {});
-  }
   return audioCtx;
 }
 
@@ -85,61 +82,68 @@ function scheduleTones(ctx: AudioContext, steps: ToneStep[]): void {
   }
 }
 
-export function playSfx(kind: SfxKind): void {
-  if (!loadProgress().settings.sound) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
+function playSteps(ctx: AudioContext, steps: ToneStep[]): void {
+  if (ctx.state === 'running') {
+    scheduleTones(ctx, steps);
+    return;
+  }
+  if (ctx.state === 'suspended') {
+    void ctx.resume().then(() => {
+      if (ctx.state === 'running' && loadProgress().settings.sound) {
+        scheduleTones(ctx, steps);
+      }
+    }).catch(() => {});
+  }
+}
 
+function stepsForKind(kind: SfxKind): ToneStep[] {
   switch (kind) {
     case 'pop':
-      scheduleTones(ctx, [{ delay: 0, freqStart: 340, freqEnd: 620, duration: 0.065, gain: 0.09, type: 'sine' }]);
-      break;
+      return [{ delay: 0, freqStart: 340, freqEnd: 620, duration: 0.065, gain: 0.09, type: 'sine' }];
     case 'remove':
-      scheduleTones(ctx, [{ delay: 0, freqStart: 420, freqEnd: 210, duration: 0.065, gain: 0.08, type: 'sine' }]);
-      break;
+      return [{ delay: 0, freqStart: 420, freqEnd: 210, duration: 0.065, gain: 0.08, type: 'sine' }];
     case 'step':
-      scheduleTones(ctx, [{ delay: 0, freqStart: 240, freqEnd: 350, duration: 0.055, gain: 0.06, type: 'triangle' }]);
-      break;
+      return [{ delay: 0, freqStart: 240, freqEnd: 350, duration: 0.055, gain: 0.06, type: 'triangle' }];
     case 'tick':
-      scheduleTones(ctx, [{ delay: 0, freqStart: 880, freqEnd: 380, duration: 0.03, gain: 0.07, type: 'triangle' }]);
-      break;
+      return [{ delay: 0, freqStart: 880, freqEnd: 380, duration: 0.03, gain: 0.07, type: 'triangle' }];
     case 'coin':
-      scheduleTones(ctx, [
+      return [
         { delay: 0, freqStart: 1046.5, duration: 0.06, gain: 0.07, type: 'sine' },
         { delay: 0.05, freqStart: 1318.5, duration: 0.12, gain: 0.07, type: 'sine' },
-      ]);
-      break;
+      ];
     case 'splash':
-      scheduleTones(ctx, [
+      return [
         { delay: 0, freqStart: 320, freqEnd: 580, duration: 0.07, gain: 0.08, type: 'sine' },
         { delay: 0.045, freqStart: 480, freqEnd: 740, duration: 0.08, gain: 0.06, type: 'sine' },
-      ]);
-      break;
+      ];
     case 'bonk':
-      scheduleTones(ctx, [{ delay: 0, freqStart: 170, freqEnd: 85, duration: 0.11, gain: 0.1, type: 'triangle' }]);
-      break;
+      return [{ delay: 0, freqStart: 170, freqEnd: 85, duration: 0.11, gain: 0.1, type: 'triangle' }];
     case 'oops':
-      scheduleTones(ctx, [
+      return [
         { delay: 0, freqStart: 320, freqEnd: 210, duration: 0.1, gain: 0.08, type: 'triangle' },
         { delay: 0.09, freqStart: 220, freqEnd: 280, duration: 0.11, gain: 0.07, type: 'triangle' },
-      ]);
-      break;
+      ];
     case 'surprise':
-      scheduleTones(ctx, [
+      return [
         { delay: 0, freqStart: 523.25, duration: 0.08, gain: 0.08, type: 'sine' },
         { delay: 0.065, freqStart: 659.25, duration: 0.08, gain: 0.08, type: 'sine' },
         { delay: 0.13, freqStart: 783.99, duration: 0.09, gain: 0.08, type: 'sine' },
         { delay: 0.2, freqStart: 1046.5, duration: 0.16, gain: 0.09, type: 'sine' },
-      ]);
-      break;
+      ];
     case 'levelUp':
-      scheduleTones(ctx, [
+      return [
         { delay: 0, freqStart: 523.25, duration: 0.09, gain: 0.08, type: 'triangle' },
         { delay: 0.08, freqStart: 659.25, duration: 0.09, gain: 0.08, type: 'triangle' },
         { delay: 0.16, freqStart: 783.99, duration: 0.09, gain: 0.08, type: 'triangle' },
         { delay: 0.24, freqStart: 880, duration: 0.1, gain: 0.08, type: 'triangle' },
         { delay: 0.33, freqStart: 1046.5, duration: 0.25, gain: 0.1, type: 'sine' },
-      ]);
-      break;
+      ];
   }
+}
+
+export function playSfx(kind: SfxKind): void {
+  if (!loadProgress().settings.sound) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playSteps(ctx, stepsForKind(kind));
 }

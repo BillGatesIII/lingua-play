@@ -207,4 +207,75 @@ describe('voice & speech bubble', () => {
     expect(synth.speak).toHaveBeenCalledTimes(3);
     expect(document.querySelector('.voice-bubble')?.textContent).toContain('Home');
   });
+
+  it('does not burn hover cooldown when speech is blocked by autoplay (onerror without onstart)', () => {
+    const utterances: { onstart: (() => void) | null; onerror: (() => void) | null }[] = [];
+    const speak = vi.fn((u: { onstart: (() => void) | null; onerror: (() => void) | null }) => {
+      utterances.push(u);
+    });
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: { speak, cancel: vi.fn(), getVoices: () => [] },
+    });
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: SpeechSynthesisVoice | null = null;
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) {
+        this.text = t;
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+
+    speakEnglish('Market Quest', { mode: 'hover', role: 'vocab' });
+    expect(speak).toHaveBeenCalledTimes(1);
+    utterances[0].onerror?.();
+
+    vi.advanceTimersByTime(1000);
+    speakEnglish('Market Quest', { mode: 'hover', role: 'vocab' });
+    expect(speak).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for a suspended AudioContext to resume before scheduling tones', async () => {
+    let resolveResume!: () => void;
+    const oscStart = vi.fn();
+    const mockCtx = {
+      state: 'suspended' as AudioContextState,
+      currentTime: 0,
+      destination: {},
+      resume: vi.fn(() => new Promise<void>((resolve) => {
+        resolveResume = () => {
+          mockCtx.state = 'running';
+          mockCtx.currentTime = 0.05;
+          resolve();
+        };
+      })),
+      createOscillator: vi.fn(() => ({
+        type: 'sine',
+        frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        connect: vi.fn(),
+        start: oscStart,
+        stop: vi.fn(),
+      })),
+      createGain: vi.fn(() => ({
+        gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        connect: vi.fn(),
+      })),
+    };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return mockCtx; }));
+
+    playSfx('pop');
+    expect(mockCtx.resume).toHaveBeenCalledTimes(1);
+    expect(oscStart).not.toHaveBeenCalled();
+
+    resolveResume();
+    await Promise.resolve();
+    expect(oscStart).toHaveBeenCalledTimes(1);
+    expect(oscStart).toHaveBeenCalledWith(0.05);
+  });
 });

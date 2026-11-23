@@ -233,7 +233,9 @@ function speakUtterance(spoken: string, mode: SpeakMode, topic: string): void {
     return;
   }
 
-  recordSpoken(topic, mode, Date.now());
+  if (mode !== 'hover') {
+    recordSpoken(topic, mode, Date.now());
+  }
   const id = ++currentUtteranceId;
   activePriorityUtteranceId = mode === 'hover' ? null : id;
   try {
@@ -249,6 +251,12 @@ function speakUtterance(spoken: string, mode: SpeakMode, topic: string): void {
     utterance.rate = 0.92;
     utterance.pitch = 1.05;
 
+    let recorded = mode !== 'hover';
+    const markSpoken = () => {
+      if (recorded) return;
+      recorded = true;
+      recordSpoken(topic, mode, Date.now());
+    };
     const scheduleShortHide = () => {
       if (activePriorityUtteranceId === id) activePriorityUtteranceId = null;
       if (id !== currentUtteranceId) return;
@@ -257,7 +265,11 @@ function speakUtterance(spoken: string, mode: SpeakMode, topic: string): void {
         if (id === currentUtteranceId) hideBubble();
       }, 750);
     };
-    utterance.onend = scheduleShortHide;
+    utterance.onstart = markSpoken;
+    utterance.onend = () => {
+      markSpoken();
+      scheduleShortHide();
+    };
     utterance.onerror = scheduleShortHide;
 
     window.speechSynthesis.speak(utterance);

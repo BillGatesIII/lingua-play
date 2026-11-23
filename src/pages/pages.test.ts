@@ -129,6 +129,33 @@ describe('pages smoke & Spanish UI rendering', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('generates and restores an album code from the Mi código panel on the landing page', () => {
+    updateProgress((p) => {
+      p.market.stickers = ['🍎'];
+      p.compass.treasures = ['👑', '💎'];
+    });
+    const root = document.createElement('main');
+    document.body.append(root);
+    landingPage({ root, refresh: () => {} });
+
+    root.querySelector<HTMLButtonElement>('[data-focus="code-toggle"]')?.click();
+    const codeText = root.querySelector('.code-box__value')?.textContent?.trim() ?? '';
+    expect(codeText.startsWith('LP1-')).toBe(true);
+
+    clearProgress();
+    root.innerHTML = '';
+    landingPage({ root, refresh: () => {} });
+    root.querySelector<HTMLButtonElement>('[data-focus="code-toggle"]')?.click();
+
+    const input = root.querySelector<HTMLInputElement>('[data-focus="code-input"]')!;
+    input.value = codeText;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    root.querySelector<HTMLFormElement>('.code-box__form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(loadProgress().market.stickers).toEqual(['🍎']);
+    expect(loadProgress().compass.treasures).toEqual(['💎', '👑']);
+  });
+
   it('shows a speech bubble when clicking a SpeakButton', () => {
     const btn = SpeakButton('🍎', { english: 'apple', ariaLabel: 'apple' });
     document.body.append(btn);

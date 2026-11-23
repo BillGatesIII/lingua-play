@@ -1,4 +1,5 @@
 export interface Progress {
+  sessionDate: string;
   settings: { sound: boolean };
   market: { served: number; stickers: string[] };
   compass: { found: number; treasures: string[] };
@@ -13,7 +14,16 @@ export interface Progress {
 export const STORAGE_KEY = 'linguaplay.v1';
 let sessionProgress: Progress | null = null;
 
+/** Returns the local calendar date as YYYY-MM-DD for daily session resets. */
+export function localDateKey(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export const defaultProgress = (): Progress => ({
+  sessionDate: localDateKey(),
   settings: { sound: true },
   market: { served: 0, stickers: [] },
   compass: { found: 0, treasures: [] },
@@ -34,6 +44,9 @@ export function sanitize(raw: unknown): Progress {
   const d = defaultProgress();
   if (!raw || typeof raw !== 'object') return d;
   const r = raw as Record<string, any>;
+  if (typeof r.sessionDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.sessionDate)) {
+    d.sessionDate = r.sessionDate;
+  }
   if (typeof r.settings?.sound === 'boolean') d.settings.sound = r.settings.sound;
   d.market = { served: num(r.market?.served), stickers: strs(r.market?.stickers) };
   d.compass = {
@@ -50,10 +63,26 @@ export function sanitize(raw: unknown): Progress {
 }
 
 export function loadProgress(): Progress {
-  if (sessionProgress) return sanitize(sessionProgress);
+  const today = localDateKey();
+  if (sessionProgress) {
+    if (sessionProgress.sessionDate !== today) {
+      const fresh = defaultProgress();
+      fresh.settings = { sound: sessionProgress.settings.sound };
+      saveProgress(fresh);
+      return sanitize(fresh);
+    }
+    return sanitize(sessionProgress);
+  }
   try {
     const text = localStorage.getItem(STORAGE_KEY);
-    sessionProgress = sanitize(text ? JSON.parse(text) : null);
+    const parsed = sanitize(text ? JSON.parse(text) : null);
+    if (parsed.sessionDate !== today) {
+      const fresh = defaultProgress();
+      fresh.settings = { sound: parsed.settings.sound };
+      saveProgress(fresh);
+      return sanitize(fresh);
+    }
+    sessionProgress = parsed;
   } catch {
     sessionProgress = defaultProgress();
   }
@@ -61,9 +90,11 @@ export function loadProgress(): Progress {
 }
 
 export function saveProgress(p: Progress): void {
-  sessionProgress = sanitize(p);
+  const next = sanitize(p);
+  next.sessionDate = localDateKey();
+  sessionProgress = next;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
     /* storage may be unavailable (private mode); the game still works */
   }
@@ -74,6 +105,15 @@ export function updateProgress(fn: (p: Progress) => void): Progress {
   fn(p);
   saveProgress(p);
   return p;
+}
+
+/** Resets today's game album and counts while keeping the sound preference intact. */
+export function startFreshAlbum(): Progress {
+  const sound = loadProgress().settings.sound;
+  const fresh = defaultProgress();
+  fresh.settings = { sound };
+  saveProgress(fresh);
+  return sanitize(fresh);
 }
 
 export function clearProgress(): Progress {

@@ -35,3 +35,7 @@ export const SHELF_EMOJI_ENGLISH: Record<RewardShelf, Record<string, string>> = 
 export function rewardEmojiEnglish(shelf: RewardShelf, emoji: string): string | undefined {
   return SHELF_EMOJI_ENGLISH[shelf][emoji];
 }
+
+export function rewardShelfTotal(shelf: RewardShelf): number {
+  return Object.keys(SHELF_EMOJI_ENGLISH[shelf]).length;
+}
