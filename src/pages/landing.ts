@@ -8,7 +8,7 @@ import { addHoverVoice } from '../shared/voice';
 import { Button, Card, SpeakButton, type Tone } from '../ui/components';
 import { h } from '../ui/dom';
 import { renderKeepingFocus } from '../ui/focus';
-import { startIconChoreography, type IconMotion, type MotionIcon } from './iconMotion';
+import { prefersReducedMotion, startIconChoreography, type IconMotion, type MotionIcon } from './iconMotion';
 import type { Page } from './types';
 
 const PROMISES: { icon: string; motion: IconMotion; text: string }[] = [
@@ -157,11 +157,14 @@ const SHELVES: readonly ShelfConfig[] = [
 ];
 
 export const landingPage: Page = (ctx) => {
+  let disposed = false;
   let confirmingErase = false;
   let codePanelOpen = false;
   let codeInputValue = '';
   let codeStatus: { text: string; tone: 'ok' | 'err' } | null = null;
   let copiedCode = false;
+  let copyStatus: string | null = null;
+  const celebrateTimers = new Map<HTMLElement, number>();
   const host = h('div');
   ctx.root.append(host);
 
@@ -174,14 +177,30 @@ export const landingPage: Page = (ctx) => {
       ariaLabel: `${emoji} (${en})`,
       sfx,
     });
-    btn.addEventListener('click', () => {
+    const clearCelebrate = () => {
+      const timer = celebrateTimers.get(btn);
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        celebrateTimers.delete(btn);
+      }
       btn.classList.remove('badge-chip--celebrate');
+    };
+    btn.addEventListener('click', () => {
+      if (disposed || prefersReducedMotion()) return;
+      clearCelebrate();
       void btn.offsetWidth;
       btn.classList.add('badge-chip--celebrate');
+      const timer = window.setTimeout(() => {
+        celebrateTimers.delete(btn);
+        btn.classList.remove('badge-chip--celebrate');
+      }, 520);
+      celebrateTimers.set(btn, timer);
     });
-    btn.addEventListener('animationend', () => {
-      btn.classList.remove('badge-chip--celebrate');
+    btn.addEventListener('animationend', (e) => {
+      const animName = (e as AnimationEvent).animationName;
+      if (e.target === btn && (!animName || animName === 'sticker-pop')) clearCelebrate();
     });
+    btn.addEventListener('animationcancel', clearCelebrate);
     return btn;
   };
 
@@ -251,13 +270,30 @@ export const landingPage: Page = (ctx) => {
       const totalCollected = SHELVES.reduce((sum, cfg) => sum + cfg.items(progress).length, 0);
       const albumCode = encodeAlbumCode(progress);
 
+      const codeInputEl = h('input', {
+        id: 'album-code-input',
+        type: 'text',
+        class: 'code-box__input',
+        value: codeInputValue,
+        placeholder: 'Ej: LP1-XXXX',
+        autocomplete: 'off',
+        spellcheck: false,
+        maxlength: 120,
+        'data-focus': 'code-input',
+        oninput: (e: Event) => {
+          codeInputValue = (e.currentTarget as HTMLInputElement).value;
+        },
+      }) as HTMLInputElement;
+
       const handleLoadCode = (e: Event) => {
         e.preventDefault();
+        codeInputValue = codeInputEl.value;
         const res = applyAlbumCode(codeInputValue);
         if (res.ok) {
           playSfx('levelUp');
           codeInputValue = '';
           copiedCode = false;
+          copyStatus = null;
           codeStatus = {
             text: res.addedCount > 0
               ? `🎉 ¡Álbum cargado! +${res.addedCount} ${res.addedCount === 1 ? 'pegatina nueva' : 'pegatinas nuevas'}.`
@@ -277,56 +313,91 @@ export const landingPage: Page = (ctx) => {
         }
       };
 
-      const codeInputEl = h('input', {
-        type: 'text',
-        class: 'code-box__input',
-        value: codeInputValue,
-        placeholder: 'Ej: LP1-XXXX',
-        autocomplete: 'off',
-        spellcheck: false,
-        'aria-label': 'Código de tu álbum',
-        'data-focus': 'code-input',
-        oninput: (e: Event) => {
-          codeInputValue = (e.currentTarget as HTMLInputElement).value;
-        },
-      }) as HTMLInputElement;
+      const selectCodeText = (el: HTMLElement | null) => {
+        if (!el || typeof window === 'undefined' || typeof document === 'undefined') return;
+        try {
+          const sel = window.getSelection?.();
+          if (!sel) return;
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch {
+          /* ignore */
+        }
+      };
+
+      const codeValueEl = albumCode ? h('code', { class: 'code-box__value' }, albumCode) : null;
+
+      const handleCopyCode = () => {
+        playSfx('pop');
+        const markCopied = () => {
+          if (disposed || !codePanelOpen) return;
+          copiedCode = true;
+          copyStatus = null;
+          draw(host.contains(document.activeElement) ? undefined : 'copy-code');
+        };
+        const fallbackCopy = () => {
+          if (disposed || !codePanelOpen) return;
+          selectCodeText(codeValueEl);
+          let ok = false;
+          try {
+            ok = typeof document.execCommand === 'function' && document.execCommand('copy');
+          } catch {
+            ok = false;
+          }
+          if (ok) {
+            markCopied();
+            return;
+          }
+          copiedCode = false;
+          copyStatus = 'Selecciona el código y pulsa Ctrl+C para copiarlo.';
+          draw(host.contains(document.activeElement) ? undefined : 'copy-code');
+          selectCodeText(host.querySelector<HTMLElement>('.code-box__value'));
+        };
+        if (navigator.clipboard?.writeText) {
+          void navigator.clipboard.writeText(albumCode).then(markCopied, fallbackCopy);
+          return;
+        }
+        fallbackCopy();
+      };
 
       const codePanel = codePanelOpen
         ? h('div', { class: 'code-box' },
             h('div', { class: 'code-box__section' },
               h('p', { class: 'code-box__label' }, 'Tu código de hoy'),
-              albumCode
+              codeValueEl
                 ? h('div', { class: 'code-box__row' },
-                    h('code', { class: 'code-box__value' }, albumCode),
+                    codeValueEl,
                     Button(copiedCode ? '✅ ¡Copiado!' : '📋 Copiar', {
                       variant: 'ghost',
                       className: 'btn--mini',
                       focusKey: 'copy-code',
-                      onClick: () => {
-                        playSfx('pop');
-                        if (navigator.clipboard?.writeText) {
-                          void navigator.clipboard.writeText(albumCode).catch(() => {});
-                        }
-                        copiedCode = true;
-                        draw('copy-code');
-                      },
+                      onClick: handleCopyCode,
                     }))
                 : h('p', { class: 'muted code-box__hint' }, 'Consigue al menos una pegatina para crear tu código.'),
+              albumCode
+                ? h('p', {
+                    class: 'code-box__status code-box__status--err',
+                    role: 'status',
+                    'aria-live': 'polite',
+                    'data-live': 'copy-status',
+                  }, copyStatus ?? '')
+                : null,
               albumCode
                 ? h('p', { class: 'muted code-box__hint' }, 'Apunta este código para traer tus pegatinas otro día o a otro ordenador.')
                 : null),
             h('form', { class: 'code-box__section code-box__form', onsubmit: handleLoadCode },
               h('label', { class: 'code-box__label', for: 'album-code-input' }, '¿Ya tienes un código?'),
               h('div', { class: 'code-box__row' },
-                Object.assign(codeInputEl, { id: 'album-code-input' }),
+                codeInputEl,
                 h('button', { type: 'submit', class: 'btn btn--primary btn--mini', 'data-focus': 'load-code' }, '✨ Cargar')),
-              codeStatus
-                ? h('p', {
-                    class: `code-box__status code-box__status--${codeStatus.tone}`,
-                    role: 'status',
-                    'aria-live': 'polite',
-                  }, codeStatus.text)
-                : null))
+              h('p', {
+                class: codeStatus ? `code-box__status code-box__status--${codeStatus.tone}` : 'code-box__status',
+                role: 'status',
+                'aria-live': 'polite',
+                'data-live': 'code-status',
+              }, codeStatus?.text ?? '')))
         : null;
 
       wrap.append(
@@ -356,6 +427,7 @@ export const landingPage: Page = (ctx) => {
                   codePanelOpen = !codePanelOpen;
                   confirmingErase = false;
                   copiedCode = false;
+                  copyStatus = null;
                   codeStatus = null;
                   draw('code-toggle');
                 },
@@ -377,6 +449,8 @@ export const landingPage: Page = (ctx) => {
                     resetParrotGreeting();
                     confirmingErase = false;
                     codePanelOpen = false;
+                    copiedCode = false;
+                    copyStatus = null;
                     codeStatus = null;
                     ctx.refresh();
                   },
@@ -404,5 +478,11 @@ export const landingPage: Page = (ctx) => {
   }
 
   draw();
-  return startIconChoreography(host);
+  const stopChoreography = startIconChoreography(host);
+  return () => {
+    disposed = true;
+    for (const timer of celebrateTimers.values()) window.clearTimeout(timer);
+    celebrateTimers.clear();
+    stopChoreography();
+  };
 };

@@ -67,6 +67,9 @@ describe('pages smoke & Spanish UI rendering', () => {
     expect(shelfLabels('Colores del camaleón')).toEqual(['🌲 (dark green)', '🌸 (pink)']);
     expect(shelfLabels('Sellos de tren')).toEqual(['🌲 (the forest)']);
     expect(shelfLabels('Flores del jardín')).toEqual(['🌸 (cherry blossom)']);
+
+    const colorsRow = [...root.querySelectorAll('.shelf-row')].find((el) => el.querySelector('h3')?.textContent === 'Colores del camaleón');
+    expect(colorsRow?.querySelector('.shelf-row__count')?.textContent).toBe('2/16');
   });
 
   it('lets Enter activate controls instead of checking the word in Word Workshop', () => {
@@ -154,6 +157,83 @@ describe('pages smoke & Spanish UI rendering', () => {
 
     expect(loadProgress().market.stickers).toEqual(['🍎']);
     expect(loadProgress().compass.treasures).toEqual(['💎', '👑']);
+    expect(root.querySelector('[data-live="code-status"]')?.textContent).toContain('¡Álbum cargado!');
+  });
+
+  it('handles clipboard success/failure honestly and preserves live code-status region', async () => {
+    updateProgress((p) => { p.market.stickers = ['🍎']; });
+    const root = document.createElement('main');
+    document.body.append(root);
+    landingPage({ root, refresh: () => {} });
+
+    root.querySelector<HTMLButtonElement>('[data-focus="code-toggle"]')?.click();
+    const statusRegion = root.querySelector('[data-live="code-status"]');
+    expect(statusRegion).not.toBeNull();
+
+    // Submitting empty keeps the same live region element and populates an error
+    root.querySelector<HTMLFormElement>('.code-box__form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    expect(root.querySelector('[data-live="code-status"]')).toBe(statusRegion);
+    expect(statusRegion?.textContent).toContain('Escribe un código');
+
+    // Clipboard failure/unavailability does not falsely report Copied!
+    const origClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    try {
+      root.querySelector<HTMLButtonElement>('[data-focus="copy-code"]')?.click();
+      expect(root.querySelector('[data-focus="copy-code"]')?.textContent).not.toContain('¡Copiado!');
+      expect(root.querySelector('[data-live="copy-status"]')?.textContent).toContain('Ctrl+C');
+
+      // Clipboard success updates to Copied!
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+      root.querySelector<HTMLButtonElement>('[data-focus="copy-code"]')?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(writeText).toHaveBeenCalledTimes(1);
+      expect(root.querySelector('[data-focus="copy-code"]')?.textContent).toContain('¡Copiado!');
+      expect(root.querySelector('[data-live="copy-status"]')?.textContent).toBe('');
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: origClipboard });
+    }
+  });
+
+  it('clears sticker celebration class cleanly and skips it when reduced motion is enabled', () => {
+    vi.useFakeTimers();
+    const originalMatchMedia = window.matchMedia;
+    try {
+      updateProgress((p) => { p.market.stickers = ['🍎']; });
+      const root = document.createElement('main');
+      document.body.append(root);
+      const cleanup = landingPage({ root, refresh: () => {} });
+
+      const chip = root.querySelector<HTMLButtonElement>('.badge-chip')!;
+      chip.click();
+      expect(chip.classList.contains('badge-chip--celebrate')).toBe(true);
+      vi.advanceTimersByTime(600);
+      expect(chip.classList.contains('badge-chip--celebrate')).toBe(false);
+      if (typeof cleanup === 'function') cleanup();
+
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+      const root2 = document.createElement('main');
+      document.body.append(root2);
+      const cleanup2 = landingPage({ root: root2, refresh: () => {} });
+      const chip2 = root2.querySelector<HTMLButtonElement>('.badge-chip')!;
+      chip2.click();
+      expect(chip2.classList.contains('badge-chip--celebrate')).toBe(false);
+      if (typeof cleanup2 === 'function') cleanup2();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+      vi.useRealTimers();
+    }
   });
 
   it('shows a speech bubble when clicking a SpeakButton', () => {

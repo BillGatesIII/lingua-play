@@ -251,6 +251,7 @@ function speakUtterance(spoken: string, mode: SpeakMode, topic: string): void {
     utterance.rate = 0.92;
     utterance.pitch = 1.05;
 
+    let started = false;
     let recorded = mode !== 'hover';
     const markSpoken = () => {
       if (recorded) return;
@@ -265,12 +266,21 @@ function speakUtterance(spoken: string, mode: SpeakMode, topic: string): void {
         if (id === currentUtteranceId) hideBubble();
       }, 750);
     };
-    utterance.onstart = markSpoken;
+    utterance.onstart = () => {
+      started = true;
+      markSpoken();
+    };
     utterance.onend = () => {
       markSpoken();
       scheduleShortHide();
     };
-    utterance.onerror = scheduleShortHide;
+    utterance.onerror = () => {
+      if (activePriorityUtteranceId === id) activePriorityUtteranceId = null;
+      if (!started && id === currentUtteranceId && lastSpokenText === spoken) {
+        lastSpokenText = '';
+      }
+      if (started) scheduleShortHide();
+    };
 
     window.speechSynthesis.speak(utterance);
   } catch {

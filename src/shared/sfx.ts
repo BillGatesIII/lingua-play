@@ -15,10 +15,16 @@ export type SfxKind =
 let audioCtx: AudioContext | null = null;
 let unlockBound = false;
 
+const isPausedState = (state: AudioContextState | string): boolean =>
+  state === 'suspended' || state === 'interrupted';
+
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctor) return null;
+  if (audioCtx && audioCtx.state === 'closed') {
+    audioCtx = null;
+  }
   if (!audioCtx) {
     try {
       audioCtx = new Ctor();
@@ -29,26 +35,38 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
+/** @internal Clears cached AudioContext state between unit tests. */
+export function resetSfxForTest(): void {
+  audioCtx = null;
+  unlockBound = false;
+}
+
 export function bindAudioUnlock(): void {
   if (unlockBound || typeof document === 'undefined') return;
   unlockBound = true;
   const detach = () => {
     document.removeEventListener('pointerdown', unlock);
     document.removeEventListener('keydown', unlock);
+    document.removeEventListener('click', unlock);
   };
   const unlock = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
     if (ctx.state === 'running') {
       detach();
-    } else if (ctx.state === 'suspended') {
-      void ctx.resume().then(() => {
-        if (ctx.state === 'running') detach();
-      }).catch(() => {});
+    } else if (isPausedState(ctx.state)) {
+      try {
+        void Promise.resolve(ctx.resume()).then(() => {
+          if (ctx.state === 'running') detach();
+        }).catch(() => {});
+      } catch {
+        /* ignore */
+      }
     }
   };
   document.addEventListener('pointerdown', unlock, { passive: true });
   document.addEventListener('keydown', unlock, { passive: true });
+  document.addEventListener('click', unlock, { passive: true });
 }
 
 interface ToneStep {
@@ -87,12 +105,16 @@ function playSteps(ctx: AudioContext, steps: ToneStep[]): void {
     scheduleTones(ctx, steps);
     return;
   }
-  if (ctx.state === 'suspended') {
-    void ctx.resume().then(() => {
-      if (ctx.state === 'running' && loadProgress().settings.sound) {
-        scheduleTones(ctx, steps);
-      }
-    }).catch(() => {});
+  if (isPausedState(ctx.state)) {
+    try {
+      void Promise.resolve(ctx.resume()).then(() => {
+        if (ctx.state === 'running' && loadProgress().settings.sound) {
+          scheduleTones(ctx, steps);
+        }
+      }).catch(() => {});
+    } catch {
+      /* ignore */
+    }
   }
 }
 

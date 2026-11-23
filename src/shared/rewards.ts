@@ -1,4 +1,4 @@
-import { COLORS } from '../games/colors/logic';
+import { ALL_TARGETS, COLORS } from '../games/colors/logic';
 import { TREASURE_NAMES } from '../games/compass/logic';
 import { MYSTERIES } from '../games/detective/logic';
 import { FLOWER_NAMES } from '../games/garden/logic';
@@ -37,5 +37,6 @@ export function rewardEmojiEnglish(shelf: RewardShelf, emoji: string): string | 
 }
 
 export function rewardShelfTotal(shelf: RewardShelf): number {
+  if (shelf === 'colors') return ALL_TARGETS.length;
   return Object.keys(SHELF_EMOJI_ENGLISH[shelf]).length;
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { completeGameRound, loadBreakState, resetBreakState, startPlayBreak } from './playBreak';
 import { STORAGE_KEY, clearProgress, defaultProgress, loadProgress, sanitize, startFreshAlbum, updateProgress } from './storage';
 
 describe('storage', () => {
@@ -56,23 +57,29 @@ describe('storage', () => {
     setItem.mockRestore();
   });
 
-  it('automatically resets game progress on a new calendar day while keeping sound setting', () => {
+  it('automatically resets game progress and play-break state on a new calendar day while keeping sound setting', () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date('2026-11-23T15:00:00'));
       clearProgress();
+      resetBreakState();
       updateProgress((p) => {
         p.settings.sound = false;
         p.market.served = 3;
         p.market.stickers = ['🍎', '🧀'];
       });
+      completeGameRound();
+      completeGameRound();
+      startPlayBreak();
       expect(loadProgress().market.stickers).toEqual(['🍎', '🧀']);
+      expect(loadBreakState().resting).toBe(true);
 
       vi.setSystemTime(new Date('2026-11-24T09:00:00'));
       const nextDay = loadProgress();
       expect(nextDay.sessionDate).toBe('2026-11-24');
       expect(nextDay.market).toEqual({ served: 0, stickers: [] });
       expect(nextDay.settings.sound).toBe(false);
+      expect(loadBreakState()).toEqual({ roundsSinceBreak: 0, totalBreaks: 0, resting: false });
     } finally {
       vi.useRealTimers();
     }

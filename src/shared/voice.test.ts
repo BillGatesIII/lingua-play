@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearProgress, updateProgress } from './storage';
-import { playSfx } from './sfx';
+import { playSfx, resetSfxForTest } from './sfx';
 import { resetSpeechSession } from './speechDirector';
 import { addHoverVoice, cleanSpeechText, pickEnglishVoice, speakEnglish, stopSpeech } from './voice';
 
@@ -10,6 +10,7 @@ describe('voice & speech bubble', () => {
     localStorage.clear();
     clearProgress();
     document.body.innerHTML = '';
+    resetSfxForTest();
     stopSpeech();
     resetSpeechSession();
   });
@@ -17,7 +18,9 @@ describe('voice & speech bubble', () => {
   afterEach(() => {
     stopSpeech();
     resetSpeechSession();
+    resetSfxForTest();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -236,12 +239,52 @@ describe('voice & speech bubble', () => {
     expect(speak).toHaveBeenCalledTimes(1);
     utterances[0].onerror?.();
 
+    // Visual bubble stays readable for fallback duration instead of cutting off at 750ms
     vi.advanceTimersByTime(1000);
+    expect(document.querySelector<HTMLElement>('.voice-bubble')?.hidden).toBe(false);
+
     speakEnglish('Market Quest', { mode: 'hover', role: 'vocab' });
     expect(speak).toHaveBeenCalledTimes(2);
   });
 
-  it('waits for a suspended AudioContext to resume before scheduling tones', async () => {
+  it('clears priority speech lock and keeps bubble readable when click speech errors before starting', () => {
+    const utterances: { onstart: (() => void) | null; onerror: (() => void) | null }[] = [];
+    const synth = {
+      speaking: false,
+      pending: false,
+      speak: vi.fn((u: { onstart: (() => void) | null; onerror: (() => void) | null }) => {
+        utterances.push(u);
+      }),
+      cancel: vi.fn(),
+      getVoices: () => [],
+    };
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: synth });
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: SpeechSynthesisVoice | null = null;
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) {
+        this.text = t;
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+
+    speakEnglish('Two apples!', { mode: 'click' });
+    utterances[0].onerror?.();
+
+    vi.advanceTimersByTime(400);
+    expect(document.querySelector<HTMLElement>('.voice-bubble')?.hidden).toBe(false);
+
+    speakEnglish('Orange', { mode: 'hover', role: 'vocab' });
+    expect(synth.speak).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for a suspended AudioContext to resume before scheduling tones, and skips if muted meanwhile', async () => {
     let resolveResume!: () => void;
     const oscStart = vi.fn();
     const mockCtx = {
@@ -277,5 +320,28 @@ describe('voice & speech bubble', () => {
     await Promise.resolve();
     expect(oscStart).toHaveBeenCalledTimes(1);
     expect(oscStart).toHaveBeenCalledWith(0.05);
+
+    // If sound is muted while resume is pending, do not schedule tones after resume resolves
+    mockCtx.state = 'suspended';
+    playSfx('pop');
+    updateProgress((p) => { p.settings.sound = false; });
+    resolveResume();
+    await Promise.resolve();
+    expect(oscStart).toHaveBeenCalledTimes(1);
+
+    // Closed AudioContext is recreated automatically
+    updateProgress((p) => { p.settings.sound = true; });
+    mockCtx.state = 'closed';
+    const oscStart2 = vi.fn();
+    const mockCtx2 = { ...mockCtx, state: 'running' as AudioContextState, createOscillator: vi.fn(() => ({
+      type: 'sine',
+      frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      start: oscStart2,
+      stop: vi.fn(),
+    })) };
+    vi.stubGlobal('AudioContext', vi.fn(function () { return mockCtx2; }));
+    playSfx('pop');
+    expect(oscStart2).toHaveBeenCalledTimes(1);
   });
 });

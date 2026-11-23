@@ -1,3 +1,8 @@
+import { localDateKey } from './date';
+import { resetBreakState } from './playBreak';
+
+export { localDateKey } from './date';
+
 export interface Progress {
   sessionDate: string;
   settings: { sound: boolean };
@@ -13,14 +18,6 @@ export interface Progress {
 
 export const STORAGE_KEY = 'linguaplay.v1';
 let sessionProgress: Progress | null = null;
-
-/** Returns the local calendar date as YYYY-MM-DD for daily session resets. */
-export function localDateKey(date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 export const defaultProgress = (): Progress => ({
   sessionDate: localDateKey(),
@@ -62,14 +59,19 @@ export function sanitize(raw: unknown): Progress {
   return d;
 }
 
+function resetForDay(sound: boolean, clearBreak: boolean): Progress {
+  if (clearBreak) resetBreakState();
+  const fresh = defaultProgress();
+  fresh.settings = { sound };
+  saveProgress(fresh);
+  return sanitize(fresh);
+}
+
 export function loadProgress(): Progress {
   const today = localDateKey();
   if (sessionProgress) {
     if (sessionProgress.sessionDate !== today) {
-      const fresh = defaultProgress();
-      fresh.settings = { sound: sessionProgress.settings.sound };
-      saveProgress(fresh);
-      return sanitize(fresh);
+      return resetForDay(sessionProgress.settings.sound, true);
     }
     return sanitize(sessionProgress);
   }
@@ -77,10 +79,7 @@ export function loadProgress(): Progress {
     const text = localStorage.getItem(STORAGE_KEY);
     const parsed = sanitize(text ? JSON.parse(text) : null);
     if (parsed.sessionDate !== today) {
-      const fresh = defaultProgress();
-      fresh.settings = { sound: parsed.settings.sound };
-      saveProgress(fresh);
-      return sanitize(fresh);
+      return resetForDay(parsed.settings.sound, true);
     }
     sessionProgress = parsed;
   } catch {
@@ -104,16 +103,12 @@ export function updateProgress(fn: (p: Progress) => void): Progress {
   const p = loadProgress();
   fn(p);
   saveProgress(p);
-  return p;
+  return sanitize(sessionProgress!);
 }
 
 /** Resets today's game album and counts while keeping the sound preference intact. */
 export function startFreshAlbum(): Progress {
-  const sound = loadProgress().settings.sound;
-  const fresh = defaultProgress();
-  fresh.settings = { sound };
-  saveProgress(fresh);
-  return sanitize(fresh);
+  return resetForDay(loadProgress().settings.sound, false);
 }
 
 export function clearProgress(): Progress {

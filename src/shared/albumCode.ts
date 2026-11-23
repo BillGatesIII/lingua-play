@@ -4,6 +4,7 @@ import { updateProgress, type Progress } from './storage';
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const PREFIX = 'LP1';
 const CHECKSUM_MOD = 1024; // 2 base32 chars (10 bits)
+const MAX_RAW_INPUT_LENGTH = 256;
 
 const SHELF_ORDER: readonly RewardShelf[] = [
   'market',
@@ -28,6 +29,7 @@ const CATALOG: readonly CatalogEntry[] = SHELF_ORDER.flatMap((shelf) =>
 const INDEX_BY_KEY = new Map<string, number>(
   CATALOG.map((entry, idx) => [`${entry.shelf}:${entry.emoji}`, idx]),
 );
+const MAX_PAYLOAD_CHARS = Math.ceil(CATALOG.length / 5);
 
 function shelfItems(p: Progress, shelf: RewardShelf): string[] {
   switch (shelf) {
@@ -114,16 +116,26 @@ export type DecodeAlbumResult =
 
 /** Decodes and validates an album code back into per-shelf reward emojis. */
 export function decodeAlbumCode(raw: string): DecodeAlbumResult {
-  const cleaned = raw.trim().toUpperCase().replace(/[\s-]+/g, '');
+  if (typeof raw !== 'string') return { ok: false, error: 'format' };
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: false, error: 'empty' };
+  if (trimmed.length > MAX_RAW_INPUT_LENGTH) return { ok: false, error: 'format' };
+
+  const cleaned = trimmed
+    .normalize('NFKC')
+    .toUpperCase()
+    .replace(/[\s\-\u2010-\u2015\u2212\u200B-\u200D\uFEFF]+/g, '');
   if (!cleaned) return { ok: false, error: 'empty' };
-  if (!cleaned.startsWith(PREFIX)) return { ok: false, error: 'format' };
+  if (!/^LP[1IL]/.test(cleaned)) return { ok: false, error: 'format' };
 
   const body = cleaned
     .slice(PREFIX.length)
     .replace(/O/g, '0')
     .replace(/[IL]/g, '1');
 
-  if (body.length < 3) return { ok: false, error: 'format' };
+  if (body.length < 3 || body.length > MAX_PAYLOAD_CHARS + 2) {
+    return { ok: false, error: 'format' };
+  }
   const payload = body.slice(0, -2);
   const givenCheck = body.slice(-2);
 
