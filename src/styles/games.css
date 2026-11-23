@@ -21,9 +21,6 @@
 .game-card p { flex: 1; font-size: var(--text-sm); line-height: 1.35; margin: 0 0 var(--space-2); }
 .game-card .btn--lg { min-height: 2.9rem; font-size: var(--text-md); padding: var(--space-2) var(--space-5); }
 .cols--games { gap: var(--space-4); margin-bottom: var(--space-5); grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr)); }
-@media (min-width: 1152px) {
-  .cols--games { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
 .promises { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: center; margin-bottom: var(--space-6); }
 .promises li { background: var(--white); border: var(--border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-4); font-weight: 800; box-shadow: var(--shadow-sm); }
 .shelf-row { margin-bottom: var(--space-3); }
