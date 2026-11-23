@@ -1,13 +1,14 @@
+import { applyAlbumCode, encodeAlbumCode } from '../shared/albumCode';
 import { resetBreakState } from '../shared/playBreak';
-import { rewardEmojiEnglish, type RewardShelf } from '../shared/rewards';
-import { playSfx } from '../shared/sfx';
+import { rewardEmojiEnglish, rewardShelfTotal, type RewardShelf } from '../shared/rewards';
+import { playSfx, type SfxKind } from '../shared/sfx';
 import { nextParrotGreeting, resetParrotGreeting, resetSpeechSession } from '../shared/speechDirector';
-import { clearProgress, loadProgress } from '../shared/storage';
+import { loadProgress, startFreshAlbum, type Progress } from '../shared/storage';
 import { addHoverVoice } from '../shared/voice';
 import { Button, Card, SpeakButton, type Tone } from '../ui/components';
 import { h } from '../ui/dom';
 import { renderKeepingFocus } from '../ui/focus';
-import { startIconChoreography, type IconMotion, type MotionIcon } from './iconMotion';
+import { prefersReducedMotion, startIconChoreography, type IconMotion, type MotionIcon } from './iconMotion';
 import type { Page } from './types';
 
 const PROMISES: { icon: string; motion: IconMotion; text: string }[] = [
@@ -134,27 +135,100 @@ const GAMES: readonly GameEntry[] = [
   },
 ];
 
+interface ShelfConfig {
+  kind: RewardShelf;
+  title: string;
+  icon: string;
+  tone: Tone;
+  route: string;
+  sfx: SfxKind;
+  items: (p: Progress) => string[];
+}
+
+const SHELVES: readonly ShelfConfig[] = [
+  { kind: 'market', title: 'Pegatinas del mercado', icon: '🍎', tone: 'sun', route: '#/market', sfx: 'pop', items: (p) => p.market.stickers },
+  { kind: 'compass', title: 'Tesoros de la isla', icon: '🧭', tone: 'sea', route: '#/compass', sfx: 'coin', items: (p) => p.compass.treasures },
+  { kind: 'colors', title: 'Colores del camaleón', icon: '🎨', tone: 'leaf', route: '#/colors', sfx: 'splash', items: (p) => p.colors.colours },
+  { kind: 'recipe', title: 'Platos de la cocina', icon: '🍳', tone: 'peach', route: '#/recipe', sfx: 'pop', items: (p) => p.recipe.dishes },
+  { kind: 'station', title: 'Sellos de tren', icon: '🚂', tone: 'berry', route: '#/station', sfx: 'tick', items: (p) => p.station.stamps },
+  { kind: 'detective', title: 'Casos resueltos', icon: '🔎', tone: 'lemon', route: '#/detective', sfx: 'surprise', items: (p) => p.detective.badges },
+  { kind: 'words', title: 'Palabras mágicas', icon: '🔤', tone: 'sea', route: '#/words', sfx: 'pop', items: (p) => p.words.badges },
+  { kind: 'garden', title: 'Flores del jardín', icon: '🌷', tone: 'leaf', route: '#/garden', sfx: 'surprise', items: (p) => p.garden.flowers },
+];
+
 export const landingPage: Page = (ctx) => {
+  let disposed = false;
   let confirmingErase = false;
+  let codePanelOpen = false;
+  let codeInputValue = '';
+  let codeStatus: { text: string; tone: 'ok' | 'err' } | null = null;
+  let copiedCode = false;
+  let copyStatus: string | null = null;
+  const celebrateTimers = new Map<HTMLElement, number>();
   const host = h('div');
   ctx.root.append(host);
 
-  const badgeChip = (kind: RewardShelf, emoji: string) => {
+  const badgeChip = (kind: RewardShelf, emoji: string, sfx: SfxKind) => {
     const en = rewardEmojiEnglish(kind, emoji);
     if (!en) return h('span', { class: 'big-emoji' }, emoji);
-    return SpeakButton(emoji, {
+    const btn = SpeakButton(emoji, {
       english: en,
       className: 'badge-chip',
       ariaLabel: `${emoji} (${en})`,
+      sfx,
     });
+    const clearCelebrate = () => {
+      const timer = celebrateTimers.get(btn);
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        celebrateTimers.delete(btn);
+      }
+      btn.classList.remove('badge-chip--celebrate');
+    };
+    btn.addEventListener('click', () => {
+      if (disposed || prefersReducedMotion()) return;
+      clearCelebrate();
+      void btn.offsetWidth;
+      btn.classList.add('badge-chip--celebrate');
+      const timer = window.setTimeout(() => {
+        celebrateTimers.delete(btn);
+        btn.classList.remove('badge-chip--celebrate');
+      }, 520);
+      celebrateTimers.set(btn, timer);
+    });
+    btn.addEventListener('animationend', (e) => {
+      const animName = (e as AnimationEvent).animationName;
+      if (e.target === btn && (!animName || animName === 'sticker-pop')) clearCelebrate();
+    });
+    btn.addEventListener('animationcancel', clearCelebrate);
+    return btn;
   };
 
-  const shelf = (title: string, kind: RewardShelf, items: string[]) =>
-    h('div', { class: 'shelf-row' },
-      h('h3', {}, title),
-      items.length
-        ? h('div', { class: 'badge-row' }, ...items.map((emoji) => badgeChip(kind, emoji)))
-        : h('p', { class: 'big-emoji', 'aria-label': '—' }, '—'));
+  const emptySlots = (count: number) =>
+    Array.from({ length: count }, () => h('span', { class: 'badge-slot', 'aria-hidden': 'true' }, '✦'));
+
+  const shelf = (cfg: ShelfConfig, items: string[]) => {
+    const total = rewardShelfTotal(cfg.kind);
+    const remaining = Math.max(0, total - items.length);
+    const placeholderCount = items.length === 0 ? Math.min(3, total) : Math.min(2, remaining);
+
+    return h('div', { class: `shelf-row shelf-row--${cfg.tone}` },
+      h('div', { class: 'shelf-row__head' },
+        h('span', { class: 'shelf-row__icon', 'aria-hidden': 'true' }, cfg.icon),
+        h('h3', {}, cfg.title),
+        h('span', { class: 'shelf-row__count', 'aria-label': `${items.length} de ${total}` }, `${items.length}/${total}`)),
+      h('div', { class: items.length ? 'badge-row' : 'badge-row badge-row--empty' },
+        ...items.map((emoji) => badgeChip(cfg.kind, emoji, cfg.sfx)),
+        ...emptySlots(placeholderCount),
+        items.length === 0
+          ? h('a', {
+              class: 'shelf-row__play',
+              href: cfg.route,
+              'aria-label': `Jugar para conseguir ${cfg.title}`,
+              onclick: () => playSfx('pop'),
+            }, '▶ Jugar')
+          : null));
+  };
 
   function draw(focusTarget?: string) {
     renderKeepingFocus(host, () => {
@@ -193,6 +267,139 @@ export const landingPage: Page = (ctx) => {
         return addHoverVoice(card, g.title, { delayMs: 280, role: 'vocab' });
       });
 
+      const totalCollected = SHELVES.reduce((sum, cfg) => sum + cfg.items(progress).length, 0);
+      const albumCode = encodeAlbumCode(progress);
+
+      const codeInputEl = h('input', {
+        id: 'album-code-input',
+        type: 'text',
+        class: 'code-box__input',
+        value: codeInputValue,
+        placeholder: 'Ej: LP1-XXXX',
+        autocomplete: 'off',
+        spellcheck: false,
+        maxlength: 120,
+        'data-focus': 'code-input',
+        oninput: (e: Event) => {
+          codeInputValue = (e.currentTarget as HTMLInputElement).value;
+        },
+      }) as HTMLInputElement;
+
+      const handleLoadCode = (e: Event) => {
+        e.preventDefault();
+        codeInputValue = codeInputEl.value;
+        const res = applyAlbumCode(codeInputValue);
+        if (res.ok) {
+          playSfx('levelUp');
+          codeInputValue = '';
+          copiedCode = false;
+          copyStatus = null;
+          codeStatus = {
+            text: res.addedCount > 0
+              ? `🎉 ¡Álbum cargado! +${res.addedCount} ${res.addedCount === 1 ? 'pegatina nueva' : 'pegatinas nuevas'}.`
+              : '✨ ¡Listo! Ya tenías todas esas pegatinas en tu álbum.',
+            tone: 'ok',
+          };
+          draw('code-input');
+        } else {
+          playSfx('oops');
+          codeStatus = {
+            text: res.error === 'empty'
+              ? 'Escribe un código primero (por ejemplo, LP1-...).'
+              : 'Ese código no coincide. Revísalo e inténtalo otra vez.',
+            tone: 'err',
+          };
+          draw('code-input');
+        }
+      };
+
+      const selectCodeText = (el: HTMLElement | null) => {
+        if (!el || typeof window === 'undefined' || typeof document === 'undefined') return;
+        try {
+          const sel = window.getSelection?.();
+          if (!sel) return;
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch {
+          /* ignore */
+        }
+      };
+
+      const codeValueEl = albumCode ? h('code', { class: 'code-box__value' }, albumCode) : null;
+
+      const handleCopyCode = () => {
+        playSfx('pop');
+        const markCopied = () => {
+          if (disposed || !codePanelOpen) return;
+          copiedCode = true;
+          copyStatus = null;
+          draw(host.contains(document.activeElement) ? undefined : 'copy-code');
+        };
+        const fallbackCopy = () => {
+          if (disposed || !codePanelOpen) return;
+          selectCodeText(codeValueEl);
+          let ok = false;
+          try {
+            ok = typeof document.execCommand === 'function' && document.execCommand('copy');
+          } catch {
+            ok = false;
+          }
+          if (ok) {
+            markCopied();
+            return;
+          }
+          copiedCode = false;
+          copyStatus = 'Selecciona el código y pulsa Ctrl+C para copiarlo.';
+          draw(host.contains(document.activeElement) ? undefined : 'copy-code');
+          selectCodeText(host.querySelector<HTMLElement>('.code-box__value'));
+        };
+        if (navigator.clipboard?.writeText) {
+          void navigator.clipboard.writeText(albumCode).then(markCopied, fallbackCopy);
+          return;
+        }
+        fallbackCopy();
+      };
+
+      const codePanel = codePanelOpen
+        ? h('div', { class: 'code-box' },
+            h('div', { class: 'code-box__section' },
+              h('p', { class: 'code-box__label' }, 'Tu código de hoy'),
+              codeValueEl
+                ? h('div', { class: 'code-box__row' },
+                    codeValueEl,
+                    Button(copiedCode ? '✅ ¡Copiado!' : '📋 Copiar', {
+                      variant: 'ghost',
+                      className: 'btn--mini',
+                      focusKey: 'copy-code',
+                      onClick: handleCopyCode,
+                    }))
+                : h('p', { class: 'muted code-box__hint' }, 'Consigue al menos una pegatina para crear tu código.'),
+              albumCode
+                ? h('p', {
+                    class: 'code-box__status code-box__status--err',
+                    role: 'status',
+                    'aria-live': 'polite',
+                    'data-live': 'copy-status',
+                  }, copyStatus ?? '')
+                : null,
+              albumCode
+                ? h('p', { class: 'muted code-box__hint' }, 'Apunta este código para traer tus pegatinas otro día o a otro ordenador.')
+                : null),
+            h('form', { class: 'code-box__section code-box__form', onsubmit: handleLoadCode },
+              h('label', { class: 'code-box__label', for: 'album-code-input' }, '¿Ya tienes un código?'),
+              h('div', { class: 'code-box__row' },
+                codeInputEl,
+                h('button', { type: 'submit', class: 'btn btn--primary btn--mini', 'data-focus': 'load-code' }, '✨ Cargar')),
+              h('p', {
+                class: codeStatus ? `code-box__status code-box__status--${codeStatus.tone}` : 'code-box__status',
+                role: 'status',
+                'aria-live': 'polite',
+                'data-live': 'code-status',
+              }, codeStatus?.text ?? '')))
+        : null;
+
       wrap.append(
         h('section', { class: 'hero' },
           h('div', { class: 'hero__head' },
@@ -203,29 +410,48 @@ export const landingPage: Page = (ctx) => {
         h('ul', { class: 'promises' }, ...PROMISES.map((p) =>
           h('li', {}, h('span', { class: 'art-icon promise-icon', 'data-motion': p.motion, 'aria-hidden': 'true' }, p.icon), ' ', p.text))),
         Card([
-          h('h2', {}, 'Mi colección'),
-          h('div', { class: 'cols' },
-            shelf('Pegatinas del mercado', 'market', progress.market.stickers),
-            shelf('Tesoros de la isla', 'compass', progress.compass.treasures),
-            shelf('Colores del camaleón', 'colors', progress.colors.colours),
-            shelf('Platos de la cocina', 'recipe', progress.recipe.dishes),
-            shelf('Sellos de tren', 'station', progress.station.stamps),
-            shelf('Casos resueltos', 'detective', progress.detective.badges),
-            shelf('Palabras mágicas', 'words', progress.words.badges),
-            shelf('Flores del jardín', 'garden', progress.garden.flowers)),
+          h('div', { class: 'collection__head' },
+            h('h2', {}, h('span', { 'aria-hidden': 'true' }, '🏆 '), 'Mi colección'),
+            h('div', { class: 'collection__actions' },
+              h('span', { class: 'collection__summary' },
+                totalCollected > 0
+                  ? `✨ ${totalCollected} ${totalCollected === 1 ? 'pegatina' : 'pegatinas'}`
+                  : '✨ ¡Empieza tu álbum!'),
+              Button('🎟️ Mi código', {
+                variant: 'ghost',
+                className: 'collection__code-btn',
+                pressed: codePanelOpen,
+                focusKey: 'code-toggle',
+                onClick: () => {
+                  playSfx('pop');
+                  codePanelOpen = !codePanelOpen;
+                  confirmingErase = false;
+                  copiedCode = false;
+                  copyStatus = null;
+                  codeStatus = null;
+                  draw('code-toggle');
+                },
+              }))),
+          codePanel,
+          h('div', { class: 'collection__grid' },
+            ...SHELVES.map((cfg) => shelf(cfg, cfg.items(progress)))),
           confirmingErase
-            ? h('div', { class: 'confirm-box', role: 'alertdialog', 'aria-label': 'Confirmar borrado' },
-                h('p', { class: 'confirm-box__text' }, '¿Borrar todo lo guardado en este dispositivo?'),
-                Button('Sí, borrar', {
+            ? h('div', { class: 'confirm-box', role: 'alertdialog', 'aria-label': 'Confirmar reinicio' },
+                h('p', { class: 'confirm-box__text' }, '¿Empezar un álbum nuevo para jugar hoy?'),
+                Button('Sí, empezar', {
                   variant: 'primary',
                   focusKey: 'confirm-erase',
                   onClick: () => {
                     playSfx('remove');
-                    clearProgress();
+                    startFreshAlbum();
                     resetBreakState();
                     resetSpeechSession();
                     resetParrotGreeting();
                     confirmingErase = false;
+                    codePanelOpen = false;
+                    copiedCode = false;
+                    copyStatus = null;
+                    codeStatus = null;
                     ctx.refresh();
                   },
                 }),
@@ -234,11 +460,17 @@ export const landingPage: Page = (ctx) => {
                   focusKey: 'cancel-erase',
                   onClick: () => { confirmingErase = false; draw('erase-btn'); },
                 }))
-            : Button('Borrar mi progreso', {
-                variant: 'ghost',
-                focusKey: 'erase-btn',
-                onClick: () => { confirmingErase = true; draw('cancel-erase'); },
-              }),
+            : h('div', { class: 'collection__footer' },
+                Button('🔄 Empezar de nuevo', {
+                  variant: 'ghost',
+                  className: 'collection__erase',
+                  focusKey: 'erase-btn',
+                  onClick: () => {
+                    confirmingErase = true;
+                    codePanelOpen = false;
+                    draw('cancel-erase');
+                  },
+                })),
         ], 'plain', 'collection'),
       );
       return wrap;
@@ -246,5 +478,11 @@ export const landingPage: Page = (ctx) => {
   }
 
   draw();
-  return startIconChoreography(host);
+  const stopChoreography = startIconChoreography(host);
+  return () => {
+    disposed = true;
+    for (const timer of celebrateTimers.values()) window.clearTimeout(timer);
+    celebrateTimers.clear();
+    stopChoreography();
+  };
 };

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ROUNDS_BEFORE_BREAK, completeGameRound, dismissPlayBreak, finishPlayBreak,
   loadBreakState, resetBreakState, startPlayBreak,
@@ -37,5 +37,22 @@ describe('playBreak', () => {
     const continued = dismissPlayBreak();
     expect(continued.roundsSinceBreak).toBe(0);
     expect(continued.resting).toBe(false);
+  });
+
+  it('resets break state automatically on a new calendar day', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-11-23T20:00:00'));
+      resetBreakState();
+      completeGameRound();
+      completeGameRound();
+      startPlayBreak();
+      expect(loadBreakState()).toEqual({ roundsSinceBreak: 0, totalBreaks: 1, resting: true });
+
+      vi.setSystemTime(new Date('2026-11-24T08:00:00'));
+      expect(loadBreakState()).toEqual({ roundsSinceBreak: 0, totalBreaks: 0, resting: false });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLORS } from '../games/colors/logic';
+import { ALL_TARGETS, COLORS } from '../games/colors/logic';
 import { TREASURES } from '../games/compass/logic';
 import { MYSTERIES } from '../games/detective/logic';
 import { FLOWERS } from '../games/garden/logic';
@@ -7,7 +7,7 @@ import { PRODUCTS } from '../games/market/logic';
 import { DISHES } from '../games/recipe/logic';
 import { DESTINATIONS } from '../games/station/logic';
 import { WORDS } from '../games/words/logic';
-import { rewardEmojiEnglish, type RewardShelf } from './rewards';
+import { rewardEmojiEnglish, rewardShelfTotal, type RewardShelf } from './rewards';
 
 describe('reward emoji English labels', () => {
   it('resolves shared reward emojis using their shelf context', () => {
@@ -34,10 +34,12 @@ describe('reward emoji English labels', () => {
     ];
     for (const [shelf, emojis] of cases) {
       expect(new Set(emojis).size, `${shelf} duplicate reward emoji`).toBe(emojis.length);
+      expect(rewardShelfTotal(shelf)).toBeGreaterThan(0);
       for (const emoji of emojis) {
         const label = rewardEmojiEnglish(shelf, emoji);
         expect(label, `${shelf}:${emoji}`).toBeTruthy();
       }
     }
+    expect(rewardShelfTotal('colors')).toBe(ALL_TARGETS.length);
   });
 });

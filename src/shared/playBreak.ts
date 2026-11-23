@@ -1,3 +1,4 @@
+import { localDateKey } from './date';
 import type { Bi } from './i18n';
 import { pick, type Rng } from './rng';
 
@@ -19,6 +20,7 @@ export const BREAK_IDEAS: readonly { emoji: string; text: Bi }[] = [
 
 const defaultBreak = (): PlayBreakState => ({ roundsSinceBreak: 0, totalBreaks: 0, resting: false });
 let memoryBreak: PlayBreakState | null = null;
+let memoryDate: string | null = null;
 
 function sanitizeBreak(raw: unknown): PlayBreakState {
   const d = defaultBreak();
@@ -35,21 +37,33 @@ function sanitizeBreak(raw: unknown): PlayBreakState {
 }
 
 export function loadBreakState(): PlayBreakState {
-  if (memoryBreak) return { ...memoryBreak };
+  const today = localDateKey();
+  if (memoryBreak) {
+    if (memoryDate && memoryDate !== today) return resetBreakState();
+    return { ...memoryBreak };
+  }
   try {
     const raw = localStorage.getItem(PLAY_BREAK_KEY);
-    memoryBreak = sanitizeBreak(raw ? JSON.parse(raw) : null);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, unknown> | null) : null;
+    if (parsed && typeof parsed === 'object' && typeof parsed.sessionDate === 'string' && parsed.sessionDate !== today) {
+      return resetBreakState();
+    }
+    memoryBreak = sanitizeBreak(parsed);
+    memoryDate = today;
   } catch {
     memoryBreak = defaultBreak();
+    memoryDate = today;
   }
   return { ...memoryBreak };
 }
 
 function saveBreakState(state: PlayBreakState): PlayBreakState {
+  const today = localDateKey();
   const clean = sanitizeBreak(state);
   memoryBreak = clean;
+  memoryDate = today;
   try {
-    localStorage.setItem(PLAY_BREAK_KEY, JSON.stringify(clean));
+    localStorage.setItem(PLAY_BREAK_KEY, JSON.stringify({ ...clean, sessionDate: today }));
   } catch {
     /* ignore private mode errors */
   }
@@ -85,6 +99,7 @@ export const dismissPlayBreak = finishPlayBreak;
 
 export function resetBreakState(): PlayBreakState {
   memoryBreak = defaultBreak();
+  memoryDate = localDateKey();
   try {
     localStorage.removeItem(PLAY_BREAK_KEY);
   } catch {
