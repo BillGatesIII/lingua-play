@@ -195,8 +195,9 @@ export const landingPage: Page = (ctx) => {
 
       wrap.append(
         h('section', { class: 'hero' },
-          h('p', { class: 'hero__parrot' }, parrotBtn),
-          h('h1', { class: 'hero__title' }, 'Lingua Play'),
+          h('div', { class: 'hero__head' },
+            h('span', { class: 'hero__parrot' }, parrotBtn),
+            h('h1', { class: 'hero__title' }, 'Lingua Play')),
           h('p', { class: 'hero__tag' }, '¡Juega primero! Las palabras en inglés y los números vienen contigo.')),
         h('div', { class: 'cols cols--games' }, ...gameCards),
         h('ul', { class: 'promises' }, ...PROMISES.map((p) =>
