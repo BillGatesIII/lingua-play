@@ -163,6 +163,49 @@ describe('voice & speech bubble', () => {
     expect(speak).toHaveBeenCalledTimes(1);
     expect((speak.mock.calls[0][0] as MockUtterance).text).toBe('Market Quest');
     expect(document.querySelector('.voice-bubble')).toBeNull();
+
+    // If a bubble was previously visible, audio-only hover hides it when speaking
+    speakEnglish('Hello!', { mode: 'hover', role: 'vocab' });
+    expect(document.querySelector<HTMLElement>('.voice-bubble')?.hidden).toBe(false);
+    vi.advanceTimersByTime(2500);
+    const card2 = document.createElement('div');
+    document.body.append(card2);
+    addHoverVoice(card2, 'Compass Island', { delayMs: 120, role: 'vocab', showBubble: false });
+    card2.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    vi.advanceTimersByTime(150);
+    expect(speak).toHaveBeenCalledTimes(3);
+    expect(document.querySelector<HTMLElement>('.voice-bubble')?.hidden).toBe(true);
+  });
+
+  it('skips pending hover voice if the element is detached or disabled before delay elapses', () => {
+    const speak = vi.fn();
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: { speak, cancel: vi.fn(), getVoices: () => [] },
+    });
+    class MockUtterance {
+      text: string;
+      constructor(t: string) { this.text = t; }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+
+    const btn = document.createElement('button');
+    document.body.append(btn);
+    addHoverVoice(btn, 'apple', 140);
+    btn.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    btn.remove();
+    vi.advanceTimersByTime(200);
+    expect(document.querySelector('.voice-bubble')).toBeNull();
+    expect(speak).not.toHaveBeenCalled();
+
+    const btn2 = document.createElement('button');
+    document.body.append(btn2);
+    addHoverVoice(btn2, 'banana', 140);
+    btn2.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    btn2.disabled = true;
+    vi.advanceTimersByTime(200);
+    expect(document.querySelector('.voice-bubble')).toBeNull();
+    expect(speak).not.toHaveBeenCalled();
   });
 
   it('safely handles playSfx when AudioContext is unavailable or muted', () => {

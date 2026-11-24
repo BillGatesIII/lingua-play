@@ -309,7 +309,7 @@ export function buildChameleonSvg(opts: ChameleonSvgOptions): {
     svg('clipPath', { id: clipId },
       svg('circle', { cx: 130, cy: 100, r: 90 })),
     hasBrushLayer && maskStrokesEl
-      ? svg('mask', { id: maskId },
+      ? svg('mask', { id: maskId, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: 260, height: 200 },
           svg('rect', { x: 0, y: 0, width: 260, height: 200, fill: '#000000' }),
           maskStrokesEl)
       : null,

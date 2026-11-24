@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PAINT_ZONES } from '../games/colors/chameleonSvg';
 import { colorsPage } from '../games/colors/colors';
 import { compassPage } from '../games/compass/compass';
 import { detectivePage } from '../games/detective/detective';
@@ -181,6 +182,19 @@ describe('pages smoke & Spanish UI rendering', () => {
       vi.advanceTimersByTime(500);
       const voiceBubble = document.querySelector<HTMLElement>('.voice-bubble');
       expect(voiceBubble?.hidden).toBe(false);
+
+      // Compass Island clue shows inline audio cue and speaks English on 450ms hover
+      stopSpeech();
+      resetSpeechSession();
+      const compRoot = document.createElement('main');
+      document.body.append(compRoot);
+      const cleanupComp = compassPage({ root: compRoot, refresh: () => {} });
+      const compassClue = compRoot.querySelector<HTMLElement>('.clue-btn--with-audio')!;
+      expect(compassClue.querySelector('.bubble__audio')?.textContent).toBe('🔊');
+      compassClue.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+      vi.advanceTimersByTime(460);
+      expect(document.querySelector<HTMLElement>('.voice-bubble')?.hidden).toBe(false);
+      if (typeof cleanupComp === 'function') cleanupComp();
     } finally {
       vi.useRealTimers();
     }
@@ -202,22 +216,105 @@ describe('pages smoke & Spanish UI rendering', () => {
     const canvas = root.querySelector<HTMLElement>('[data-focus="chameleon-canvas"]')!;
     canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     expect(root.querySelector('[data-live="message"]')?.textContent?.length).toBeGreaterThan(5);
+
+    const resetOrAdvance = () => {
+      const nextBtn = root.querySelector<HTMLButtonElement>('[data-focus="next-chameleon"]');
+      if (nextBtn) {
+        nextBtn.click();
+        return;
+      }
+      const emptyBtn = root.querySelector<HTMLButtonElement>('[data-focus="empty"]');
+      if (emptyBtn && !emptyBtn.disabled) emptyBtn.click();
+    };
+
+    // Clear bowl or advance to next chameleon, then verify touch tap-jitter still paints cleanly
+    resetOrAdvance();
+    root.querySelector<HTMLButtonElement>('[data-focus="pot-blue"]')!.click();
+    const paintCanvas = root.querySelector<HTMLElement>('[data-focus="chameleon-canvas"]')!;
+    const paintSvg = paintCanvas.querySelector<SVGSVGElement>('.chameleon-svg')!;
+    vi.spyOn(paintSvg, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 260, bottom: 200, width: 260, height: 200, x: 0, y: 0, toJSON: () => ({}),
+    });
+    const ptr = (type: string, x: number, y: number, pointerType = 'mouse', pointerId = 1) =>
+      Object.assign(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }), {
+        pointerType,
+        pointerId,
+      });
+
+    // Touch tap with slight sub-7px jitter keeps floating brush hidden and tap-paints on pointerup
+    paintCanvas.dispatchEvent(ptr('pointerdown', 130, 100, 'touch', 2));
+    expect(paintSvg.querySelector('[data-role="brush-cursor"]')?.getAttribute('opacity')).toBe('0');
+    for (let i = 0; i < 4; i++) {
+      paintCanvas.dispatchEvent(ptr('pointermove', 133, 102, 'touch', 2));
+    }
+    paintCanvas.dispatchEvent(ptr('pointerup', 133, 102, 'touch', 2));
+    expect(root.querySelector('[data-live="message"]')?.textContent).toContain('azul');
+
+    // Dragging brush across zones appends SVG mask strokes and paints on completion
+    resetOrAdvance();
+    root.querySelector<HTMLButtonElement>('[data-focus="pot-yellow"]')!.click();
+    const dragCanvas = root.querySelector<HTMLElement>('[data-focus="chameleon-canvas"]')!;
+    const dragSvg = dragCanvas.querySelector<SVGSVGElement>('.chameleon-svg')!;
+    vi.spyOn(dragSvg, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 260, bottom: 200, width: 260, height: 200, x: 0, y: 0, toJSON: () => ({}),
+    });
+    dragCanvas.dispatchEvent(ptr('pointerdown', PAINT_ZONES[0].x, PAINT_ZONES[0].y));
+    expect(dragSvg.querySelector('[data-role="brush-cursor"]')?.getAttribute('opacity')).toBe('1');
+    expect(dragSvg.querySelector('.chameleon-mask-strokes')?.children.length).toBeGreaterThanOrEqual(1);
+    for (const pt of PAINT_ZONES.slice(1)) {
+      dragCanvas.dispatchEvent(ptr('pointermove', pt.x, pt.y));
+    }
+    dragCanvas.dispatchEvent(ptr('pointerup', PAINT_ZONES[PAINT_ZONES.length - 1].x, PAINT_ZONES[PAINT_ZONES.length - 1].y));
+    expect(root.querySelector('[data-live="message"]')?.textContent).toContain('amarillo');
   });
 
-  it('renders draggable SVG clock hands without the old button grid in Train Station', () => {
+  it('renders draggable SVG clock hands without the old button grid and handles aligned hands at 12:00/6:00', () => {
     const root = document.createElement('main');
     document.body.append(root);
     stationPage({ root, refresh: () => {} });
 
     expect(root.querySelector('.clock-controls')).toBeNull();
-    expect(root.querySelector('.clock-knob--hour')).not.toBeNull();
-    expect(root.querySelector('.clock-knob--minute')).not.toBeNull();
+    const hourKnob = root.querySelector<SVGCircleElement>('.clock-knob--hour')!;
+    const minKnob = root.querySelector<SVGCircleElement>('.clock-knob--minute')!;
+    expect(hourKnob).not.toBeNull();
+    expect(minKnob).not.toBeNull();
+
+    // Hour hand group renders after minute hand group so hour knob is never obscured when aligned at 12:00/6:00
+    const handGroups = Array.from(root.querySelectorAll('.clock-hand-group')).map((el) => el.getAttribute('data-hand'));
+    expect(handGroups).toEqual(['minute', 'hour']);
+
+    const clockSvg = root.querySelector<SVGSVGElement>('.clock-svg')!;
+    vi.spyOn(clockSvg, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 240, bottom: 240, width: 240, height: 240, x: 0, y: 0, toJSON: () => ({}),
+    });
+    const ptr = (type: string, x: number, y: number, pointerId = 1) =>
+      Object.assign(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }), {
+        pointerType: 'mouse',
+        pointerId,
+      });
+
+    // Grab the aligned red hour knob directly and drag to 3 o'clock (right side: 200, 120)
+    const hx = Number(hourKnob.getAttribute('cx'));
+    const hy = Number(hourKnob.getAttribute('cy'));
+    hourKnob.dispatchEvent(ptr('pointerdown', hx, hy));
+    clockSvg.dispatchEvent(ptr('pointermove', 200, 120));
+    clockSvg.dispatchEvent(ptr('pointerup', 200, 120));
+    expect(root.querySelector<HTMLElement>('[data-focus="station-clock"]')?.getAttribute('aria-label')).toContain('3:00');
+
+    // Grab the yellow minute knob and drag to 15 minutes (right side: 200, 120)
+    const mx = Number(minKnob.getAttribute('cx'));
+    const my = Number(minKnob.getAttribute('cy'));
+    minKnob.dispatchEvent(ptr('pointerdown', mx, my));
+    clockSvg.dispatchEvent(ptr('pointermove', 200, 120));
+    clockSvg.dispatchEvent(ptr('pointerup', 200, 120));
+    expect(root.querySelector<HTMLElement>('[data-focus="station-clock"]')?.getAttribute('aria-label')).toContain('3:15');
 
     const clockWrap = root.querySelector<HTMLElement>('[data-focus="station-clock"]')!;
     const before = clockWrap.getAttribute('aria-label');
     clockWrap.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
     const after = root.querySelector<HTMLElement>('[data-focus="station-clock"]')?.getAttribute('aria-label');
     expect(after).not.toBe(before);
+    expect(after).toContain('3:20');
   });
 
   it('erases both saved progress and play-break state on the landing page', () => {

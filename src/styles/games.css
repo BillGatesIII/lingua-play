@@ -272,7 +272,7 @@
 @media (pointer: fine) {
   .chameleon-canvas--ready { cursor: none; }
 }
-.chameleon-svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 6px 0 rgb(31 27 61 / 0.2)); }
+.chameleon-svg { width: 100%; height: auto; display: block; overflow: visible; filter: drop-shadow(0 6px 0 rgb(31 27 61 / 0.2)); }
 .chameleon-canvas--happy .chameleon-svg { animation: pop 300ms var(--ease-pop); }
 .chameleon-invite-ring { animation: invite-pulse 1.8s ease-in-out infinite; }
 @keyframes invite-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.9; } }
@@ -371,11 +371,12 @@
 .number-choice { min-width: 5.5rem; min-height: 4rem; font-size: var(--text-lg); }
 
 /* Interactive English speech triggers */
-.chameleon--btn, .clock-btn, .ticket-card--btn, .jug-readout--btn, .compass-rose-btn, .clue-btn {
+.ticket-card--btn, .jug-readout--btn, .compass-rose-btn, .clue-btn {
   cursor: pointer; font-family: inherit; color: inherit;
 }
-.clock-btn, .compass-rose-btn, .clue-btn { background: none; border: 0; padding: 0; text-align: left; }
+.compass-rose-btn, .clue-btn { background: none; border: 0; padding: 0; text-align: left; }
 .clue-btn { font-weight: inherit; font-size: inherit; line-height: inherit; border-radius: var(--radius-sm); padding: 2px var(--space-1); }
+.clue.clue-btn { font-size: var(--text-lg); font-weight: 800; }
 .clue-btn--with-audio { display: inline-flex; align-items: flex-start; gap: var(--space-2); }
 .clue-btn:hover { background: rgb(255 255 255 / 0.65); }
 .suspect-card__trait-btn { background: none; border: 0; padding: 1px 4px; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-sm); }

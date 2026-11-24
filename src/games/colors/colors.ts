@@ -284,8 +284,13 @@ export const colorsPage: Page = (ctx) => {
       }
     };
 
+    canvas.addEventListener('pointerenter', (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') moveBrushCursor(toSvgPoint(svgEl, e.clientX, e.clientY));
+    });
+
     canvas.addEventListener('pointerdown', (e: PointerEvent) => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
+      if (painting) return;
       e.preventDefault();
       cancelPendingHover();
       painting = true;
@@ -299,19 +304,20 @@ export const colorsPage: Page = (ctx) => {
       }
       const pt = toSvgPoint(svgEl, e.clientX, e.clientY);
       lastPt = pt;
-      moveBrushCursor(pt);
+      moveBrushCursor(e.pointerType === 'touch' ? null : pt);
       playSfx('pop');
       addDab(pt);
     });
 
     canvas.addEventListener('pointermove', (e: PointerEvent) => {
+      if (painting && activePointerId !== null && e.pointerId !== activePointerId) return;
       const pt = toSvgPoint(svgEl, e.clientX, e.clientY);
       if (e.pointerType !== 'touch') moveBrushCursor(pt);
       if (!painting || completedThisStroke) return;
       if (lastPt) {
         const stepDist = Math.hypot(pt.x - lastPt.x, pt.y - lastPt.y);
-        movedDist += stepDist;
         if (stepDist < 7) return;
+        movedDist += stepDist;
         const steps = Math.max(1, Math.ceil(stepDist / 14));
         for (let s = 1; s <= steps; s++) {
           const t = s / steps;
@@ -329,14 +335,14 @@ export const colorsPage: Page = (ctx) => {
     });
 
     const finishStroke = (e: PointerEvent, cancelled = false) => {
-      if (activePointerId !== null && e.pointerId === activePointerId) {
-        try {
-          if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-        } catch {
-          /* ignore */
-        }
-        activePointerId = null;
+      if (activePointerId !== null && e.pointerId !== activePointerId) return;
+      try {
+        if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
       }
+      activePointerId = null;
+      if (e.pointerType === 'touch') moveBrushCursor(null);
       if (!painting) return;
       painting = false;
       if (cancelled || completedThisStroke) return;
@@ -387,11 +393,12 @@ export const colorsPage: Page = (ctx) => {
     );
 
     const bowlNames = bowl.map((p) => COLORS[p].name.es).join(' + ') || 'vacío';
+    const countLabel = bowl.length > needed ? `${bowl.length} colores` : `${bowl.length} de ${needed} colores`;
     const resultLabel = m ? ` = ${COLORS[m].name.es}` : '';
     return h('div', {
       class: 'mix-recipe',
       role: 'img',
-      'aria-label': `Mezcla (${bowl.length} de ${needed} colores): ${bowlNames}${resultLabel}`,
+      'aria-label': `Mezcla (${countLabel}): ${bowlNames}${resultLabel}`,
     }, ...parts);
   }
 

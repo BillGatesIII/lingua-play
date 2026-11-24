@@ -242,6 +242,7 @@ function speakUtterance(spoken: string, mode: SpeakMode, topic: string, withBubb
   }
   const id = ++currentUtteranceId;
   activePriorityUtteranceId = mode === 'hover' ? null : id;
+  if (!withBubble) hideBubble();
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(spoken);
@@ -343,7 +344,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
     : decideSpeech({ role, mode, topic, now });
 
   const shouldShowBubble = wantBubble && decision.showBubble;
-  const shouldSpeak = decision.speakAudio;
+  const shouldSpeak = decision.speakAudio && loadProgress().settings.sound;
   if (!shouldShowBubble && !shouldSpeak) return;
 
   lastSpokenText = spoken;
@@ -386,6 +387,7 @@ export function addHoverVoice<T extends HTMLElement>(
     cancelPendingHover();
     pendingHoverTimer = window.setTimeout(() => {
       pendingHoverTimer = null;
+      if (!el.isConnected || ('disabled' in el && Boolean(el.disabled))) return;
       const text = typeof textOrFn === 'function' ? textOrFn() : textOrFn;
       if (text) {
         speakEnglish(text, {

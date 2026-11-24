@@ -196,8 +196,8 @@ export const stationPage: Page = (ctx) => {
     },
     svg('circle', { cx, cy, r: 112, fill: '#fffaf0', stroke: '#1f1b3d', 'stroke-width': 6.5 }),
     ...marks,
-    hourGroup,
     minGroup,
+    hourGroup,
     svg('circle', { cx, cy, r: 8.5, fill: '#ffd23f', stroke: '#1f1b3d', 'stroke-width': 3 }),
     );
 
@@ -235,7 +235,14 @@ export const stationPage: Page = (ctx) => {
       'data-focus': 'station-clock',
       'aria-label': clockAria(),
       onkeydown: (e: KeyboardEvent) => {
-        if (solved || closed) return;
+        if (closed) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          playSfx('tick');
+          speakEnglish(timeText(clock, 'en'), { anchor: wrapper, mode: 'click' });
+          return;
+        }
+        if (solved) return;
         if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
           e.preventDefault();
           adjustByDelta(e.shiftKey ? 60 : 5, wrapper);
@@ -248,10 +255,6 @@ export const stationPage: Page = (ctx) => {
         } else if (e.key === 'PageDown') {
           e.preventDefault();
           adjustByDelta(-60, wrapper);
-        } else if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          playSfx('tick');
-          speakEnglish(timeText(clock, 'en'), { anchor: wrapper, mode: 'click' });
         }
       },
     }, clockSvg);
@@ -276,15 +279,17 @@ export const stationPage: Page = (ctx) => {
     };
 
     const pickHand = (e: PointerEvent, pt: { x: number; y: number }): HandKind => {
-      const targetEl = e.target as Element | null;
-      const direct = targetEl?.closest?.('[data-hand]')?.getAttribute('data-hand');
-      if (direct === 'hour' || direct === 'minute') return direct;
       const hTipX = Number(hourKnob.getAttribute('cx'));
       const hTipY = Number(hourKnob.getAttribute('cy'));
       const mTipX = Number(minKnob.getAttribute('cx'));
       const mTipY = Number(minKnob.getAttribute('cy'));
       const distHour = Math.hypot(pt.x - hTipX, pt.y - hTipY);
       const distMin = Math.hypot(pt.x - mTipX, pt.y - mTipY);
+      if (distHour <= 16 && distHour <= distMin) return 'hour';
+      if (distMin <= 16 && distMin < distHour) return 'minute';
+      const targetEl = e.target as Element | null;
+      const direct = targetEl?.closest?.('[data-hand]')?.getAttribute('data-hand');
+      if (direct === 'hour' || direct === 'minute') return direct;
       return distHour < distMin ? 'hour' : 'minute';
     };
 
@@ -311,6 +316,7 @@ export const stationPage: Page = (ctx) => {
         speakEnglish(timeText(clock, 'en'), { anchor: wrapper, mode: 'click' });
         return;
       }
+      if (dragging) return;
       e.preventDefault();
       cancelPendingHover();
       const pt = pointerToSvg(e);
@@ -355,8 +361,9 @@ export const stationPage: Page = (ctx) => {
           topic: `station-${clock.hour}-${clock.minute}`,
           coalesceKey: 'station-clock',
         });
-        message = null;
-        draw('station-clock');
+        if (message !== null) {
+          say(null, host.contains(document.activeElement) ? 'station-clock' : undefined);
+        }
       } else {
         playSfx('tick');
         speakEnglish(timeText(clock, 'en'), { anchor: wrapper, mode: 'click' });
