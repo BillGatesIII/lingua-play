@@ -40,18 +40,6 @@ export function GameHeader(o: GameHeaderOptions): HTMLElement {
     }));
 }
 
-export function ListenButton(englishText: string, anchorFn?: () => HTMLElement | null): HTMLElement {
-  return Button('🔊 Escuchar en inglés', {
-    variant: 'ghost',
-    focusKey: 'listen-en',
-    voiceHover: 'Listen in English',
-    onClick: (e) => {
-      playSfx('pop');
-      speakEnglish(englishText, { anchor: anchorFn?.() ?? (e.currentTarget as HTMLElement), mode: 'click' });
-    },
-  });
-}
-
 export interface CharacterBubbleOptions {
   emoji: string;
   name: string;
@@ -83,7 +71,7 @@ export function CharacterBubble(o: CharacterBubbleOptions): HTMLElement {
         class: o.englishText ? 'bubble bubble--interactive' : 'bubble',
         role: o.englishText ? 'button' : undefined,
         tabindex: o.englishText ? 0 : undefined,
-        'aria-label': o.englishText ? `${o.text} (toca para escuchar en inglés)` : undefined,
+        'aria-label': o.englishText ? `${o.text} (escuchar en inglés)` : undefined,
         onclick: o.englishText
           ? (e: MouseEvent) => {
               playSfx('pop');
@@ -100,16 +88,20 @@ export function CharacterBubble(o: CharacterBubbleOptions): HTMLElement {
             }
           : undefined,
       },
-      h('p', { class: 'bubble__main', lang: 'es' }, o.text))
+      h('p', { class: 'bubble__main', lang: 'es' }, o.text),
+      o.englishText ? h('span', { class: 'bubble__audio', 'aria-hidden': 'true' }, '🔊') : null)
     : null;
+
+  if (bubble && o.englishText) {
+    addHoverVoice(bubble, o.englishText, { delayMs: 450, role: 'vocab' });
+  }
 
   return h('div', { class: 'customer' },
     face,
     h('div', { class: 'customer__body' },
       h('p', { class: 'customer__name' }, o.name),
       bubble,
-      o.extra ?? null),
-    o.englishText ? ListenButton(o.englishText, () => bubble ?? face) : null);
+      o.extra ?? null));
 }
 
 export function StatusBanner(message: string | null, alwaysOn = false): HTMLElement {

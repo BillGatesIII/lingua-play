@@ -11,7 +11,7 @@ import { append, h } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
 import { CharacterBubble, EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
-  CASES_PER_ROUND, HATS, MYSTERIES, SNACKS, caseBriefing, generateCase, predicateText,
+  CASES_PER_ROUND, HATS, MYSTERIES, SNACKS, generateCase, predicateText,
   wrongAccusationAlibi, type CaseFile, type Suspect,
 } from './logic';
 
@@ -205,8 +205,8 @@ export const detectivePage: Page = (ctx) => {
           mood: solved ? current.mystery.emoji : '🔎',
           name: 'Inspector Loro',
           englishName: 'Inspector Parrot',
-          text: caseBriefing(current, 'es'),
-          englishText: caseBriefing(current, 'en'),
+          text: current.mystery.prompt.es,
+          englishText: current.mystery.prompt.en,
         }),
         h('div', { class: 'detective-work' },
           Panel('📋 Pistas del caso', [

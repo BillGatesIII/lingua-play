@@ -62,6 +62,8 @@ export interface SpeakButtonOptions {
   sfx?: SfxKind;
   hover?: boolean;
   hoverText?: string;
+  hoverDelayMs?: number;
+  showBubble?: boolean;
   topic?: string;
 }
 
@@ -85,5 +87,10 @@ export function SpeakButton(content: Child | Child[], o: SpeakButtonOptions): HT
     ...kids,
   );
   if (o.hover === false) return btn;
-  return addHoverVoice(btn, o.hoverText ?? (typeof o.english === 'string' ? o.english : getText), { role: 'vocab', topic: o.topic });
+  return addHoverVoice(btn, o.hoverText ?? (typeof o.english === 'string' ? o.english : getText), {
+    role: 'vocab',
+    topic: o.topic,
+    delayMs: o.hoverDelayMs,
+    showBubble: o.showBubble,
+  });
 }

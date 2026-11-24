@@ -71,6 +71,45 @@ export function stepClock(t: ClockTime, deltaMinutes: number): ClockTime {
 export const sameTime = (a: ClockTime, b: ClockTime): boolean =>
   a.hour === b.hour && a.minute === b.minute;
 
+/**
+ * Picks the initial clock time for a challenge:
+ * - For math/offset challenges (delay, duration, early), starts at the train's base time.
+ * - For direct time-reading challenges, starts at 12:00 (or 6:00 if target is 12:00).
+ */
+export function pickStartClock(c: TrainChallenge): ClockTime {
+  if (c.deltaMinutes !== 0) return { ...c.base };
+  const start = { hour: 12, minute: 0 };
+  return sameTime(start, c.target) ? { hour: 6, minute: 0 } : start;
+}
+
+/** Converts a vector from the clock centre into clockwise degrees from 12 o'clock (0..360). */
+export function pointerToClockAngle(dx: number, dy: number): number {
+  return ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
+}
+
+/** Snaps a clockwise clock angle (0..360) to the nearest 5-minute mark (0..55). */
+export function angleToMinute(angleDeg: number): number {
+  const norm = ((angleDeg % 360) + 360) % 360;
+  return ((Math.round(norm / 30) * 5) % 60 + 60) % 60;
+}
+
+/** Updates clock by dragging the minute hand, automatically crossing 12 forward/backward. */
+export function dragMinuteHand(clock: ClockTime, angleDeg: number): ClockTime {
+  const snapped = angleToMinute(angleDeg);
+  let delta = snapped - clock.minute;
+  if (delta > 30) delta -= 60;
+  if (delta < -30) delta += 60;
+  return stepClock(clock, delta);
+}
+
+/** Updates clock by dragging the hour hand while preserving the current minute setting. */
+export function dragHourHand(clock: ClockTime, angleDeg: number): ClockTime {
+  const norm = ((angleDeg % 360) + 360) % 360;
+  const raw = Math.round(norm / 30 - clock.minute / 60);
+  const hour = (((raw % 12) + 12) % 12) || 12;
+  return { hour, minute: clock.minute };
+}
+
 const ES_HOURS = ['', 'una', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce'];
 const EN_HOURS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const MIN_WORDS_ES: Record<number, string> = {

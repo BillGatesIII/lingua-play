@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
-  DESTINATIONS, TRAVELLERS, checkClock, generateTrain, sameTime, stepClock, timeText, toDestinationEs,
-  trainSpeech,
+  DESTINATIONS, TRAVELLERS, angleToMinute, checkClock, dragHourHand, dragMinuteHand, generateTrain,
+  pickStartClock, pointerToClockAngle, sameTime, stepClock, timeText, toDestinationEs, trainSpeech,
 } from './logic';
 
 describe('station logic', () => {
@@ -72,5 +72,45 @@ describe('station logic', () => {
         }
       }
     }
+  });
+
+  it('starts math challenges at the train base time and direct challenges at 12:00 or 6:00', () => {
+    const dest = DESTINATIONS[0];
+    expect(pickStartClock({
+      destination: dest, base: { hour: 3, minute: 15 }, deltaMinutes: 20, target: { hour: 3, minute: 35 }, kind: 'delay',
+    })).toEqual({ hour: 3, minute: 15 });
+    expect(pickStartClock({
+      destination: dest, base: { hour: 5, minute: 0 }, deltaMinutes: -15, target: { hour: 4, minute: 45 }, kind: 'early',
+    })).toEqual({ hour: 5, minute: 0 });
+    expect(pickStartClock({
+      destination: dest, base: { hour: 3, minute: 0 }, deltaMinutes: 0, target: { hour: 3, minute: 0 }, kind: 'direct',
+    })).toEqual({ hour: 12, minute: 0 });
+    expect(pickStartClock({
+      destination: dest, base: { hour: 12, minute: 0 }, deltaMinutes: 0, target: { hour: 12, minute: 0 }, kind: 'direct',
+    })).toEqual({ hour: 6, minute: 0 });
+  });
+
+  it('converts pointer angles and drags minute/hour hands accurately across 12 o clock', () => {
+    expect(pointerToClockAngle(0, -10)).toBeCloseTo(0);
+    expect(pointerToClockAngle(10, 0)).toBeCloseTo(90);
+    expect(pointerToClockAngle(0, 10)).toBeCloseTo(180);
+    expect(pointerToClockAngle(-10, 0)).toBeCloseTo(270);
+
+    expect(angleToMinute(0)).toBe(0);
+    expect(angleToMinute(90)).toBe(15);
+    expect(angleToMinute(180)).toBe(30);
+    expect(angleToMinute(358)).toBe(0);
+
+    // Crossing 12 forward increments the hour
+    expect(dragMinuteHand({ hour: 12, minute: 55 }, 0)).toEqual({ hour: 1, minute: 0 });
+    // Crossing 12 backward decrements the hour
+    expect(dragMinuteHand({ hour: 1, minute: 0 }, 330)).toEqual({ hour: 12, minute: 55 });
+    // Normal forward drag within the same hour
+    expect(dragMinuteHand({ hour: 3, minute: 10 }, 150)).toEqual({ hour: 3, minute: 25 });
+
+    // Dragging hour hand preserves minutes and tracks the hour angle
+    expect(dragHourHand({ hour: 12, minute: 0 }, 90)).toEqual({ hour: 3, minute: 0 });
+    expect(dragHourHand({ hour: 3, minute: 30 }, 135)).toEqual({ hour: 4, minute: 30 });
+    expect(dragHourHand({ hour: 4, minute: 0 }, 0)).toEqual({ hour: 12, minute: 0 });
   });
 });

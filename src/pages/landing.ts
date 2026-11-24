@@ -259,12 +259,10 @@ export const landingPage: Page = (ctx) => {
             large: true,
             variant: g.btnVariant,
             ariaLabel: `${g.title}: Jugar`,
-            voiceHover: `Play ${g.title}`,
-            voiceRole: 'chrome',
             onClick: () => playSfx('pop'),
           }),
         ], g.tone, 'game-card');
-        return addHoverVoice(card, g.title, { delayMs: 280, role: 'vocab' });
+        return addHoverVoice(card, g.title, { delayMs: 280, role: 'vocab', showBubble: false });
       });
 
       const totalCollected = SHELVES.reduce((sum, cfg) => sum + cfg.items(progress).length, 0);
