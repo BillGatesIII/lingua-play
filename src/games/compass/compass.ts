@@ -9,7 +9,7 @@ import type { Page } from '../../pages/types';
 import { Button, Panel, SpeakButton } from '../../ui/components';
 import { append, h, svg } from '../../ui/dom';
 import { renderKeepingFocus } from '../../ui/focus';
-import { EndCard, GameHeader, ListenButton, StatusBanner } from '../../ui/gameShell';
+import { EndCard, GameHeader, StatusBanner } from '../../ui/gameShell';
 import {
   DIRS, DIR_NAMES, JUNK, TEMPERATURE_TEXT, TREASURES, VECTORS, VOYAGE_LENGTH, clueText, distance,
   generateLevel, step, temperature, temperatureTrend, type Dir, type Level, type Pos,
@@ -310,12 +310,15 @@ export const compassPage: Page = (ctx) => {
 
       const spanishClue = clueText(level.clue, 'es');
       const englishClue = clueText(level.clue, 'en');
-      const clueEl = SpeakButton(spanishClue, {
+      const clueEl = SpeakButton([
+        h('span', { class: 'clue-btn__text' }, spanishClue),
+        h('span', { class: 'bubble__audio', 'aria-hidden': 'true' }, '🔊'),
+      ], {
         english: englishClue,
-        className: 'clue clue-btn',
+        className: 'clue clue-btn clue-btn--with-audio',
         lang: 'es',
-        ariaLabel: `${spanishClue} (toca para escuchar en inglés)`,
-        hover: false,
+        ariaLabel: `${spanishClue} (escuchar en inglés)`,
+        hoverDelayMs: 450,
       });
 
       const totalWind = level.budget + bonusWind;
@@ -335,7 +338,6 @@ export const compassPage: Page = (ctx) => {
           h('div', {},
             Panel('📜 Pista del mapa', [
               clueEl,
-              ListenButton(englishClue, () => clueEl),
             ]),
             Panel('⛵ Navegar', [
               h('p', { class: 'action-cue' },

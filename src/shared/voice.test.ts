@@ -132,6 +132,39 @@ describe('voice & speech bubble', () => {
     expect(bubble?.textContent).toContain('apple');
   });
 
+  it('supports audio-only hover voice with showBubble: false without showing a popup bubble', () => {
+    const speak = vi.fn();
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: { speak, cancel: vi.fn(), getVoices: () => [] },
+    });
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: SpeechSynthesisVoice | null = null;
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) {
+        this.text = t;
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+
+    const card = document.createElement('div');
+    document.body.append(card);
+    addHoverVoice(card, 'Market Quest', { delayMs: 120, role: 'vocab', showBubble: false });
+
+    card.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+    vi.advanceTimersByTime(150);
+
+    expect(speak).toHaveBeenCalledTimes(1);
+    expect((speak.mock.calls[0][0] as MockUtterance).text).toBe('Market Quest');
+    expect(document.querySelector('.voice-bubble')).toBeNull();
+  });
+
   it('safely handles playSfx when AudioContext is unavailable or muted', () => {
     expect(() => playSfx('surprise')).not.toThrow();
     updateProgress((p) => { p.settings.sound = false; });

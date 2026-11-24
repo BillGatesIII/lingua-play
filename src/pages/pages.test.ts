@@ -8,7 +8,9 @@ import { recipePage } from '../games/recipe/recipe';
 import { stationPage } from '../games/station/station';
 import { wordsPage } from '../games/words/words';
 import { completeGameRound, loadBreakState, resetBreakState, startPlayBreak } from '../shared/playBreak';
+import { resetSpeechSession } from '../shared/speechDirector';
 import { clearProgress, loadProgress, updateProgress } from '../shared/storage';
+import { stopSpeech } from '../shared/voice';
 import { Button, SpeakButton } from '../ui/components';
 import { landingPage } from './landing';
 import type { Page } from './types';
@@ -17,6 +19,8 @@ describe('pages smoke & Spanish UI rendering', () => {
   beforeEach(() => {
     localStorage.clear();
     clearProgress();
+    stopSpeech();
+    resetSpeechSession();
     document.body.innerHTML = '';
   });
 
@@ -92,11 +96,7 @@ describe('pages smoke & Spanish UI rendering', () => {
     expect(picEnter.defaultPrevented).toBe(false);
     expect(messageText()).toBe('');
 
-    const listenBtn = root.querySelector<HTMLButtonElement>('[data-focus="listen-en"]')!;
-    const listenEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
-    listenBtn.dispatchEvent(listenEnter);
-    expect(listenEnter.defaultPrevented).toBe(false);
-    expect(messageText()).toBe('');
+    expect(root.querySelector('[data-focus="listen-en"]')).toBeNull();
 
     const bubble = root.querySelector<HTMLElement>('.bubble--interactive')!;
     const bubbleEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
@@ -110,6 +110,114 @@ describe('pages smoke & Spanish UI rendering', () => {
     expect(messageText().length).toBeGreaterThan(0);
 
     if (typeof cleanup === 'function') cleanup();
+  });
+
+  it('does not show popup bubbles on landing game cards or Jugar buttons, while speaking game titles', () => {
+    vi.useFakeTimers();
+    const speak = vi.fn();
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: { speak, cancel: vi.fn(), getVoices: () => [] },
+    });
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: SpeechSynthesisVoice | null = null;
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) {
+        this.text = t;
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+    try {
+      const root = document.createElement('main');
+      document.body.append(root);
+      const cleanup = landingPage({ root, refresh: () => {} });
+
+      const firstCard = root.querySelector<HTMLElement>('.game-card')!;
+      firstCard.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+      vi.advanceTimersByTime(320);
+      expect(speak).toHaveBeenCalledTimes(1);
+      expect((speak.mock.calls[0][0] as MockUtterance).text).toBe('Market Quest');
+      expect(document.querySelector('.voice-bubble')).toBeNull();
+
+      const playLink = firstCard.querySelector<HTMLAnchorElement>('a.btn')!;
+      playLink.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+      vi.advanceTimersByTime(400);
+      expect(document.querySelector('.voice-bubble')).toBeNull();
+
+      if (typeof cleanup === 'function') cleanup();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows no standalone Escuchar en inglés button and triggers English voice on bubble hover', () => {
+    vi.useFakeTimers();
+    try {
+      for (const page of [marketPage, compassPage, colorsPage, recipePage, stationPage, detectivePage, wordsPage, gardenPage]) {
+        const root = document.createElement('main');
+        document.body.append(root);
+        const cleanup = page({ root, refresh: () => {} });
+        expect(root.querySelector('[data-focus="listen-en"]')).toBeNull();
+        expect(root.textContent).not.toContain('Escuchar en inglés');
+        if (typeof cleanup === 'function') cleanup();
+        root.remove();
+      }
+
+      const detRoot = document.createElement('main');
+      document.body.append(detRoot);
+      detectivePage({ root: detRoot, refresh: () => {} });
+      const topBubble = detRoot.querySelector<HTMLElement>('.bubble--interactive')!;
+      expect(topBubble.textContent).not.toContain('Pistas:');
+      expect(detRoot.querySelectorAll('.clue-list .clue-btn').length).toBeGreaterThanOrEqual(2);
+
+      topBubble.dispatchEvent(new MouseEvent('pointerenter', { bubbles: false }));
+      vi.advanceTimersByTime(500);
+      const voiceBubble = document.querySelector<HTMLElement>('.voice-bubble');
+      expect(voiceBubble?.hidden).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('renders interactive SVG chameleon with mixing slots and brush painting in Color Chameleon', () => {
+    const root = document.createElement('main');
+    document.body.append(root);
+    colorsPage({ root, refresh: () => {} });
+
+    expect(root.querySelector('.chameleon-svg')).not.toBeNull();
+    expect(root.querySelector('.mix-recipe')).not.toBeNull();
+    const firstPot = root.querySelector<HTMLButtonElement>('[data-focus="pot-red"]')!;
+    firstPot.click();
+    expect(root.querySelector('.chameleon-canvas--ready')).not.toBeNull();
+    expect(root.querySelector('.mix-result--ready')).not.toBeNull();
+
+    // Pressing Enter on the canvas applies the mixed paint to the chameleon
+    const canvas = root.querySelector<HTMLElement>('[data-focus="chameleon-canvas"]')!;
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(root.querySelector('[data-live="message"]')?.textContent?.length).toBeGreaterThan(5);
+  });
+
+  it('renders draggable SVG clock hands without the old button grid in Train Station', () => {
+    const root = document.createElement('main');
+    document.body.append(root);
+    stationPage({ root, refresh: () => {} });
+
+    expect(root.querySelector('.clock-controls')).toBeNull();
+    expect(root.querySelector('.clock-knob--hour')).not.toBeNull();
+    expect(root.querySelector('.clock-knob--minute')).not.toBeNull();
+
+    const clockWrap = root.querySelector<HTMLElement>('[data-focus="station-clock"]')!;
+    const before = clockWrap.getAttribute('aria-label');
+    clockWrap.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    const after = root.querySelector<HTMLElement>('[data-focus="station-clock"]')?.getAttribute('aria-label');
+    expect(after).not.toBe(before);
   });
 
   it('erases both saved progress and play-break state on the landing page', () => {

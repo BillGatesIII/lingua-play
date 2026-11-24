@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../shared/rng';
 import {
+  PAINT_ZONES, ZONES_TO_COMPLETE, buildChameleonSvg, coveredPaintZones, isDarkChameleonColor,
+} from './chameleonSvg';
+import {
   ALL_TARGETS, COLORS, MAX_POTS, POTS, ROUND_LENGTH, clueText, generateRound, mix, mixFeedback, playfulClue,
   recipePotCount, recipePots, togglePot,
 } from './logic';
@@ -70,5 +73,26 @@ describe('colors logic', () => {
     expect(recipePotCount('lavender')).toBe(3);
     expect(recipePots('lavender')).toEqual(['blue', 'red', 'white']);
     expect(recipePots('mud')).toEqual([]);
+  });
+
+  it('tracks SVG brush coverage across chameleon zones and builds SVG layers cleanly', () => {
+    expect(coveredPaintZones([]).size).toBe(0);
+    expect(coveredPaintZones([PAINT_ZONES[0]]).size).toBeGreaterThanOrEqual(1);
+    expect(coveredPaintZones(PAINT_ZONES).size).toBe(PAINT_ZONES.length);
+    expect(ZONES_TO_COMPLETE).toBeLessThanOrEqual(PAINT_ZONES.length);
+    expect(isDarkChameleonColor('black')).toBe(true);
+    expect(isDarkChameleonColor('yellow')).toBe(false);
+
+    const { svgEl, maskStrokesEl, brushCursorEl } = buildChameleonSvg({
+      baseColor: null,
+      baseHex: '#f8f5ee',
+      brushColor: 'orange',
+      brushHex: COLORS.orange.hex,
+      strokes: [PAINT_ZONES[0], PAINT_ZONES[2]],
+      inviting: true,
+    });
+    expect(svgEl.tagName.toLowerCase()).toBe('svg');
+    expect(maskStrokesEl?.children.length).toBe(2);
+    expect(brushCursorEl).not.toBeNull();
   });
 });
